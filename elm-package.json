@@ -1,0 +1,21 @@
+{
+    "version": "1.0.0",
+    "summary": "Graphics library for McMaster University CAS Outreach and COMPSCI 1JC3",
+    "repository": "https://github.com/MacCASOutreach/graphicsvg.git",
+    "license": "BSD3",
+    "source-directories": [
+        "."
+    ],
+    "exposed-modules": [
+        "GraphicSVG"
+    ],
+    "dependencies": {
+        "elm-lang/core": "4.0.1 <= v < 5.0.0",
+        "elm-lang/html": "1.0.0 <= v < 2.0.0",
+        "elm-lang/keyboard": "1.0.0 <= v < 2.0.0",
+        "elm-lang/mouse": "1.0.0 <= v < 2.0.0",
+        "elm-lang/svg": "1.0.0 <= v < 2.0.0",
+        "elm-lang/window": "1.0.0 <= v < 2.0.0"
+    },
+    "elm-version": "0.17.0 <= v < 0.18.0"
+}
