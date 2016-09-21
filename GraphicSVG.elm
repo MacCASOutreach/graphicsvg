@@ -1836,7 +1836,7 @@ outlined style outlineClr shape =
 
     circle 10
         |> filled red
-        |> outlined (solid 5) white
+        |> addOutline (solid 5) white
 -}
 addOutline : LineType -> Color -> Shape notification -> Shape notification
 addOutline style outlineClr shape =
