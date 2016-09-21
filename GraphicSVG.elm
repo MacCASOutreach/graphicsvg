@@ -262,7 +262,7 @@ and to make sure we always use the right number of curve points
 and pull points (which is one more curve point than pull points),
 we define a special Pull type, whose first point is the point
 we pull towards, and second point is the end point for this
-curve segement.
+curve segmentsment.
 -}
 type Pull
     = Pull ( Float, Float ) ( Float, Float )
