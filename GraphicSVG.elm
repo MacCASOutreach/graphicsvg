@@ -1818,7 +1818,7 @@ filled color shape =
     Inked color Nothing shape
 
 
-{-| Outline a Stencil with a Linetype and Color, creating a Shape.
+{-| Outline a Stencil with a LineType and Color, creating a Shape.
 
     circle 10
         |> outlined (solid 5) red
