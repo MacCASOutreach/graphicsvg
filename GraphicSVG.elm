@@ -6,6 +6,8 @@ module GraphicSVG
         , graphicsApp
         , notificationsApp
         , GetKeyState
+        , Keys(..)
+        , KeyState(..)
         , gameApp
         , line
         , polygon
