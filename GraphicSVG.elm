@@ -124,10 +124,10 @@ other applications including keyboard presses and mouse movements.
 # Notifications App
 @docs notificationsApp
 # Game App
-@docs GetKeyState, gameApp
-# Shapes
+@docs GetKeyState, Keys, KeyState, gameApp
+# Stencils
 @docs line, polygon, openPolygon, ngon, triangle, square, rect, rectangle, roundedRect, circle, oval, wedge, graphPaper
-# Filling and Outlining
+# Creating Shapes by Filling and Outlining Stencils
 @docs filled, outlined, addOutline, rgb, rgba, hsl, hsla
 # Grouping Shapes
 @docs group
@@ -269,7 +269,13 @@ curve segmentsment.
 type Pull
     = Pull ( Float, Float ) ( Float, Float )
 
+{-| The possible states when you ask for a key's state.
 
+    JustDown is the frame after the key went down (will show up exactly once per press)
+    Down is a press that is continuing for more than one frame
+    JustUp is the frame after the key went up / stopped being pressed (will show up exactly once per press)
+    Up means the key is not currently being pressed nor was it recently released.
+-}
 type KeyState
     = JustDown
     | Down
@@ -735,7 +741,8 @@ maintainHelper key action =
 
 --Again, this shouldn't happen.
 
-
+{-| Includes all the regular keys. Ask for letters and numbers using "Key String."
+-}
 type Keys
     = Key String
     | Backspace
