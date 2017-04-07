@@ -1,11 +1,12 @@
 {-
-    Orbs - a Physics-based game template written in Elm, using GraphicSVG. 
+    Orbs - a Physics-based game template written in Elm, using GraphicSVG.
     Created by Chris Schankula (GitHub.com/CSchank).
     First released on March 18th, 2017, for use in can{CODE} 2017 Computer Science conference at McMaster University.
 -}
 
 import GraphicSVG exposing(..)
 import List
+import Tuple exposing (first)
 import Dict
 import String
 
@@ -52,9 +53,9 @@ type alias Width = Float
 type alias Height = Float
 
 --game template API code -- change this to add new levels, balls, etc!
-main = 
+main =
     orbsGameApp
-        { 
+        {
           levels = [ exampleLevel1 --levels go in this list
                    , exampleLevel2
                    , exampleLevel3
@@ -66,7 +67,7 @@ main =
         }
 
 -- create custom balls here
-type CustomBallType = Basketball 
+type CustomBallType = Basketball
                     | TennisBall
                     | PurpleBall
 
@@ -82,7 +83,7 @@ staticBarrier (x,y) r bt t = Barrier (x,y) r bt
 growShrinkBarrier (x,y) r1 r2 dt bt t = Barrier (x,y) (r1 + r2 / 2 + r2 / 2 * sin (t * dt)) bt
 
 --new levels must follow this format (browse examples below for more details)
-newLevel = 
+newLevel =
     {
         title = ""
     ,   description = ""
@@ -97,7 +98,7 @@ newLevel =
     }
 
 --some example levels detailing some of the game mechanics.
-exampleLevel1 = 
+exampleLevel1 =
     {
       title = "Starting Out"
     , description = "Welcome to Orbs! Drag on the green launch area to launch the orb into the gray goal."
@@ -105,13 +106,13 @@ exampleLevel1 =
     , winScore = 10
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (150,75)]
-    , balls = [] 
+    , balls = []
     , barriers = []
     , ballQueue = [Ball 30 (CustomBall Basketball)]
     , endAreas = [EndArea (0,150) (50,50) Any]
     }
 
-exampleLevel2 = 
+exampleLevel2 =
     {
       title = "Colour Matters"
     , description = "Non-gray goals must have be touched by the correct colour."
@@ -119,14 +120,14 @@ exampleLevel2 =
     , winScore = 10
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (150,75)]
-    , balls = [] 
+    , balls = []
     , barriers = []
     , ballQueue = [Ball 30 (CustomBall Basketball),Ball 20 RegularBall]
     , endAreas = [EndArea (-100,150) (50,50) (Specific (CustomBall Basketball))
                  ,EndArea (100,150) (50,50) (Specific RegularBall)]
     }
 
-exampleLevel3 = 
+exampleLevel3 =
     {
       title = "Barrier to Success"
     , description = "Outlined circles are barriers that the balls can't get through."
@@ -134,13 +135,13 @@ exampleLevel3 =
     , winScore = 10
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (150,75)]
-    , balls = [] 
+    , balls = []
     , barriers = [staticBarrier (0,0) 50 RegularBarrier]
     , ballQueue = [Ball 30 (CustomBall Basketball)]
     , endAreas = [EndArea (0,150) (50,50) (Specific (CustomBall Basketball))]
     }
 
-exampleLevel4 = 
+exampleLevel4 =
     {
       title = "Collision Course"
     , description = "Balls can be collided into others to change their courses."
@@ -148,13 +149,13 @@ exampleLevel4 =
     , winScore = 10
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (150,75)]
-    , balls = [Ball 30 RegularBall (0,0) (100,0)] 
+    , balls = [Ball 30 RegularBall (0,0) (100,0)]
     , barriers = []
     , ballQueue = [Ball 20 (CustomBall Basketball)]
     , endAreas = [EndArea (0,150) (50,50) (Specific RegularBall),EndArea (150,-120) (50,50) (Specific (CustomBall Basketball))]
     }
 
-exampleLevel5 = 
+exampleLevel5 =
     {
       title = "Special Barriers"
     , description = "Red barriers will cause your balls to disappear. Be careful!"
@@ -162,13 +163,13 @@ exampleLevel5 =
     , winScore = 10
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (150,75)]
-    , balls = [] 
+    , balls = []
     , barriers = [staticBarrier (-75,0) 50 Disappear, staticBarrier (75,0) 50 Disappear, staticBarrier (-200,0) 30 Disappear, staticBarrier (200,0) 30 Disappear]
     , ballQueue = [Ball 24 (CustomBall Basketball)]
     , endAreas = [EndArea (0,150) (50,50) (Specific (CustomBall Basketball))]
     }
 
-exampleLevel6 = 
+exampleLevel6 =
     {
       title = "Growing and Shrinking"
     , description = "Barriers can grow, shrink and / or move around. Good luck!"
@@ -176,7 +177,7 @@ exampleLevel6 =
     , winScore = 20
     , leftOverBonusScore = 5
     , startingAreas = [StartingArea (0,-125) (75,75)]
-    , balls = [] 
+    , balls = []
     , barriers = [ staticBarrier (200,50) 30 Disappear
                  , growShrinkBarrier (0,50) 50 75 2 Disappear
                  , staticBarrier (-200,50) 30 Disappear
@@ -193,7 +194,7 @@ exampleLevel6 =
 
 --application code, not part of template, edit at own risk.
 fps = 30
-blankLevel = 
+blankLevel =
     {
         title = ""
     ,   description = ""
@@ -209,7 +210,7 @@ blankLevel =
 
 blankBall = Ball 0 RegularBall (0,0) (0,0)
 
-orbsGameApp input = 
+orbsGameApp input =
     gameApp Tick {
                      model = {
                                 gameState = InGame
@@ -232,15 +233,15 @@ orbsGameApp input =
                  ,   update = update
                  }
 
-update msg model = 
-    let 
+update msg model =
+    let
         level = case (Dict.get model.currLevel model.levels) of
             Just lvl -> lvl
             Nothing  -> blankLevel
     in
-    case msg of 
-        Tick t _ -> { model | levels = Dict.update model.currLevel 
-                                (\level -> case level of 
+    case msg of
+        Tick t _ -> { model | levels = Dict.update model.currLevel
+                                (\level -> case level of
                                     Just lvl -> Just { lvl | balls = checkInsides model <| updatePositions <| checkWalls model <| checkBarrierCollisions model lvl.barriers <| checkCollisions <| lvl.balls
                                                            , endAreas = checkHitArea lvl  }
                                     Nothing -> Just blankLevel) model.levels
@@ -259,55 +260,55 @@ update msg model =
                                             _ -> model.score
                             , time = t
                     }
-        ResetLevel -> let 
+        ResetLevel -> let
                         origLevel = Dict.get model.currLevel model.originalLevels
-                        in 
-                             { model | levels = Dict.update model.currLevel 
-                                (\level -> case level of 
-                                    Just lvl -> origLevel 
+                      in
+                             { model | levels = Dict.update model.currLevel
+                                (\level -> case level of
+                                    Just lvl -> origLevel
                                     Nothing -> origLevel) model.levels
                                      , gameState = InGame
 
                             }
-        MouseOver (StartingArea (x,y) (w,h)) (mx,my) -> 
-            let (Ball r _ _ _) = case (List.head level.ballQueue) of 
+        MouseOver (StartingArea (x,y) (w,h)) (mx,my) ->
+            let (Ball r _ _ _) = case (List.head level.ballQueue) of
                                 Just b -> b
                                 Nothing -> blankBall
-                cx = if mx + r < x + w/2 && mx - r > x - w / 2 then mx 
+                cx = if mx + r < x + w/2 && mx - r > x - w / 2 then mx
                      else if mx + r > x + w/2 then x + w / 2 - r
                      else x - w / 2 + r
-                cy = if my + r < y + h/2 && my - r > y - h / 2 then my 
+                cy = if my + r < y + h/2 && my - r > y - h / 2 then my
                      else if my + r > y + h/2 then y + h / 2 - r
                      else y - h / 2 + r
-                in { model | gameState = case model.gameState of 
+            in { model | gameState = case model.gameState of
                                             InGame -> if r*2 <= w && r*2 <= h then MousingOver (StartingArea (x,y) (w,h)) (cx,cy) else InGame
                                             MousingOver _ _ -> if r*2 <= w && r*2 <= h then MousingOver (StartingArea (x,y) (w,h)) (cx,cy) else InGame
                                             _ -> model.gameState }
-        MouseLeave -> { model | gameState = case model.gameState of 
+        MouseLeave -> { model | gameState = case model.gameState of
                                                 MousingOver _ _ -> InGame
                                                 _ -> model.gameState
                       }
-        StartDrag (StartingArea (x,y) (w,h)) (mx,my) -> { model | gameState = case model.gameState of 
+        StartDrag (StartingArea (x,y) (w,h)) (mx,my) -> { model | gameState = case model.gameState of
                                                                                 MousingOver _ (cx,cy) -> if List.length level.ballQueue > 0 then Aiming (cx,cy) (mx,my) else model.gameState
                                                                                 _ -> model.gameState
                                                         }
         ContinueDrag (StartingArea (x,y) (w,h)) (mx,my) -> model
-        MoveAim (mx,my) -> { model | gameState = case model.gameState of 
+        MoveAim (mx,my) -> { model | gameState = case model.gameState of
                                         Aiming (sx,sy) _ -> Aiming (sx,sy) (mx,my)
                                         _ -> model.gameState}
-        LaunchBall (x,y) -> { model | gameState = case model.gameState of 
+        LaunchBall (x,y) -> { model | gameState = case model.gameState of
                                                     Aiming (sx,sy) (cx,cy) -> InGame
                                                     _ -> model.gameState
-                                    , levels = Dict.update model.currLevel 
-                                                    (\ml -> case ml of 
-                                                        Just lvl -> let 
+                                    , levels = Dict.update model.currLevel
+                                                    (\ml -> case ml of
+                                                        Just lvl -> let
                                                                         balls = lvl.balls
-                                                                        firstInQueue = case (List.head lvl.ballQueue) of 
+                                                                        firstInQueue = case (List.head lvl.ballQueue) of
                                                                                             Just ball -> ball
                                                                                             Nothing -> blankBall
                                                                         (Ball r c (x,y) (vx,vy)) = firstInQueue
                                                                     in
-                                                                        case model.gameState of 
+                                                                        case model.gameState of
                                                                             Aiming (sx,sy) (cx,cy) -> Just { lvl | balls = lvl.balls ++ [Ball r c (sx,sy) (cx-sx,cy-sy)], ballQueue = List.drop 1 lvl.ballQueue}
                                                                             _ -> Nothing
                                                         Nothing -> Nothing) model.levels
@@ -317,7 +318,7 @@ update msg model =
 updatePositions balls =
     List.map (\(Ball r c (x,y) (xspeed,yspeed)) -> Ball r c (x+xspeed/fps,y+yspeed/fps) (xspeed,yspeed)) balls
 
-checkWalls model balls  = 
+checkWalls model balls  =
     List.map (\(Ball r c (x,y) (xspeed,yspeed)) -> if (x+r+xspeed/fps > model.width/2) then Ball r c (x,y) (-xspeed,yspeed)
                                                    else if (x-r+xspeed/fps < -model.width/2) then Ball r c (x,y) (-xspeed,yspeed)
                                                    else if (y+r+yspeed/fps > model.height/2) then Ball r c (x,y) (xspeed,-yspeed)
@@ -325,10 +326,10 @@ checkWalls model balls  =
                                                    else Ball r c (x,y) (xspeed,yspeed)) balls
 
 checkCollisions balls =
-    List.map fst <| List.map (\ball -> findCollision balls ball) balls
-findCollision balls ball1 = List.foldl (\b2 (b1,collided) -> processCollision collided b1 b2) (ball1,False) balls       
+    List.map first <| List.map (\ball -> findCollision balls ball) balls
+findCollision balls ball1 = List.foldl (\b2 (b1,collided) -> processCollision collided b1 b2) (ball1,False) balls
 processCollision collided (Ball r1 c1 (x1,y1) (xsp1,ysp1)) (Ball r2 c2 (x2,y2) (xsp2,ysp2)) =
-            let 
+            let
                 dx      = ((x2+xsp2/fps)-(x1+xsp1/fps))
                 dy      = ((y2+ysp2/fps)-(y1+ysp1/fps))
                 dNow    = sqrt <| (x2-x1)^2 - (y2-y1)^2
@@ -336,15 +337,15 @@ processCollision collided (Ball r1 c1 (x1,y1) (xsp1,ysp1)) (Ball r2 c2 (x2,y2) (
                 (nx,ny) = (dx/d,dy/d)
                 r       = r1 + r2
                 p       = 2 * 0.94868329805 * (xsp1 * nx + ysp1 * ny - xsp2 * nx - ysp2 * ny) / (r1 ^ 3 + r2 ^ 3)
-            in 
+            in
                 if d < r && (x1 /= x2 || y1 /= y2) && not collided then
                     (Ball r1 c1 (x1,y1) (xsp1 - p * r2 ^ 3 * nx,ysp1 - p * r2 ^ 3 * ny),True)
                 else (Ball r1 c1 (x1,y1) (xsp1,ysp1),collided)
 checkBarrierCollisions model barriers balls =
     findBarrierCollision model barriers balls
- 
-findBarrierCollision model barriers balls = 
-    case balls of 
+
+findBarrierCollision model barriers balls =
+    case balls of
         ball::rest ->
             (processBarrierCollision model barriers ball) ++ (findBarrierCollision model barriers rest)
         [] -> []
@@ -356,8 +357,8 @@ processBarrierCollision model barriers ball =
                     Just x -> x model.time
                     Nothing -> Barrier (0,0) 0 RegularBarrier
         rest = List.drop 1 barriers
-        in case barrier of 
-            Barrier (barx,bary) barr bart -> 
+    in case barrier of
+            Barrier (barx,bary) barr bart ->
                 let
                     dx      = ((balx+xsp/fps)-barx)
                     dy      = ((baly+ysp/fps)-bary)
@@ -367,27 +368,27 @@ processBarrierCollision model barriers ball =
                     p       = xsp * nx + ysp * ny
                 in
                     if (d < r) && barr /= 0 then
-                        case bart of 
+                        case bart of
                             RegularBarrier -> [Ball balr balc (balx,baly) (xsp - 2 * p * nx,ysp - 2 * p * ny)]
                             SpeedUp -> [Ball balr balc (balx,baly) (xsp - 2 * sqrt 1.10 * p * nx,ysp - 2 * sqrt 1.10 * p * ny)]
                             SlowDown -> [Ball balr balc (balx,baly) (xsp - 2 * sqrt (1 / 1.10) * p * nx,ysp - 2 * sqrt (1 / 1.10) * p * ny)]
                             Disappear -> []
-                    else if List.length rest == 0 then [ball] 
+                    else if List.length rest == 0 then [ball]
                     else processBarrierCollision model rest ball
 
 checkInsides model balls =
-    List.map fst <| List.map (\ball -> checkInside model balls ball) balls
+    List.map first <| List.map (\ball -> checkInside model balls ball) balls
 
 checkInside model balls ball1 =
     List.foldl (\b2 (b1,moved) -> processInside model moved b1 b2) (ball1,False) balls
 
 processInside model moved (Ball r1 c1 (x1,y1) (xsp1,ysp1)) (Ball r2 c2 (x2,y2) (xsp2,ysp2)) =
-    let 
+    let
         dx      = x2-x1
         dy      = y2-y1
         d       = sqrt <| dx^2+dy^2
         r       = r1 + r2
-    in 
+    in
         if d < r && not moved && (x1 /= x2 || y1 /= y2) && r1 <= r2 then (Ball r1 c1 (x1-dx*1.2,y1-dy*1.2) (xsp1,ysp1),True)
         else if (x1+r1 > model.width/2) then (Ball r1 c1 (x1 - (r1+x1-model.width/2) * 1.2,y1) (xsp1,ysp1), True)
         else if (x1-r1 < -model.width/2) then (Ball r1 c1 (x1 + (r1+x1-model.width/2) * 1.2 ,y1) (xsp1,ysp1),True)
@@ -396,14 +397,14 @@ processInside model moved (Ball r1 c1 (x1,y1) (xsp1,ysp1)) (Ball r2 c2 (x2,y2) (
         else (Ball r1 c1 (x1,y1) (xsp1,ysp1),moved)
 
 checkHitArea level =
-    let 
+    let
         balls = level.balls
     in
         List.map (\(endArea,c) -> List.foldl checkArea (endArea,c) balls) level.endAreas
 
 checkArea (Ball br bt (bx,by) _) (EndArea (ex,ey) (ew,eh) ebt,success) =
-    let 
-        correctBall = case ebt of 
+    let
+        correctBall = case ebt of
                         Any -> True
                         Specific s -> s == bt
     in
@@ -416,50 +417,50 @@ checkArea (Ball br bt (bx,by) _) (EndArea (ex,ey) (ew,eh) ebt,success) =
 checkWin level =
     List.all (\(_,b) -> b) level.endAreas
 
-view model = 
+view model =
     let
         level = case (Dict.get model.currLevel model.levels) of
                     Just lvl -> lvl
                     Nothing  -> blankLevel
-        (Ball r _ _ _) = case (List.head level.ballQueue) of 
+        (Ball r _ _ _) = case (List.head level.ballQueue) of
                         Just b -> b
                         Nothing -> blankBall
         barriers = List.map (\barrier -> barrier model.time) level.barriers
     in
-        collage model.width model.height 
+        collage model.width model.height
         [
             graphPaper 50
-        ,   group ((case model.gameState of 
+        ,   group ((case model.gameState of
                         MousingOver (StartingArea (x,y) (w,h)) (mx,my) -> [circle r |> outlined (dashed 1) black |> move (mx,my)]
                         Aiming (x1,y1) (x2,y2) -> [circle r |> outlined (dashed 1) black |> move(x1,y1), line (x1,y1) (x2,y2) |> outlined (solid 1) black]
                         _ -> [])
-                        ++ 
-                    (List.map (\(StartingArea (x,y) (w,h)) -> 
-                                    rect w h 
-                                        |> filled green 
-                                        |> move (x,y) 
-                                        |> makeTransparent 0.4 
-                                        |> notifyMouseDownAt (StartDrag (StartingArea (x,y) (w,h))) 
+                        ++
+                    (List.map (\(StartingArea (x,y) (w,h)) ->
+                                    rect w h
+                                        |> filled green
+                                        |> move (x,y)
+                                        |> makeTransparent 0.4
+                                        |> notifyMouseDownAt (StartDrag (StartingArea (x,y) (w,h)))
                                         |> notifyMouseMoveAt (MouseOver (StartingArea (x,y) (w,h)))
                                         |> notifyLeave MouseLeave
                                         ) level.startingAreas))
-        ,   group (List.map (\(EndArea (x,y) (w,h) c,completed) -> if completed then rect w h 
-                                                                            |> filled lightGreen 
-                                                                            |> makeTransparent 0.4 
+        ,   group (List.map (\(EndArea (x,y) (w,h) c,completed) -> if completed then rect w h
+                                                                            |> filled lightGreen
+                                                                            |> makeTransparent 0.4
                                                                             |> addOutline (dashed 2) (case c of Any -> gray
-                                                                                                                Specific s -> case s of 
+                                                                                                                Specific s -> case s of
                                                                                                                                 RegularBall -> red
                                                                                                                                 CustomBall b -> model.ballView b)
                                                                             |> move(x,y)
-                                                                   else rect w h 
+                                                                   else rect w h
                                                                             |> outlined (dashed 2) (case c of Any -> gray
-                                                                                                              Specific s -> case s of 
+                                                                                                              Specific s -> case s of
                                                                                                                                 RegularBall -> red
                                                                                                                                 CustomBall b -> model.ballView b)
                                                                             |> move(x,y)) level.endAreas)
         ,   group (List.map (\(Ball r c (x,y) _) -> createSphere model (Ball r c (x,y) (0,0))) level.balls)
-        ,   group (List.map (\barrier -> case barrier of 
-                                            Barrier (x,y) r b -> case b of 
+        ,   group (List.map (\barrier -> case barrier of
+                                            Barrier (x,y) r b -> case b of
                                                         RegularBarrier -> group [circle r |> filled lightGray |> addOutline (solid 1) black
                                                                          , screw |> scale (if r > 25 then 10 else r/5)] |> move(x,y)
                                                         SpeedUp -> group [circle r |> filled darkGreen |> addOutline (solid 1) black
@@ -468,7 +469,7 @@ view model =
                                                                          , slowDown |> scale (if r > 25 then 10 else r/5) |> move(-1,0)] |> move(x,y)
                                                         Disappear -> group [circle r |> filled red |> addOutline (solid 1) black
                                                                          , diss |> scale (if r > 25 then 10 else r/5)] |> move(x,y)) barriers)
-        ,   case model.gameState of 
+        ,   case model.gameState of
                 Aiming (sx,sy) (mx,my) -> group [circle 100 |> filled blank |> move(mx,my) |> notifyMouseMoveAt MoveAim |> notifyMouseUpAt LaunchBall]
                 _ -> group []
         ,   ui model level |> move(0,-212.5)
@@ -478,9 +479,9 @@ createSphere model (Ball r c (x,y) _) = group [ circle r |> filled (case c of Re
                                                                               CustomBall b -> model.ballView b)
                                               , oval (r*0.8) (r*0.3) |> filled white |> rotate (degrees -45) |> move(r/2,r/2) |> makeTransparent 0.3] |> move(x,y)
 
-ui model level = 
+ui model level =
     let
-        (txt,col) = case model.gameState of 
+        (txt,col) = case model.gameState of
                     InGame -> (level.description,black)
                     Aiming _ _ -> (level.description,black)
                     MousingOver _ _ -> (level.description,black)
@@ -496,7 +497,7 @@ ui model level =
     in
     group [  rect 500 75 |> filled white
           ,  text ("Level " ++ toString (model.currLevel + 1) ++ ": " ++ level.title) |> fixedwidth |> size 14 |> filled black |> move(0,15)
-          ,  case model.gameState of 
+          ,  case model.gameState of
                 InGame -> refreshButton |> move(230,-25) |> notifyTap ResetLevel
                 MousingOver _ _ -> refreshButton |> move(230,-25) |> notifyTap ResetLevel
                 Aiming _ _ -> refreshButton |> move(230,-25) |> notifyTap ResetLevel
@@ -505,8 +506,8 @@ ui model level =
           ,  roundedRect 190 25 10 |> filled grey |> move(-140,12.5)
           ,  roundedRect 50 50 10 |> filled grey |> move(-40,0)
           ,  group (List.indexedMap (\n (Ball r c (x,y) _) -> if n < 9 then group [createSphere model (Ball r c (0,0) (0,0)), text (toString r) |> centered |> fixedwidth |> size 24 |> filled white |> move(0,-8)]
-                                                                        |> move (if n == 0 then -40 else -n * 20 - 60,if n == 0 then 0 else 12) 
-                                                                        |> scale(1/r) |> scale (if n == 0 then 20 else 8) 
+                                                                        |> move (if n == 0 then -40 else -n * 20 - 60,if n == 0 then 0 else 12)
+                                                                        |> scale(1/r) |> scale (if n == 0 then 20 else 8)
                                                               else group []) level.ballQueue)
           ,  text ("Score: " ++ toString model.score) |> size 14 |> fixedwidth |> filled black |> move (-240,-30)
           ,  text "Launch Queue" |> size 12 |> fixedwidth |> filled black |> move(-190,-12)
@@ -517,7 +518,7 @@ ui model level =
           ]
 
 takeWhile n l words =
-    case words of 
+    case words of
         word::rest ->
             let
                 newLength = l + String.length word + 1
@@ -528,7 +529,7 @@ takeWhile n l words =
         [] -> []
 
 dropWhile n l words =
-    case words of 
+    case words of
         word::rest ->
             let
                 newLength = l + String.length word + 1
