@@ -2054,7 +2054,7 @@ createSVG trans shape =
                                     ++ font
                                     ++ select
                         in
-                            Svg.text_ ([ x (toString 0), y (toString 0), Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, b, c, d, tx, -ty ]) ++ ")" ]) [ Svg.text str ]
+                            Svg.text_ ([ x (toString 0), y (toString 0), Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ]) [ Svg.text str ]
                 )
 
         Move v shape ->
