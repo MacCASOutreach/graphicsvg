@@ -1,7 +1,7 @@
 {
-    "version": "1.0.0",
-    "summary": "helpful summary of your project, less than 80 characters",
-    "repository": "https://github.com/user/project.git",
+    "version": "1.2.0",
+    "summary": "Graphics library for McMaster University CAS Outreach and COMPSCI 1JC3",
+    "repository": "https://github.com/MacCASOutreach/graphicsvg.git",
     "license": "BSD3",
     "source-directories": [
         "."
