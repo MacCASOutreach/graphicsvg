@@ -1339,9 +1339,9 @@ wedge r frac =
             round n
     in
         Polygon <|
-            [ ( 0, 0 ) ]
-                ++ (List.map ((wedgeHelper r) << ((*) (frac / n * 180)) << Basics.toFloat) (List.range -ni ni))
-                ++ [ ( 0, 0 ) ]
+            [ ( 0, 0 ), wedgeHelper r (-frac*180) ]
+                ++ (List.map ((wedgeHelper r) << ((*) (frac / n * 180)) << Basics.toFloat) (List.range -(ni+1) (ni-1)))
+                ++ [ wedgeHelper r (frac*180), ( 0, 0 ) ]
 
 
 wedgeHelper : Float -> Float -> ( Float, Float )
