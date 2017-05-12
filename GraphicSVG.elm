@@ -28,6 +28,7 @@ module GraphicSVG
         , graphPaper
         , Pull(..)
         , curve
+        , curveHelper
         , solid
         , dotted
         , dashed
