@@ -164,7 +164,7 @@ other applications including keyboard presses and mouse movements.
 
 # Curves
 
-@docs curve, Pull
+@docs curve, Pull, curveHelper
 
 
 # Line Styles
