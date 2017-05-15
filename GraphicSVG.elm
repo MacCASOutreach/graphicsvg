@@ -1296,28 +1296,28 @@ ngon n r =
 -}
 triangle : Float -> Stencil
 triangle r =
-    ngon 3 r
+    ngon 3 (vF r)
 
 
 {-| Creates a square with a given side length. (Synonym for rect s s)
 -}
 square : Float -> Stencil
 square r =
-    Rect r r
+        Rect (vF r)  (vF r)
 
 
 {-| Creates a rectangle with a given width and height.
 -}
 rect : Float -> Float -> Stencil
 rect w h =
-    Rect w h
+        Rect (vF w) (vF h)
 
 
 {-| Synonym for rect.
 -}
 rectangle : Float -> Float -> Stencil
 rectangle w h =
-    Rect w h
+    Rect (vF w) (vF h) --NaN and infinity cases covered by the rect function
 
 
 {-| Creates a rectangle with a given width, height, and circular rounded
@@ -1325,21 +1325,21 @@ corners with the given radius.
 -}
 roundedRect : Float -> Float -> Float -> Stencil
 roundedRect w h r =
-    RoundRect w h r
+    RoundRect (vF w) (vF h) (vF r)
 
 
 {-| Creates a circle with a given radius.
 -}
 circle : Float -> Stencil
 circle r =
-    Circle r
+    Circle (vF r)
 
 
 {-| Creates an oval with a given width and height.
 -}
 oval : Float -> Float -> Stencil
 oval w h =
-    Oval w h
+    Oval (vF w) (vF h)
 
 
 {-| Creates a graph paper with squares of a given size.
@@ -1348,10 +1348,10 @@ graphPaper : Float -> Shape notification
 graphPaper s =
     let
         sxi =
-            round (1500 / s)
+            round (1500 / (vF s))
 
         syi =
-            round (800 / s)
+            round (800 / (vF s))
 
         xlisti =
             (List.range -sxi sxi)
@@ -1360,19 +1360,19 @@ graphPaper s =
             (List.range -syi syi)
     in
         group
-            (List.map (createGraphX 1600 s << Basics.toFloat) xlisti
-                ++ List.map (createGraphY 3000 s << Basics.toFloat) ylisti
+            (List.map (createGraphX 1600 (vF s) << Basics.toFloat) xlisti
+                ++ List.map (createGraphY 3000 (vF s) << Basics.toFloat) ylisti
             )
 
 
 createGraphX : Float -> Float -> Float -> Shape notification
 createGraphX h s x =
-    filled (rgb 135 206 250) (rect 1 h) |> move ( x * s, 0 )
+    filled (rgb 135 206 250) (rect 1 (vF h)) |> move ( (vF x) * (vF s), 0 )
 
 
 createGraphY : Float -> Float -> Float -> Shape notification
 createGraphY w s y =
-    filled (rgb 135 206 250) (rect w 1) |> move ( 0, y * s )
+    filled (rgb 135 206 250) (rect (vF w) 1) |> move ( 0, (vF y) * (vF s))
 
 
 {-| Creates a wedge with a given radius, and a given fraction of a circle.
@@ -1384,15 +1384,15 @@ wedge : Float -> Float -> Stencil
 wedge r frac =
     let
         n =
-            frac * 360 / 10 + 5
+            (vF frac) * 360 / 10 + 5
 
         ni =
             round n
     in
         Polygon <|
-            if frac > 0 then
+            if (vF frac) > 0 then
                 [ ( 0, 0 ), wedgeHelper r (-frac * 180) ]
-                    ++ (List.map ((wedgeHelper r) << ((*) (frac / n * 180)) << Basics.toFloat) (List.range -ni ni))
+                    ++ (List.map ((wedgeHelper r) << ((*) ( vF(frac / n) * 180)) << Basics.toFloat) (List.range -ni ni))
                     ++ [ wedgeHelper r (frac * 180), ( 0, 0 ) ]
             else
                 []
@@ -1402,18 +1402,18 @@ wedgeHelper : Float -> Float -> ( Float, Float )
 wedgeHelper r cn =
     let
         angle =
-            cn
+            (vF cn)
     in
-        ( r * cos (degrees angle), r * sin (degrees angle) )
+        ( (vF r) * cos (degrees angle), (vF r) * sin (degrees angle) )
 
 
 ptOnCircle : Float -> Float -> Float -> ( Float, Float )
 ptOnCircle r n cn =
     let
         angle =
-            360 * cn / n
+            360 * (vF cn / n)
     in
-        ( r * cos (degrees angle), r * sin (degrees angle) )
+        ( (vF r) * cos (degrees angle), (vF r) * sin (degrees angle) )
 
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point.
@@ -1426,7 +1426,7 @@ add additional curve segments, but each curve segment can only bend one way, sin
 -}
 curve : ( Float, Float ) -> List Pull -> Stencil
 curve ( a, b ) list =
-    BezierPath ( a, b ) (List.map curveListHelper list)
+    BezierPath ( (vF a), (vF b) ) (List.map curveListHelper list)
 
 
 curveListHelper : Pull -> ( ( Float, Float ), ( Float, Float ) )
@@ -2737,13 +2737,22 @@ toRGB_ hue sat lit =
 
 modFloat : Float -> Float -> Float
 modFloat x m =
-    x - m * Basics.toFloat (floor (x / m))
+    x - m * Basics.toFloat (floor (vF x / m))
 
 
 mapTriple : (a -> b) -> ( a, a, a ) -> ( b, b, b )
 mapTriple f ( a1, a2, a3 ) =
     ( f a1, f a2, f a3 )
 
+
+
+
+vF : Float -> Float --this function validates floats. Turns NaN and Infinity into 0 for crash avoidance! - A
+vF f = 
+    if (isNaN f || isInfinite f) then
+        0
+    else
+        f
 
 
 --
