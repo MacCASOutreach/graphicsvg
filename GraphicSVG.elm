@@ -1296,21 +1296,21 @@ ngon n r =
 -}
 triangle : Float -> Stencil
 triangle r =
-    ngon 3 (vF r)
+    ngon 3 <| vF r
 
 
 {-| Creates a square with a given side length. (Synonym for rect s s)
 -}
 square : Float -> Stencil
 square r =
-        Rect (vF r)  (vF r)
+    Rect (vF r)  (vF r)
 
 
 {-| Creates a rectangle with a given width and height.
 -}
 rect : Float -> Float -> Stencil
 rect w h =
-        Rect (vF w) (vF h)
+    Rect (vF w) (vF h)
 
 
 {-| Synonym for rect.
@@ -1348,10 +1348,10 @@ graphPaper : Float -> Shape notification
 graphPaper s =
     let
         sxi =
-            round (1500 / (vF s))
+            round <| vF (1500 / s)
 
         syi =
-            round (800 / (vF s))
+            round <| vF (800 / s)
 
         xlisti =
             (List.range -sxi sxi)
@@ -1402,7 +1402,7 @@ wedgeHelper : Float -> Float -> ( Float, Float )
 wedgeHelper r cn =
     let
         angle =
-            (vF cn)
+            vF cn
     in
         ( (vF r) * cos (degrees angle), (vF r) * sin (degrees angle) )
 
@@ -1411,9 +1411,9 @@ ptOnCircle : Float -> Float -> Float -> ( Float, Float )
 ptOnCircle r n cn =
     let
         angle =
-            360 * (vF cn / n)
+            360 * vF (cn / n)
     in
-        ( (vF r) * cos (degrees angle), (vF r) * sin (degrees angle) )
+        ( vF r * cos (degrees angle), vF r * sin (degrees angle) )
 
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point.
@@ -1426,12 +1426,12 @@ add additional curve segments, but each curve segment can only bend one way, sin
 -}
 curve : ( Float, Float ) -> List Pull -> Stencil
 curve ( a, b ) list =
-    BezierPath ( (vF a), (vF b) ) (List.map curveListHelper list)
+    BezierPath ( vF a, vF b ) (List.map curveListHelper list)
 
 
 curveListHelper : Pull -> ( ( Float, Float ), ( Float, Float ) )
 curveListHelper (Pull ( a, b ) ( c, d )) =
-    ( ( a, b ), ( c, d ) )
+    ( ( vF a, vF b ), ( vF c, vF d ) )
 
 
 {-| Add a hyperlink to any `Shape`.
@@ -1649,7 +1649,7 @@ circle 10 |> filled red
 -}
 collage : Float -> Float -> List (Shape notification) -> Collage notification
 collage w h shapes =
-    Collage ( w, h ) shapes
+    Collage ( vF w, vF h ) shapes
 
 
 createCollage : Float -> Float -> List (Shape a) -> Html.Html a
@@ -1697,7 +1697,7 @@ puppetShow :
     -> List ( Float, Shape notification )
     -> Collage notification
 puppetShow w h listShapes =
-    collage w h (List.map extractShape (List.sortWith flippedComparison listShapes))
+    collage (vF w) (vF h) (List.map extractShape (List.sortWith flippedComparison listShapes))
 
 
 extractShape : ( Float, Shape notification ) -> Shape notification
@@ -2273,35 +2273,35 @@ makeTransparent alpha shape =
 -}
 solid : Float -> LineType
 solid th =
-    Solid th
+    Solid (vF th)
 
 
 {-| Define a dotted line type with the given width.
 -}
 dotted : Float -> LineType
 dotted th =
-    Broken [ ( th, th ) ] th
+    Broken [ ( vF th, vF th ) ] (vF th)
 
 
 {-| Define a dashed line type with the given width. Dashes are short line segments, versus dots which are theoretically points, but may be drawn with very sort line segments.
 -}
 dashed : Float -> LineType
 dashed th =
-    Broken [ ( th * 5, th * 2.5 ) ] th
+    Broken [ ( vF th * 5, vF th * 2.5 ) ] (vF th)
 
 
 {-| Define a dashed line type with the given width, where the dashes are longer than normal.
 -}
 longdash : Float -> LineType
 longdash th =
-    Broken [ ( th * 12, th * 6 ) ] th
+    Broken [ ( vF th * 12, vF th * 6 ) ] (vF th)
 
 
 {-| Define a line type with the given width, including alternating dots and dashes.
 -}
 dotdash : Float -> LineType
 dotdash th =
-    Broken [ ( th, th ), ( th * 5, th ) ] th
+    Broken [ ( vF th, vF th ), ( vF th * 5, vF th ) ] (vF th)
 
 
 {-| A custom line defined by a list of (on,off):
@@ -2310,7 +2310,7 @@ custom [(10,5),(20,5)] -- on for 10, off 5, on 20, off 5
 -}
 custom : List ( Float, Float ) -> Float -> LineType
 custom list th =
-    Broken list th
+    Broken list (vF th)
 
 
 {-| A line of increasing spaces from start to end with a given thickness, with
@@ -2322,7 +2322,7 @@ Example:
 -}
 increasing : Int -> Int -> Float -> LineType
 increasing s e th =
-    Broken (List.map (makePair << (*) th << Basics.toFloat) (List.range s e)) th
+    Broken (List.map (makePair << (*) th << Basics.toFloat) (List.range s e)) (vF th)
 
 
 makePair : a -> ( a, a )
@@ -2340,7 +2340,7 @@ size : Float -> Stencil -> Stencil
 size size stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face size bo i u s sel f c) str
+            Text (Face (vF size) bo i u s sel f c) str
 
         a ->
             a
@@ -2476,35 +2476,35 @@ from degrees into radians.
 -}
 rotate : Float -> Shape notification -> Shape notification
 rotate theta shape =
-    Rotate theta shape
+    Rotate (vF theta) shape
 
 
 {-| Move a Shape by a number of units in x and y.
 -}
 move : ( Float, Float ) -> Shape notification -> Shape notification
-move disp shape =
-    Move disp shape
+move (x,y) shape =
+    Move (vF x, vF y) shape
 
 
 {-| Scale a Shape by a given factor.
 -}
 scale : Float -> Shape notification -> Shape notification
 scale s shape =
-    ScaleXY s s shape
+    ScaleXY (vF s) (vF s) shape
 
 
 {-| Scale a Shape in the x-axis by a given factor.
 -}
 scaleX : Float -> Shape notification -> Shape notification
 scaleX s shape =
-    ScaleXY s 1 shape
+    ScaleXY (vF s) 1 shape
 
 
 {-| Scale a Shape in the y-axis by a given factor.
 -}
 scaleY : Float -> Shape notification -> Shape notification
 scaleY s shape =
-    ScaleXY 1 s shape
+    ScaleXY 1 (vF s) shape
 
 
 {-| Flip a Shape along the x-axis.
@@ -2533,7 +2533,7 @@ group shapes =
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
-    RGBA r g b 1
+    RGBA (vF r) (vF g) (vF b) 1
 
 
 {-| Create a custom colour given its red, green, blue and alpha components.
@@ -2541,7 +2541,7 @@ Alpha is a Float from 0 to 1 representing the Shape's level of transparency.
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
-    RGBA r g b a
+    RGBA (vF r) (vF g) (vF b) (vF a)
 
 
 pairToString : ( a, b ) -> String
@@ -2640,7 +2640,7 @@ toHexHelper dec =
 -}
 hsl : Float -> Float -> Float -> Color
 hsl h s l =
-    case (convert h s l) of
+    case (convert (vF h) (vF s) (vF l) ) of
         ( r, g, b ) ->
             RGBA r g b 1
 
@@ -2651,9 +2651,9 @@ lp
 -}
 hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
-    case (convert h s l) of
+    case (convert (vF h) (vF s) (vF l)) of
         ( r, g, b ) ->
-            RGBA r g b a
+            RGBA r g b (vF a)
 
 
 
