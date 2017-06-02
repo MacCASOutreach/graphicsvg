@@ -31,6 +31,7 @@ module GraphicSVG
         , graphPaper
         , Pull(..)
         , curve
+        , curveHelper
         , solid
         , dotted
         , dashed
@@ -170,7 +171,7 @@ other applications including keyboard presses and mouse movements.
 
 # Curves
 
-@docs curve, Pull
+@docs curve, Pull, curveHelper
 
 
 # Line Styles
@@ -387,7 +388,7 @@ This type is only used to define a type signature for a user defined "view" as f
 
     view : GraphicSVG.GraphicSVG userMsg
 
-for use with "graphicsApp" where "userMsg" can be anything as meeeages
+for use with "graphicsApp" where "userMsg" can be anything as messages
 are not used, and as follows:
 
     view : Model -> GraphicSVG.GraphicSVG MyMsg
@@ -399,8 +400,8 @@ These assume that Model is the name of the user model type alias and
 actually used.
 
 -}
-type alias GraphicSVG notifications =
-    Collage (Msg notifications)
+type alias GraphicSVG userMsg =
+    Collage (Msg userMsg)
 
 
 type Color
@@ -531,7 +532,8 @@ type alias GraphicsProgram userMsg =
 
 {-| Like graphicsApp, but you can add interactivity to your graphics by using the
 "notify" functions. This allows you to learn Elm's architecture in a fun way with
-graphics. Note that your view function needs a model parameter now, which in this example is the color of the shape:
+graphics. Note that your view function needs a model parameter now, which in this 
+example is the color of the shape:
 
     view model =
         collage 500
@@ -765,7 +767,10 @@ createTimeMessage t =
     in
         TickTime time
 
-
+blankUpdate:
+    Msg userMsg
+    -> ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } )
+    -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd msg )
 blankUpdate msg ( model, gModel ) =
     case msg of
         Graphics message ->
@@ -1078,7 +1083,8 @@ type alias KeyDict =
 {-| GetKeyState returns a triple where the first argument is of type (Keys -> KeyState)
 so you can ask if a certain key is presses. The other two are tuples of arrow keys and
 WASD keys, respectively. They're in the form (x,y) which represents the key presses
-of each player.
+of each player. For example, (0,-1) represents the left arrow or "A" key, and (1,1) 
+would mean the up (or "W") and right (or "D") key are being pressed at the same time.
 -}
 type alias GetKeyState =
     ( Keys -> KeyState, ( Float, Float ), ( Float, Float ) )
@@ -1553,9 +1559,11 @@ wedge r frac =
             round n
     in
         Polygon <|
-            [ ( 0, 0 ) ]
-                ++ (List.map ((wedgeHelper r) << ((*) (frac / n * 180)) << Basics.toFloat) (List.range -ni ni))
-                ++ [ ( 0, 0 ) ]
+            if frac > 0 then
+                [ ( 0, 0 ), wedgeHelper r (-frac * 180) ]
+                    ++ (List.map ((wedgeHelper r) << ((*) (frac / n * 180)) << Basics.toFloat) (List.range -ni ni))
+                    ++ [ wedgeHelper r (frac * 180), ( 0, 0 ) ]
+            else []
 
 
 wedgeHelper : Float -> Float -> ( Float, Float )
@@ -1597,7 +1605,7 @@ curveListHelper (Pull ( a, b ) ( c, d )) =
 {-| Add a hyperlink to any `Shape`.
 circle 10
 |> filled red
-|> addHyperLink "www.redcircle.com"
+|> addHyperLink "http://outreach.mcmaster.ca"
 -}
 addHyperlink : String -> Shape userMsg -> Shape userMsg
 addHyperlink link shape =
@@ -1608,6 +1616,7 @@ addHyperlink link shape =
 functions. Note that "filled" or "outlined" must go at the *end* of the infixes
 (ie note that all these functions are Stencil -> Stencil).
 text "Hello World"
+|> fixedwidth
 |> bold
 |> size 14
 |> filled black
@@ -1718,10 +1727,6 @@ createTopLevelList ( ( a, b ), ( c, d ) ) =
     [ ( a, b ), ( c, d ) ]
 
 
-
---group: (List Shape) ->
-
-
 type alias Transform =
     ( ( ( Float, Float )
         -- normal transformation of whole group
@@ -1794,7 +1799,7 @@ scaleT ( trans, ( ( ssx, ssy ), r, ( shx, shy ) ) ) ( sx, sy ) =
 
 {-| The Collage type represents the drawable surface of the window which contains
 a (x, y) pair of horizontal and vertical dimensions (arbitrary units,
-not in pixels) to which the drawing surface will be scaled,
+not necessarily in pixels) to which the drawing surface will be scaled,
 and the `List' of Shapes to be drawn on the drawing surface.
 -}
 type Collage userMsg
@@ -1851,11 +1856,6 @@ f =
     500
 
 
-
---focal length
---puppetShow : Float -> Float -> List (Float,Shape) -> Html.Html userMsg
-
-
 puppetShow :
     Float
     -> Float
@@ -1863,10 +1863,6 @@ puppetShow :
     -> Collage userMsg
 puppetShow w h listShapes =
     collage w h (List.map extractShape (List.sortWith flippedComparison listShapes))
-
-
-
---extractShape: (Float,Shape userMsg) -> Shape userMsg
 
 
 extractShape : ( Float, Shape userMsg ) -> Shape userMsg
@@ -2100,10 +2096,6 @@ touchDecoder =
         ]
 
 
-
---createSVG : Transform -> Shape userMsg -> Svg.Svg userMsg
-
-
 createSVG : Transform -> Shape a -> Svg.Svg a
 createSVG trans shape =
     case shape of
@@ -2268,7 +2260,7 @@ createSVG trans shape =
                                     ++ font
                                     ++ select
                         in
-                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, b, c, d, tx, -ty ]) ++ ")" ]) [ Svg.text str ]
+                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ]) [ Svg.text str ]
                 )
 
         Move v shape ->
@@ -2470,7 +2462,7 @@ dotdash th =
     Broken [ ( th, th ), ( th * 5, th ) ] th
 
 
-{-| A custom line defined by a list of (on,off).
+{-| A custom line defined by a list of (on,off):
 custom [(10,5)] 5 -- a line that with dashes 10 long and spaces 5 long
 custom [(10,5),(20,5)] -- on for 10, off 5, on 20, off 5
 -}
@@ -2625,7 +2617,7 @@ customFont fStr stencil =
 --Transformation functions
 
 
-{-| Rotate a Shape by the specified degrees (in radians). Use the "degrees" function to convert
+{-| Rotate a Shape by the specified amount (in radians). Use the "degrees" function to convert
 from degrees into radians.
 -}
 rotate : Float -> Shape userMsg -> Shape userMsg
@@ -2691,17 +2683,11 @@ rgb r g b =
 
 
 {-| Create a custom colour given its red, green, blue and alpha components.
-Alpha is a Float from 0-1 representing the Shape's level of transparency.
+Alpha is a Float from 0 to 1 representing the Shape's level of transparency.
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
     RGBA r g b a
-
-
-
-{- degrees: Float -> Float
-   degrees deg = deg*(pi/180)
--}
 
 
 pairToString : ( a, b ) -> String
