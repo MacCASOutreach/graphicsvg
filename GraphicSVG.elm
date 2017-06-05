@@ -29,6 +29,7 @@ module GraphicSVG
         , oval
         , wedge
         , graphPaper
+        , graphPaperCustom
         , Pull(..)
         , curve
         , curveHelper
@@ -1513,8 +1514,13 @@ oval w h =
 
 {-| Creates a graph paper with squares of a given size.
 -}
-graphPaper : Float -> Shape notification
+graphPaper : Float -> Shape userMsg
 graphPaper s =
+    graphPaperCustom s 1 (rgb 135 206 250)
+
+
+graphPaperCustom: Float -> Float -> Color -> Shape userMsg
+graphPaperCustom s th c = 
     let
         sxi =
             round (1500 / s)
@@ -1529,19 +1535,19 @@ graphPaper s =
             (List.range -syi syi)
     in
         group
-            (List.map (createGraphX 1600 s << Basics.toFloat) xlisti
-                ++ List.map (createGraphY 3000 s << Basics.toFloat) ylisti
+            (List.map (createGraphX 1600 s th c << Basics.toFloat) xlisti
+                ++ List.map (createGraphY 3000 s th c << Basics.toFloat) ylisti
             )
 
 
-createGraphX : Float -> Float -> Float -> Shape notification
-createGraphX h s x =
-    filled (rgb 135 206 250) (rect 1 h) |> move ( x * s, 0 )
+createGraphX : Float -> Float -> Float -> Color -> Float -> Shape userMsg
+createGraphX h s th c x =
+    filled c (rect th h) |> move ( x * s, 0 )
 
 
-createGraphY : Float -> Float -> Float -> Shape userMsg
-createGraphY w s y =
-    filled (rgb 135 206 250) (rect w 1) |> move ( 0, y * s )
+createGraphY : Float -> Float -> Float -> Color -> Float -> Shape userMsg
+createGraphY w s th c y =
+    filled c (rect w th) |> move ( 0, y * s )
 
 
 {-| Creates a wedge with a given radius, and a given fraction of a circle.
