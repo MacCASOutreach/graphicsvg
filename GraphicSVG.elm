@@ -4,6 +4,7 @@ module GraphicSVG
         , Shape
         , GraphicSVG
         , collage
+        , map
         , GraphicsProgram
         , graphicsApp
         , NotificationsProgram
@@ -13,6 +14,8 @@ module GraphicSVG
         , KeyState(..)
         , GameProgram
         , gameApp
+        , CmdProgram
+        , cmdApp
         , line
         , polygon
         , openPolygon
@@ -26,6 +29,7 @@ module GraphicSVG
         , oval
         , wedge
         , graphPaper
+        , graphPaperCustom
         , Pull(..)
         , curve
         , curveHelper
@@ -34,7 +38,6 @@ module GraphicSVG
         , dashed
         , longdash
         , dotdash
-        , increasing
         , custom
         , text
         , size
@@ -147,9 +150,14 @@ other applications including keyboard presses and mouse movements.
 @docs GetKeyState, Keys, KeyState, gameApp, GameProgram
 
 
+# Cmd App
+
+@docs cmdApp, CmdProgram
+
+
 # Stencils
 
-@docs line, polygon, openPolygon, ngon, triangle, square, rect, rectangle, roundedRect, circle, oval, wedge, graphPaper
+@docs line, polygon, openPolygon, ngon, triangle, square, rect, rectangle, roundedRect, circle, oval, wedge
 
 
 # Creating Shapes by Filling and Outlining Stencils
@@ -169,7 +177,7 @@ other applications including keyboard presses and mouse movements.
 
 # Line Styles
 
-@docs solid, dotted, dashed, longdash, dotdash, increasing, custom
+@docs solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -192,6 +200,11 @@ other applications including keyboard presses and mouse movements.
 @docs makeTransparent, addHyperlink
 
 
+# Helpers
+
+@docs graphPaper, graphPaperCustom, map
+
+
 # Let there be colours!
 
 @docs black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
@@ -202,12 +215,13 @@ other applications including keyboard presses and mouse movements.
    for the McMaster University Computing and Software Outreach Program
    and CompSci 1JC3, with input and testing from the rest of the Outreach
    team.
-   Last updated: Tuesday, May 2nd, 2017
+   Last updated: June 16, 2017
 -}
 
 import Html
 import Html.Attributes
 import Html.Events
+import Http as Http
 import Svg
 import Svg.Attributes exposing (..)
 import String exposing (..)
@@ -221,10 +235,11 @@ import Task
 import Keyboard exposing (..)
 import Dict
 import Char
+import Tuple
 
 
-{-| A primitive template representing the eventual Shape you wish to draw. This must be turned into
-a Shape before being drawn to the screen with collage.
+{-| A primitive template representing the shape you wish to draw. This must be turned into
+a `Shape` before being drawn to the screen with `collage` (see below).
 -}
 type Stencil
     = Circle Float
@@ -237,55 +252,157 @@ type Stencil
     | Text Face String
 
 
-{-| A filled, outlined, or filled and outlined object that can be drawn to the screen using collage.
+{-| A filled, outlined, or filled and outlined object that can be drawn to the screen using `collage`.
 -}
-type Shape notification
+type Shape userMsg
     = Inked Color (Maybe ( LineType, Color )) Stencil
-    | ForeignObject (Html.Html notification)
-    | ClipPath String (Shape notification) (Shape notification)
-    | Move ( Float, Float ) (Shape notification)
-    | Rotate Float (Shape notification)
-    | ScaleXY Float Float (Shape notification)
-    | Group (List (Shape notification))
-    | Link String (Shape notification)
-    | Tap notification (Shape notification)
-    | TapAt (( Float, Float ) -> notification) (Shape notification)
-    | EnterShape notification (Shape notification)
-    | EnterAt (( Float, Float ) -> notification) (Shape notification)
-    | Exit notification (Shape notification)
-    | ExitAt (( Float, Float ) -> notification) (Shape notification)
-    | MouseDown notification (Shape notification)
-    | MouseDownAt (( Float, Float ) -> notification) (Shape notification)
-    | MouseUp notification (Shape notification)
-    | MouseUpAt (( Float, Float ) -> notification) (Shape notification)
-    | MoveOverAt (( Float, Float ) -> notification) (Shape notification)
-    | TouchStart notification (Shape notification)
-    | TouchEnd notification (Shape notification)
-    | TouchStartAt (( Float, Float ) -> notification) (Shape notification)
-    | TouchEndAt (( Float, Float ) -> notification) (Shape notification)
-    | TouchMoveAt (( Float, Float ) -> notification) (Shape notification)
+    | ClipPath String (Shape userMsg) (Shape userMsg)
+    | Move ( Float, Float ) (Shape userMsg)
+    | Rotate Float (Shape userMsg)
+    | ScaleXY Float Float (Shape userMsg)
+    | Group (List (Shape userMsg))
+    | Link String (Shape userMsg)
+    | Tap userMsg (Shape userMsg)
+    | TapAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | EnterShape userMsg (Shape userMsg)
+    | EnterAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | Exit userMsg (Shape userMsg)
+    | ExitAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | MouseDown userMsg (Shape userMsg)
+    | MouseDownAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | MouseUp userMsg (Shape userMsg)
+    | MouseUpAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | MoveOverAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | TouchStart userMsg (Shape userMsg)
+    | TouchEnd userMsg (Shape userMsg)
+    | TouchStartAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | TouchEndAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
 
 
-{-| The GraphicSVG type alias represents the drawable surface of the window.
+{-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
+ (Ask if you don't know what this means.)
+-}
+map : (a -> b) -> Shape (Msg a) -> Shape (Msg b)
+map f sh =
+    let
+        ff mmsg =
+            case mmsg of
+                Graphics userMsg ->
+                    Graphics (f userMsg)
 
-This type is only used to define a type signature for a user defined "view" as follows:
+                WindowResize a ->
+                    WindowResize a
 
-    view : GraphicSVG.GraphcSVG msgs
+                ReturnPosition a b ->
+                    ReturnPosition (f << a) b
 
-for use with "graphicsApp" where "msgs" can be anything as messages
+                CollageSize a ->
+                    CollageSize a
+
+                InitTime a ->
+                    InitTime a
+
+                TickTime a ->
+                    TickTime a
+
+                KeyDown a ->
+                    KeyDown a
+
+                KeyUp a ->
+                    KeyUp a
+    in
+        case sh of
+            Inked fillClr lt stencil ->
+                Inked fillClr lt stencil
+
+            Move v shape ->
+                Move v (map f shape)
+
+            Rotate deg shape ->
+                Rotate deg (map f shape)
+
+            ScaleXY sx sy shape ->
+                ScaleXY sx sy (map f shape)
+
+            ClipPath name cshape shape ->
+                ClipPath name (map f cshape) (map f shape)
+
+            Link href shape ->
+                Link href (map f shape)
+
+            Tap msg shape ->
+                Tap (ff msg) (map f shape)
+
+            TapAt msg shape ->
+                TapAt (ff << msg) (map f shape)
+
+            EnterShape msg shape ->
+                EnterShape (ff msg) (map f shape)
+
+            EnterAt msg shape ->
+                EnterAt (ff << msg) (map f shape)
+
+            Exit msg shape ->
+                Exit (ff msg) (map f shape)
+
+            ExitAt msg shape ->
+                ExitAt (ff << msg) (map f shape)
+
+            MouseDown msg shape ->
+                MouseDown (ff msg) (map f shape)
+
+            MouseDownAt msg shape ->
+                MouseDownAt (ff << msg) (map f shape)
+
+            MouseUp msg shape ->
+                MouseUp (ff msg) (map f shape)
+
+            MouseUpAt msg shape ->
+                MouseUpAt (ff << msg) (map f shape)
+
+            MoveOverAt msg shape ->
+                MoveOverAt (ff << msg) (map f shape)
+
+            TouchStart msg shape ->
+                TouchStart (ff msg) (map f shape)
+
+            TouchEnd msg shape ->
+                TouchEnd (ff msg) (map f shape)
+
+            TouchStartAt msg shape ->
+                TouchStartAt (ff << msg) (map f shape)
+
+            TouchEndAt msg shape ->
+                TouchEndAt (ff << msg) (map f shape)
+
+            TouchMoveAt msg shape ->
+                TouchMoveAt (ff << msg) (map f shape)
+
+            Group shapes ->
+                Group (List.map (map f) shapes)
+
+
+{-| The `GraphicSVG` type alias represents the drawable surface of the window.
+
+This type is only used to define a type signature for a user defined `view` as follows:
+
+    view : GraphicSVG.GraphicSVG userMsg
+
+for use with `graphicsApp` where `UserMsg` can be anything as messages
 are not used, and as follows:
 
-    view : Model -> GraphicSVG.GraphcSVG Msg
+    view : Model -> GraphicSVG.GraphicSVG MyMsg
 
-for use with "notificationsApp" and "gameApp".
+for use with `notificationsApp`, `gameApp` and `cmdApp`.
 
-These assume that Model is the name of the user model type alias and
-"Msg" is the name of the user msg type; just substitute the names
+These assume that `Model` is the name of the user model type alias and
+`MyMsg` is the name of the user message type; just substitute the names
 actually used.
 
 -}
-type alias GraphicSVG notifications =
-    Collage (Msg notifications)
+type alias GraphicSVG userMsg =
+    Collage (Msg userMsg)
 
 
 type Color
@@ -297,30 +414,16 @@ type LineType
     | Broken (List ( Float, Float )) Float
 
 
-
--- length of lines and gaps in pixels
-
-
 type Face
     = Face
-        Float
-        -- size
-        Bool
-        -- bold
-        Bool
-        -- italic
-        Bool
-        -- underline
-        Bool
-        -- strikethrough
-        Bool
-        -- selectable
-        Font
-        Bool
-
-
-
--- centered
+        Float   -- size
+        Bool    -- bold
+        Bool    -- italic
+        Bool    -- underline
+        Bool    -- strikethrough
+        Bool    -- selectable
+        Font   
+        Bool    -- centred
 
 
 type Font
@@ -330,22 +433,24 @@ type Font
     | Custom String
 
 
-{-| To make it easier to read the code defining a curve,
+{-| To make it easier to read the code defining a `curve`,
 and to make sure we always use the right number of curve points
 and pull points (which is one more curve point than pull points),
-we define a special Pull type, whose first point is the point
+we define a special `Pull` type, whose first point is the point
 we pull towards, and second point is the end point for this
-curve segmentsment.
+curve segments.
 -}
 type Pull
     = Pull ( Float, Float ) ( Float, Float )
 
 
-{-| The possible states when you ask for a key's state.
-JustDown is the frame after the key went down (will show up exactly once per press)
-Down is a press that is continuing for more than one frame
-JustUp is the frame after the key went up / stopped being pressed (will show up exactly once per press)
-Up means the key is not currently being pressed nor was it recently released.
+{-| The possible states when you ask for a key's state:
+
+* `JustDown` is the frame after the key went down (will show up exactly once per press)
+* `Down` is a press that is continuing for more than one frame
+* `JustUp` is the frame after the key went up / stopped being pressed (will show up exactly once per press)
+* `Up` means the key is not currently being pressed nor was it recently released.
+
 -}
 type KeyState
     = JustDown
@@ -361,21 +466,17 @@ type KeyAction
 
 {-| The simplest way to render graphics to the screen. These graphics will be
 static (they don't move) and you can't interact with them. Great for beginners
-or for when you just need basic graphics. Note that your view function is bare,
+or for when you just need basic graphics. Note that your `view` function is bare,
 with no parameters:
 
-    view =
-        collage 500
-            500
-            [ circle 10 |> filled red
-            ]
+    view = collage 500 500 
+        [ 
+            circle 10 |> filled red
+        ]
 
-graphicsApp takes a parameter like this:
-{
-view = view
-}
+`graphicsApp` takes a parameter like `{ view = view }`
 so the main program that would get the whole thing started for the above
-`view' would be:
+`view` would be:
 
     main =
         graphicsApp { view = view }
@@ -384,105 +485,116 @@ so the main program that would get the whole thing started for the above
 graphicsApp : JustGraphics a -> GraphicsProgram a
 graphicsApp input =
     Html.program
-        { init = ( ( 0, initGModel ), initialSizeCmd [] input.view )
+        { init = ( ( 0, initHiddenModel () ), initialSizeCmd [] input.view )
         , update = blankUpdate
         , view = blankView input.view
         , subscriptions = \_ -> Window.resizes sizeToMsg
         }
 
 
-{-| The JustGraphics type alias is a simple record that contains the pointer to
-the users view constant, which `view' does not take any arguments and returns
-a GraphicsProgram type.
+{-| The `JustGraphics` type alias is a simple record that contains the pointer to
+the users view constant, which `view` does not take any arguments and returns
+a `GraphicsProgram` type.
 -}
 type alias JustGraphics a =
     { view : Collage (Msg a) }
 
 
-{-| This type alias is only used as a target for a user "main" type signature
-to make the type signature more clear and concise when "main" calls
-"graphicsApp":
+{-| This type alias is only used as a target for a user `main` type signature
+to make the type signature more clear and concise when `main` calls
+`graphicsApp`:
 
-    main : GraphicsProgram msgs
+    main : GraphicsProgram userMsg
     main =
         graphicsApp { view = view }
 
-Note that msgs can be anything as no messages are used in this type of program.
+Note that `userMsg` can be anything as no messages are used in this type of program.
 
 -}
-type alias GraphicsProgram a =
-    Program Never ( Int, GModel (Msg a) ) (Msg a)
+type alias GraphicsProgram userMsg =
+    Program Never ( Int, HiddenModel () ) (Msg userMsg)
 
 
-{-| Like graphicsApp, but you can add interactivity to your graphics by using the
-"notify" functions. This allows you to learn Elm's architecture in a fun way with
-graphics. Note that your view function needs a model parameter now:
+{-| Like `graphicsApp`, but you can add interactivity to your graphics by using the
+`notify*` functions. This allows you to learn Elm's architecture in a fun way with
+graphics. Note that your `view` function needs a `model` parameter now, which in this
+example is the color of the shape:
 
     view model =
-        collage 500
-            500
-            [ circle 10 |> filled model |> notifyTap Change
+        collage 500 500
+            [ 
+                circle 10 |> filled model |> notifyTap Change
             ]
 
-notificationApp takes a parameter like:
-{
-model = model
-, view = view
-, update = update
-}
-so the functions that would be required to make the above `view' function work
+`notificationApp` takes a parameter like:
+
+    {
+      model = model
+    , view = view
+    , update = update
+    }
+
+so the functions that would be required to make the above `view` function work
 are as follows:
 
-    type Msg = Change
+    type Msg
+        = Change
 
-    type update msg model =
+    update msg model =
         case msg of
-            Change -> green
+            Change ->
+                green
 
-    main = notificationsApp { model = red, update = update, view = view }
+    main =
+        notificationsApp
+            { model = red -- causes circle to start red
+            , update = update -- function which changes the model
+            , view = view
+            }
 
-which will cause the red circle on-screen to change to green the first time
-it is mouse clicked or tapped.
+which will cause the drawn red circle to change to green the first time
+it is mouse clicked or touched.
 
 -}
-notificationsApp : GraphicsApp model msgs -> NotificationsProgram model msgs
+notificationsApp : GraphicsApp model userMsg -> NotificationsProgram model userMsg
 notificationsApp input =
     Html.program
-        { init = ( ( input.model, initGModel ), initialSizeCmd [] (input.view input.model) )
+        { init = ( ( input.model, initHiddenModel () ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenUpdate input.update
         , view = hiddenView input.view
         , subscriptions = \_ -> Window.resizes sizeToMsg
         }
 
 
-{-| This type alias is only used as a target for a user "main" type signature
-to make the type signature more clear and concise when "main" calls
-"notificationssApp":
+{-| This type alias is only used as a target for a user `main` type signature
+to make the type signature more clear and concise when `main` calls
+`notificationsApp`:
 
-    main : NotificationProgram Model Msg
+    main : NotificationProgram Model MyMsg
     main =
         notificationsApp { model = init, update = update, view = view }
 
-where "Model" is the type alias of the user persistent model, and
-"Msg" is the name of the user defined message type;
+where `Model` is the type alias of the user persistent model, and
+`MyMsg` is the name of the user defined message type;
 if other names are used, they can just be substituted for these names.
 
 -}
-type alias NotificationsProgram model msgs =
-    Program Never ( model, GModel (Msg msgs) ) (Msg msgs)
+type alias NotificationsProgram model userMsg =
+    Program Never ( model, HiddenModel () ) (Msg userMsg)
 
 
 {-| Automatically maps time and keyboard presses to your program. This should
 be all you need for making complex interactive games and animations.
-gameApp takes two parameters: one is your own type of `InputHandler' message
+`gameApp` takes two parameters: one is your own type of `InputHandler` message
 which will be automatically called each time the browser window is refreshed
-(usually either 50 or 60 times a second, depending on power frequency)
-of the form (Float -> GetKeyState -> CustomMsg) and the other is
-{
-model = model
-, view = view
-, update = update
-}
+(30 times per second)
+of the form `Float -> GetKeyState -> UserMsg` and the other is
+
+    {
+      model = model
+    , view = view
+    , update = update
+    }
 
 The following program causes animation of the drawn line,
 causing it to spin around; also, a press of the "r" key
@@ -511,72 +623,125 @@ causes the direction of the spin to reverse:
                         { model | angle = model.angle + model.speed }
 
     view model =
-        collage 500
-            500
+        collage 500 500
             [ line ( 0, 0 ) ( 250, 0 )
                 |> outlined (solid 1) green
                 |> rotate (degrees model)
             ]
 
     main =
-        gameApp Tick { model = init, update = update, view = view }
+        gameApp Tick { 
+                       model = init
+                     , update = update
+                     , view = view 
+                     }
 
 -}
-gameApp : InputHandler msgs -> GraphicsApp model msgs -> GameProgram model msgs
+gameApp : InputHandler userMsg -> GraphicsApp model userMsg -> GameProgram model userMsg
 gameApp tickMsg input =
     Html.program
-        { init = ( ( input.model, { initGModel | updateTick = tickMsg } ), initialSizeCmd [] (input.view input.model) )
+        { init = ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenGameUpdate input.update
         , view = hiddenView input.view
         , subscriptions = subs []
         }
 
 
-{-| The InputHandler type alias descripts a message that contains a Float representing the time in seconds from
+{-| The `InputHandler` type alias descripts a message that contains a Float representing the time in seconds from
 the time the program started and the `GetKeyState` type alias used for returning key actions.
 -}
-type alias InputHandler msgs =
+type alias InputHandler userMsg =
     Float
     -> GetKeyState
-    -> msgs
+    -> userMsg
 
 
-{-| The GraphicsApp type alias is a record that contains the pointers to
-the user's initial condition of the persistant state model of any type, the
-user's update function which takes arguments of the message to be acted on
+{-| The `GraphicsApp` type alias is a record that contains the
+the initial state of the user-defined model of any type, the
+user's `update` function which takes arguments of the message to be acted on
 and the current state of the model and returns the new state of the model, and
-the view function, which takes one argument of the current state of the model
-and returns a Collage type.
+the `view` function, which takes one argument of the current state of the model
+and returns a `Collage` type.
 -}
-type alias GraphicsApp model msgs =
-    { model : model, update : msgs -> model -> model, view : model -> Collage (Msg msgs) }
+type alias GraphicsApp model userMsg =
+    { model : model, update : userMsg -> model -> model, view : model -> Collage (Msg userMsg) }
 
 
-{-| This type alias is only used as a target for a user "main" type signature to make
-the type signature more clear and concise when "main" calls "gameApp":
+{-| This type alias is only used as a target for a user `main` type signature to make
+the type signature more clear and concise when `main` calls `gameApp`:
 
     main : GamesProgram Model Msg
     main =
-        gameApp Tick { model = init, update = update, view = view }
+        gameApp Tick { 
+                       model = init
+                     , update = update
+                     , view = view 
+                     }
 
-where "Tick" is the message handler called once per browser window update
-(Tick must be one of the user-defined Msgs with type Float -> GetKeyState -> Tick,
-written as Tick Float GetKeyState),
-"Model" is the type alias of the user persistent model, and
-"Msg" is the name of the user message type; if other names are used,
+where `Tick` is the message handler called once per browser window update,
+`Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type; if other names are used,
 they can just be substituted for these names.
 
 -}
-type alias GameProgram model msgs =
-    Program Never ( model, GModel (InputHandler msgs) ) (Msg msgs)
+type alias GameProgram model userMsg =
+    Program Never ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
 
 
-subs : List (Sub (Msg notes)) -> a -> Sub (Msg notes)
+{-| Advanced Function Warning! cmdApp takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
+    
+    {
+      init = (model, cmd)
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    }
+
+This matches the Elm architecture and is analogous to `Html.program`.
+-}
+cmdApp : InputHandler userMsg -> CmdApp model userMsg -> CmdProgram model userMsg
+cmdApp tickMsg input =
+    Html.program
+        { init =
+            ( ( Tuple.first input.init, initHiddenModel tickMsg )
+            , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second input.init) ]
+                (input.view (Tuple.first input.init))
+            )
+        , update = hiddenCmdUpdate input.update
+        , view = hiddenCmdView input.view
+        , subscriptions = subs [ Sub.map (\sub -> Graphics sub) (input.subscriptions (Tuple.first input.init)) ]
+        }
+
+
+type alias CmdApp model userMsg =
+    { init : ( model, Cmd userMsg )
+    , update : userMsg -> model -> ( model, Cmd userMsg )
+    , view : model -> Collage (Msg userMsg)
+    , subscriptions : model -> Sub userMsg
+    }
+
+
+{-| This type alias is only used as a target for a user `main` type signature to make
+the type signature more clear and concise when `main` calls `cmdApp`:
+
+    main : CmdProgram Model Msg
+    main =
+        cmdApp Tick { model = init, update = update, view = view, subscriptions = subscriptions }
+
+where `Tick` is a message handler called once per browser window update,
+`Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type; if other names are used,
+they can just be substituted for these names.
+
+-}
+type alias CmdProgram model userMsg =
+    Program Never ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
+
+
+subs : List (Sub (Msg userMsg)) -> a -> Sub (Msg userMsg)
 subs extraSubs model =
     Sub.batch
         ([ Time.every (1000 / 30 * millisecond) (createTimeMessage)
-
-         -- AnimationFrame.times (createTimeMessage timeMsg)
          , Window.resizes sizeToMsg
          ]
             ++ keySubs
@@ -584,12 +749,12 @@ subs extraSubs model =
         )
 
 
-keySubs : List (Sub (Msg notes))
+keySubs : List (Sub (Msg userMsg))
 keySubs =
     [ Keyboard.ups (KeyUp), Keyboard.downs (KeyDown) ]
 
 
-createTimeMessage : Time -> Msg notes
+createTimeMessage : Time -> Msg userMsg
 createTimeMessage t =
     let
         time =
@@ -599,7 +764,7 @@ createTimeMessage t =
 
 
 blankUpdate :
-    Msg notes
+    Msg userMsg
     -> ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } )
     -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd msg )
 blankUpdate msg ( model, gModel ) =
@@ -620,11 +785,6 @@ blankUpdate msg ( model, gModel ) =
             ( ( model, gModel ), Cmd.none )
 
 
-hiddenUpdate :
-    (a -> b -> b)
-    -> Msg a
-    -> ( b, { c | ch : Float, cw : Float, sh : Float, sw : Float } )
-    -> ( ( b, { c | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd msg )
 hiddenUpdate update msg ( model, gModel ) =
     case msg of
         Graphics message ->
@@ -643,41 +803,6 @@ hiddenUpdate update msg ( model, gModel ) =
             ( ( model, gModel ), Cmd.none )
 
 
-hiddenGameUpdate :
-    (a -> b -> b)
-    -> Msg a
-    ->
-        ( b
-        , { c
-            | ch : Float
-            , cw : Float
-            , initT : Float
-            , keys : KeyDict
-            , sh : Float
-            , sw : Float
-            , updateTick :
-                Float
-                -> ( Keys -> KeyState, ( number, number1 ), ( number2, number3 ) )
-                -> a
-          }
-        )
-    ->
-        ( ( b
-          , { c
-                | ch : Float
-                , cw : Float
-                , initT : Float
-                , keys : KeyDict
-                , sh : Float
-                , sw : Float
-                , updateTick :
-                    Float
-                    -> ( Keys -> KeyState, ( number, number1 ), ( number2, number3 ) )
-                    -> a
-            }
-          )
-        , Cmd msg
-        )
 hiddenGameUpdate update msg ( model, gModel ) =
     let
         updateTick =
@@ -708,28 +833,75 @@ hiddenGameUpdate update msg ( model, gModel ) =
             KeyUp n ->
                 ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
 
-            NoOp ->
-                ( ( model, gModel ), Cmd.none )
+
+hiddenCmdUpdate :
+    (userMsg -> model -> ( model, Cmd userMsg ))
+    -> Msg userMsg
+    -> ( model, HiddenModel (InputHandler userMsg) )
+    -> ( ( model, HiddenModel (InputHandler userMsg) ), Cmd (Msg userMsg) )
+hiddenCmdUpdate update msg ( model, gModel ) =
+    let
+        mapUserCmd cmd =
+            Cmd.map (\cmd -> Graphics cmd) cmd
+    in
+        case msg of
+            Graphics message ->
+                let
+                    ( newModel, userCmds ) =
+                        update message model
+                in
+                    ( ( newModel, gModel ), mapUserCmd userCmds )
+
+            WindowResize ( width, height ) ->
+                ( ( model, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
+
+            ReturnPosition message ( x, y ) ->
+                let
+                    ( newModel, userCmds ) =
+                        update (message (convertCoords ( x, y ) gModel)) model
+                in
+                    ( ( newModel, gModel ), mapUserCmd userCmds )
+
+            CollageSize ( width, height ) ->
+                ( ( model, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
+
+            InitTime t ->
+                ( ( model, { gModel | initT = t } ), Cmd.none )
+
+            TickTime t ->
+                let
+                    ( newModel, userCmds ) =
+                        update (gModel.updateTick (t - gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model
+                in
+                    ( ( newModel, { gModel | keys = maintainKeyDict gModel.keys } ), mapUserCmd userCmds )
+
+            KeyDown n ->
+                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
+
+            KeyUp n ->
+                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
 
 
-blankView : Collage notification -> ( a, b ) -> Html.Html notification
+blankView : Collage userMsg -> ( a, b ) -> Html.Html userMsg
 blankView view ( model, gModel ) =
     case view of
         Collage ( w, h ) shapes ->
             createCollage w h shapes
 
 
-hiddenView : (a -> Collage notification) -> ( a, b ) -> Html.Html notification
+hiddenView : (a -> Collage userMsg) -> ( a, b ) -> Html.Html userMsg
 hiddenView view ( model, gModel ) =
     case (view model) of
         Collage ( w, h ) shapes ->
             createCollage w h shapes
 
 
-convertCoords :
-    ( Float, Float )
-    -> { a | ch : Float, cw : Float, sh : number, sw : Float }
-    -> ( Float, Float )
+hiddenCmdView view ( model, gModel ) =
+    case (view model) of
+        Collage ( w, h ) shapes ->
+            createCollage w h shapes
+
+
 convertCoords ( x, y ) gModel =
     let
         sw =
@@ -791,14 +963,10 @@ convertCoords ( x, y ) gModel =
         ( (x - leadX - newW / 2) / scale, (y + leadY + offsetY + newH / 2) / scale )
 
 
-
---initialSizeCmd : Cmd Msg
-
-
 initialSizeCmd :
-    List (Cmd (Msg notes))
-    -> Collage notification
-    -> Cmd (Msg notes)
+    List (Cmd (Msg userMsg))
+    -> Collage (Msg userMsg)
+    -> Cmd (Msg userMsg)
 initialSizeCmd otherCmds userView =
     Cmd.batch
         ([ Task.perform sizeToMsg Window.size
@@ -809,61 +977,60 @@ initialSizeCmd otherCmds userView =
         )
 
 
-getInitTime : Time -> Msg notes
+getInitTime : Time -> Msg userMsg
 getInitTime t =
     InitTime (inSeconds t)
 
 
-sizeToMsg : Window.Size -> Msg a
+sizeToMsg : Window.Size -> Msg userMsg
 sizeToMsg size =
     WindowResize ( size.width, size.height )
 
 
-getCollageSize : Collage notification -> Msg notes
+getCollageSize : Collage (Msg userMsg) -> Msg userMsg
 getCollageSize userView =
     case userView of
         Collage ( w, h ) _ ->
             CollageSize ( round w, round h )
 
 
-{-| The Msg type encapsulates all GraphicSVG internal messages.
+{-| The `Msg` type encapsulates all GraphicSVG internal messages.
 
-This type is only used to define type signature for user defined
-"view" and "main" as follows:
+This type is only used to define type signature fors user defined
+`view` and `main` as follows:
 
-    view : GraphicSVG.Collage (GraphicSVG.Msg msg)
+    view : GraphicSVG.Collage (GraphicSVG.Msg Msg)
 
-for use with "graphicsApp" and "notificationsApp", and as follows:
+for use with `graphicsApp` and `notificationsApp`, and as follows:
 
-    view : Model -> GraphicSVG.Collage (GraphicSVG.Msg msg)
+    view : Model -> GraphicSVG.Collage (GraphicSVG.Msg Msg)
 
-for use with "gameApp".
+for use with `gameApp`.
 
 It is also used to define the type signature for
-a user supplied "main" as follows:
+a user supplied `main` as follows:
 
-    main : Program Never (GraphicsModel Model Msg) (GraphicSVG.Msg msg)
+    main : Program Never (GraphicsModel Model Msg) (GraphicSVG.Msg Msg)
 
-for use with "graphicsApp" and "notificationsApp", and as follows:
+for use with `graphicsApp` and `notificationsApp`, and as follows:
 
-    main : Program Never (GamesModel Model Msg) (GraphicSVG.Msg msg)
+    main : Program Never (GamesModel Model Msg) (GraphicSVG.Msg Msg)
 
-for use when "main" calls "gameApp"
+for use when `main` calls `gameApp`
 
-These assume that "Model" is the type alias of the user persistent model, and
-"Msg" is the name of the user msg type.
+These assume that `Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type.
 
 -}
-type Msg notes
-    = Graphics notes
+type Msg userMsg
+    = Graphics userMsg
     | WindowResize ( Int, Int )
-    | ReturnPosition (( Float, Float ) -> notes) ( Float, Float )
+    | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
     | CollageSize ( Int, Int )
     | InitTime Time
     | TickTime Time
     | KeyDown Int
     | KeyUp Int
-    | NoOp
 
 
 aHiddenUpdate : (a -> b -> c) -> a -> b -> ( c, Cmd msg )
@@ -876,36 +1043,27 @@ aHiddenView view model =
     view model
 
 
-{-| The GModel type alias encapsulates the GraphicSVG internal model
+{-| The `HiddenModel` type alias encapsulates the GraphicSVG internal model
 which is not exposed to user code.
 -}
-type alias GModel a =
+type alias HiddenModel inputHandler =
     { cw : Float
     , ch : Float
     , sw : Float
     , sh : Float
     , initT : Float
-    , updateTick : a
+    , updateTick : inputHandler
     , keys : KeyDict
     }
 
 
-initGModel :
-    { ch : number
-    , cw : number1
-    , initT : number2
-    , keys : Dict.Dict k v
-    , sh : number3
-    , sw : number4
-    , updateTick : Msg notes
-    }
-initGModel =
+initHiddenModel userTick =
     { cw = 0
     , ch = 0
     , sw = 0
     , sh = 0
     , initT = 0
-    , updateTick = NoOp
+    , updateTick = userTick
     , keys = Dict.empty
     }
 
@@ -914,11 +1072,11 @@ type alias KeyDict =
     Dict.Dict KeyCode ( KeyState, Bool )
 
 
-{-| GetKeyState returns a triple where the first argument is of type (Keys -> KeyState)
-so you can ask if a certain key is presses. The other two are tuples of arrow keys and
+{-| `GetKeyState` returns a triple where the first argument is of type `Keys -> KeyState`
+so you can ask if a certain key is pressed. The other two are tuples of arrow keys and
 WASD keys, respectively. They're in the form (x,y) which represents the key presses
-of each player. For example, (0,-1) represents the left or "A" key, and (1,1) would mean
-the up (or "W") and right (or "D") keys are being pressed at the same time.
+of each player. For example, (0,-1) represents the left arrow or "A" key, and (1,1)
+would mean the up (or "W") and right (or "D") key are being pressed at the same time.
 -}
 type alias GetKeyState =
     ( Keys -> KeyState, ( Float, Float ), ( Float, Float ) )
@@ -1041,7 +1199,7 @@ maintainHelper key action =
             ( Down, False )
 
 
-{-| Includes all the regular keys. Ask for letters and numbers using "Key String."
+{-| Includes all the regular keys. Ask for letters and numbers using `Key String`, e.g. `Key "a"` or `Key "3"`.
 -}
 type Keys
     = Key String
@@ -1136,7 +1294,6 @@ keyCheckerFunction dict key =
                 Up
 
 
-arrowKeys : (Keys -> KeyState) -> ( number, number1 )
 arrowKeys checker =
     ( case ( (checker LeftArrow), (checker RightArrow) ) of
         ( Down, Up ) ->
@@ -1195,7 +1352,6 @@ arrowKeys checker =
     )
 
 
-wasdKeys : (Keys -> KeyState) -> ( number, number1 )
 wasdKeys checker =
     ( case ( (checker (Key "a")), (checker (Key "d")) ) of
         ( Down, Up ) ->
@@ -1254,16 +1410,16 @@ wasdKeys checker =
     )
 
 
-{-| Create a line from a point to a point. Use "outlined" to convert to a viewable
-Shape.
+{-| Create a line from a point to a point. Use `outlined` to convert to a viewable
+`Shape`.
 -}
 line : ( Float, Float ) -> ( Float, Float ) -> Stencil
 line p1 p2 =
     Path [ p1, p2 ]
 
 
-{-| Create a closed shape given a list of points. Can use "outlined" or "filled" to
-convert to a Shape.
+{-| Create a closed shape given a list of points. Can use `outlined` or `filled` to
+convert to a `Shape`.
 -}
 polygon : List ( Float, Float ) -> Stencil
 polygon ptList =
@@ -1271,20 +1427,19 @@ polygon ptList =
 
 
 {-| Create an open shape given a list of points. Unlike with polygon, the first and
-last points will not join up automatically. Can use "outlined" or "filled" to
-convert to a Shape.
+last points will not join up automatically. Can use `outlined` or `filled` to
+convert to a `Shape`.
 -}
 openPolygon : List ( Float, Float ) -> Stencil
 openPolygon ptList =
     Path ptList
 
 
-{-| Create a regular polygon with a given number of sides and radius.
-Examples:
+{-| Create a regular polygon with a given number of sides and radius. Examples:
 
-    ngon 3 50 - triangle
-    ngon 5 50 - pentagon
-    ngon 8 50 - octogon
+    ngon 3 50 -- triangle
+    ngon 5 50 -- pentagon
+    ngon 8 50 -- octogon
 
 -}
 ngon : Int -> Float -> Stencil
@@ -1292,14 +1447,14 @@ ngon n r =
     Polygon <| List.map (ptOnCircle r (Basics.toFloat n) << Basics.toFloat) (List.range 0 n)
 
 
-{-| Synonym for "ngon 3". Creates a triangle from a circle of given radius.
+{-| Synonym for `ngon 3`. Creates a triangle with a given size.
 -}
 triangle : Float -> Stencil
 triangle r =
     ngon 3 r
 
 
-{-| Creates a square with a given side length. (Synonym for rect s s)
+{-| Creates a square with a given side length. (Synonym for `rect s s`)
 -}
 square : Float -> Stencil
 square r =
@@ -1313,7 +1468,7 @@ rect w h =
     Rect w h
 
 
-{-| Synonym for rect.
+{-| Synonym for `rect`.
 -}
 rectangle : Float -> Float -> Stencil
 rectangle w h =
@@ -1344,8 +1499,15 @@ oval w h =
 
 {-| Creates a graph paper with squares of a given size.
 -}
-graphPaper : Float -> Shape notification
+graphPaper : Float -> Shape userMsg
 graphPaper s =
+    graphPaperCustom s 1 (rgb 135 206 250)
+
+
+{-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
+-}
+graphPaperCustom : Float -> Float -> Color -> Shape userMsg
+graphPaperCustom s th c =
     let
         sxi =
             round (1500 / s)
@@ -1354,31 +1516,32 @@ graphPaper s =
             round (800 / s)
 
         xlisti =
-            (List.range -sxi sxi)
+            List.range -sxi sxi
 
         ylisti =
-            (List.range -syi syi)
+            List.range -syi syi
     in
         group
-            (List.map (createGraphX 1600 s << Basics.toFloat) xlisti
-                ++ List.map (createGraphY 3000 s << Basics.toFloat) ylisti
+            (List.map (createGraphX 1600 s th c << Basics.toFloat) xlisti
+                ++ List.map (createGraphY 3000 s th c << Basics.toFloat) ylisti
             )
 
 
-createGraphX : Float -> Float -> Float -> Shape notification
-createGraphX h s x =
-    filled (rgb 135 206 250) (rect 1 h) |> move ( x * s, 0 )
+createGraphX : Float -> Float -> Float -> Color -> Float -> Shape userMsg
+createGraphX h s th c x =
+    filled c (rect th h) |> move ( x * s, 0 )
 
 
-createGraphY : Float -> Float -> Float -> Shape notification
-createGraphY w s y =
-    filled (rgb 135 206 250) (rect w 1) |> move ( 0, y * s )
+createGraphY : Float -> Float -> Float -> Color -> Float -> Shape userMsg
+createGraphY w s th c y =
+    filled c (rect w th) |> move ( 0, y * s )
 
 
 {-| Creates a wedge with a given radius, and a given fraction of a circle.
-wedge 50 0.5 - semi-circle
-wedge 50 0.25 - quarter-circle
-wedge 50 0.75 - three-quarter circle
+    
+    wedge 50 0.5 -- semi-circle
+    wedge 50 0.25 -- quarter-circle
+    wedge 50 0.75 -- three-quarter circle
 -}
 wedge : Float -> Float -> Stencil
 wedge r frac =
@@ -1416,12 +1579,16 @@ ptOnCircle r n cn =
         ( r * cos (degrees angle), r * sin (degrees angle) )
 
 
-{-| Creates a curve starting at a point, pulled towards a point, ending at a third point.
-curve (0,0) [Pull (0,10) (0,20)] - a curve starting at (0,0), pulled towards (0,10), ending at (0,20)
+{-| Creates a curve starting at a point, pulled towards a point, ending at a third point. For example,
+
+    curve (0,0) [Pull (0,10) (0,20)]
+
+gives a curve starting at (0,0), pulled towards (0,10) and ending at (0,20).
+
 Think about curves as what you get when you take a bunch of
 bendy sticks with their ends glued down to a board, and then pulling each stick
 towards another point.
-You always need an initial point and at least one Pull, but you can add as many Pulls as you want to
+You always need an initial point and at least one `Pull`, but you can add as many `Pull`s as you want to
 add additional curve segments, but each curve segment can only bend one way, since it is pulled in one direction.
 -}
 curve : ( Float, Float ) -> List Pull -> Stencil
@@ -1434,24 +1601,26 @@ curveListHelper (Pull ( a, b ) ( c, d )) =
     ( ( a, b ), ( c, d ) )
 
 
-{-| Add a hyperlink to any `Shape`.
-circle 10
-|> filled red
-|> addHyperLink "<http://outreach.mcmaster.ca">
+{-| Add a hyperlink to any `Shape`:
+
+    circle 10
+        |> filled red
+        |> addHyperLink "http://outreach.mcmaster.ca"
 -}
-addHyperlink : String -> Shape notification -> Shape notification
+addHyperlink : String -> Shape userMsg -> Shape userMsg
 addHyperlink link shape =
     Link link shape
 
 
 {-| Creates a text stencil. You can change this stencil using the text helper
-functions. Note that "filled" or "outlined" must go at the *end* of the infixes
-(ie note that all these functions are Stencil -> Stencil).
-text "Hello World"
-|> fixedwidth
-|> bold
-|> size 14
-|> filled black
+functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* of the infixes
+(ie note that all these functions are Stencil -> Stencil):
+
+    text "Hello World"
+        |> fixedwidth
+        |> bold
+        |> size 14
+        |> filled black
 -}
 text : String -> Stencil
 text str =
@@ -1459,11 +1628,12 @@ text str =
 
 
 {-| Apply to a curve or group of curves in order to annotate their start points,
-end points and "pull" points. Helpful while perfecting curves.
-curve (0,0) [Pull (0,10) (0,20)]
-|> curveHelper
+end points and `Pull` points. Helpful while perfecting curves.
+
+    curve (0,0) [Pull (0,10) (0,20)]
+        |> curveHelper
 -}
-curveHelper : Shape notification -> Shape notification
+curveHelper : Shape userMsg -> Shape userMsg
 curveHelper shape =
     case shape of
         Inked clr outline (BezierPath ( a, b ) list) ->
@@ -1488,7 +1658,7 @@ curveHelper shape =
 generateCurveHelper :
     ( number, number1 )
     -> List ( ( number, number1 ), ( number, number1 ) )
-    -> Shape notification
+    -> Shape userMsg
 generateCurveHelper ( a, b ) list =
     let
         l1Array =
@@ -1497,7 +1667,7 @@ generateCurveHelper ( a, b ) list =
         group [ generateCHLines l1Array, generateCHCircles l1Array ]
 
 
-generateCHLines : Array.Array ( number, number1 ) -> Shape notification
+generateCHLines : Array.Array ( number, number1 ) -> Shape userMsg
 generateCHLines ar =
     let
         len =
@@ -1506,7 +1676,7 @@ generateCHLines ar =
         group (List.map (generateCHLine ar) (List.range 0 (len - 2)))
 
 
-generateCHLine : Array.Array ( number, number1 ) -> Int -> Shape notification
+generateCHLine : Array.Array ( number, number1 ) -> Int -> Shape userMsg
 generateCHLine ar int =
     let
         p1 =
@@ -1528,7 +1698,7 @@ generateCHLine ar int =
         outlined (dashed 0.5) black (line (p1) (p2))
 
 
-generateCHCircles : Array.Array ( number, number1 ) -> Shape notification
+generateCHCircles : Array.Array ( number, number1 ) -> Shape userMsg
 generateCHCircles ar =
     let
         len =
@@ -1537,7 +1707,7 @@ generateCHCircles ar =
         group (List.map (generateCHCircle ar) (List.range 0 (len - 1)))
 
 
-generateCHCircle : Array.Array ( number, number1 ) -> Int -> Shape notification
+generateCHCircle : Array.Array ( number, number1 ) -> Int -> Shape userMsg
 generateCHCircle ar int =
     let
         p1 =
@@ -1634,20 +1804,19 @@ a (x, y) pair of horizontal and vertical dimensions (arbitrary units,
 not necessarily in pixels) to which the drawing surface will be scaled,
 and the `List' of Shapes to be drawn on the drawing surface.
 -}
-type Collage notification
-    = Collage ( Float, Float ) (List (Shape notification))
+type Collage userMsg
+    = Collage ( Float, Float ) (List (Shape userMsg))
 
 
 {-| Creates a blank canvas on which you can draw shapes. Takes a width, height and a
-list of Shape. Use this in your "view" functions in the three types of Apps above.
-view = collage 500 500
-[
-circle 10 |> filled red
-][
-circle 10 |> filled red
-]
+list of `Shape`s. Use this in your `view` functions in the three types of Apps above.
+
+    view = collage 500 500 
+        [ 
+            circle 10 |> filled red
+        ]
 -}
-collage : Float -> Float -> List (Shape notification) -> Collage notification
+collage : Float -> Float -> List (Shape userMsg) -> Collage userMsg
 collage w h shapes =
     Collage ( w, h ) shapes
 
@@ -1694,13 +1863,13 @@ f =
 puppetShow :
     Float
     -> Float
-    -> List ( Float, Shape notification )
-    -> Collage notification
+    -> List ( Float, Shape userMsg )
+    -> Collage userMsg
 puppetShow w h listShapes =
     collage w h (List.map extractShape (List.sortWith flippedComparison listShapes))
 
 
-extractShape : ( Float, Shape notification ) -> Shape notification
+extractShape : ( Float, Shape userMsg ) -> Shape userMsg
 extractShape ( z, shape ) =
     let
         s =
@@ -1726,114 +1895,114 @@ flippedComparison ( a, x ) ( b, y ) =
 --Notification functions
 
 
-{-| Receive a notification when a Shape is tapped or clicked.
+{-| Receive a message when a `Shape` is tapped or clicked.
 -}
-notifyTap : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTap : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTap msg shape =
     Tap (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the screen is tapped / clicked.
+{-| Receive a message with a tuple of position when the `Shape` is tapped / clicked.
 -}
-notifyTapAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTapAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTapAt msg shape =
     TapAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the mouse enters a Shape.
+{-| Receive a message when the mouse enters a `Shape`.
 -}
-notifyEnter : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyEnter : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyEnter msg shape =
     EnterShape (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when mouse enters a Shape.
+{-| Receive a message with a tuple of position when mouse enters a `Shape`.
 -}
-notifyEnterAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyEnterAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyEnterAt msg shape =
     EnterAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the mouse leaves a Shape.
+{-| Receive a message when the mouse leaves a `Shape`.
 -}
-notifyLeave : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyLeave : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyLeave msg shape =
     Exit (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the mouse leaves a Shape.
+{-| Receive a message with a tuple of position when the mouse leaves a `Shape`.
 -}
-notifyLeaveAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyLeaveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyLeaveAt msg shape =
     ExitAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification with a tuple of position when the mouse is moved accross a Shape.
+{-| Receive a message with a tuple of position when the mouse is moved accross a `Shape`.
 -}
-notifyMouseMoveAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyMouseMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseMoveAt msg shape =
     MoveOverAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the mouse button is down over a Shape.
+{-| Receive a message when the mouse button is down over a `Shape`.
 -}
-notifyMouseDown : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyMouseDown : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDown msg shape =
     MouseDown (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the mouse button is down over a Shape.
+{-| Receive a message with a tuple of position when the mouse button is down over a `Shape`.
 -}
-notifyMouseDownAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyMouseDownAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDownAt msg shape =
     MouseDownAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the mouse button goes up over a Shape.
+{-| Receive a message when the mouse button goes up over a `Shape`.
 -}
-notifyMouseUp : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyMouseUp : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUp msg shape =
     MouseUp (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the mouse goes up over a Shape.
+{-| Receive a message with a tuple of position when the mouse goes up over a `Shape`.
 -}
-notifyMouseUpAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyMouseUpAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUpAt msg shape =
     MouseUpAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the user begins touching a Shape.
+{-| Receive a message when the user begins touching a `Shape`.
 -}
-notifyTouchStart : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTouchStart : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchStart msg shape =
     TouchStart (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the user begins touching a Shape.
+{-| Receive a message with a tuple of position when the user begins touching a `Shape`.
 -}
-notifyTouchStartAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchStartAt msg shape =
     TouchStartAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification when the user stops touching a Shape.
+{-| Receive a message when the user stops touching a `Shape`.
 -}
-notifyTouchEnd : msgs -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTouchEnd : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEnd msg shape =
     TouchEnd (Graphics msg) shape
 
 
-{-| Receive a notification with a tuple of position when the user stops touching a Shape.
+{-| Receive a message with a tuple of position when the user stops touching a `Shape`.
 -}
-notifyTouchEndAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEndAt msg shape =
     TouchEndAt (ReturnPosition msg) shape
 
 
-{-| Receive a notification with a tuple of position when the moves their finger over a Shape.
+{-| Receive a message with a tuple of position when the moves their finger over a `Shape`.
 -}
-notifyTouchMoveAt : (( Float, Float ) -> msgs) -> Shape (Msg msgs) -> Shape (Msg msgs)
+notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchMoveAt msg shape =
     TouchMoveAt (ReturnPosition msg) shape
 
@@ -2107,13 +2276,6 @@ createSVG trans shape =
         ScaleXY sx sy shape ->
             createSVG (scaleT trans ( sx, sy )) shape
 
-        ForeignObject htm ->
-            let
-                ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
-                    coalesce trans
-            in
-                Svg.foreignObject [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, b, c, d, tx, -ty ]) ++ ")" ] [ htm ]
-
         ClipPath name cshape shape ->
             Svg.g [ Svg.Attributes.clipPath ("url(#" ++ name ++ ")") ] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id name ] [ createSVG (coalesce trans) cshape ] ], createSVG (coalesce trans) shape ]
 
@@ -2176,20 +2338,22 @@ createSVG trans shape =
 --Filling / outlining functions
 
 
-{-| Fill a Stencil with a Color, creating a Shape.
-circle 10
-|> filled red
+{-| Fill a `Stencil` with a `Color`, creating a `Shape`.
+
+    circle 10
+        |> filled red
 -}
-filled : Color -> Stencil -> Shape notification
+filled : Color -> Stencil -> Shape userMsg
 filled color shape =
     Inked color Nothing shape
 
 
-{-| Outline a Stencil with a LineType and Color, creating a Shape.
-circle 10
-|> outlined (solid 5) red
+{-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`.
+
+    circle 10
+        |> outlined (solid 5) red
 -}
-outlined : LineType -> Color -> Stencil -> Shape notification
+outlined : LineType -> Color -> Stencil -> Shape userMsg
 outlined style outlineClr shape =
     let
         lineStyle =
@@ -2198,12 +2362,13 @@ outlined style outlineClr shape =
         Inked (rgba 0 0 0 0) (Just lineStyle) shape
 
 
-{-| Add an outline to an already-filled Shape.
-circle 10
-|> filled red
-|> addOutline (solid 5) white
+{-| Add an outline to an already-filled `Shape`.
+
+    circle 10
+        |> filled red
+        |> addOutline (solid 5) white
 -}
-addOutline : LineType -> Color -> Shape notification -> Shape notification
+addOutline : LineType -> Color -> Shape userMsg -> Shape userMsg
 addOutline style outlineClr shape =
     let
         lineStyle =
@@ -2229,18 +2394,20 @@ addOutline style outlineClr shape =
                 a
 
 
-{-| Make a Shape transparent by the fraction given. Note that it multiplies on top of other transparencies:
-circle 10
-|> filled red
-|> makeTransparent 0.5
---results in a transparency of 0.5 (half vislible)
-circle 10
-|> filled red
-|> makeTransparent 0.5
-|> makeTransparent 0.5
---results in a transparency of 0.25 (a quarter visible)
+{-| Make a `Shape` transparent by the fraction given. Multiplies on top of other transparencies:
+
+    circle 10
+        |> filled red
+        |> makeTransparent 0.5
+    --results in a transparency of 0.5 (half vislible)
+
+    circle 10
+        |> filled red
+        |> makeTransparent 0.5
+        |> makeTransparent 0.5
+    --results in a transparency of 0.25 (a quarter visible)
 -}
-makeTransparent : Float -> Shape notification -> Shape notification
+makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
         Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) shape ->
@@ -2269,35 +2436,35 @@ makeTransparent alpha shape =
 --Line styles
 
 
-{-| Define a solid line type with the given width.
+{-| Define a solid `LineType` with the given width.
 -}
 solid : Float -> LineType
 solid th =
     Solid th
 
 
-{-| Define a dotted line type with the given width.
+{-| Define a dotted `LineType` with the given width.
 -}
 dotted : Float -> LineType
 dotted th =
     Broken [ ( th, th ) ] th
 
 
-{-| Define a dashed line type with the given width. Dashes are short line segments, versus dots which are theoretically points, but may be drawn with very sort line segments.
+{-| Define a dashed `LineType` with the given width. Dashes are short line segments, versus dots which are theoretically points, but may be drawn with very sort line segments.
 -}
 dashed : Float -> LineType
 dashed th =
     Broken [ ( th * 5, th * 2.5 ) ] th
 
 
-{-| Define a dashed line type with the given width, where the dashes are longer than normal.
+{-| Define a dashed `LineType` with the given width, where the dashes are longer than normal.
 -}
 longdash : Float -> LineType
 longdash th =
     Broken [ ( th * 12, th * 6 ) ] th
 
 
-{-| Define a line type with the given width, including alternating dots and dashes.
+{-| Define a `LineType` with the given width, including alternating dots and dashes.
 -}
 dotdash : Float -> LineType
 dotdash th =
@@ -2305,24 +2472,14 @@ dotdash th =
 
 
 {-| A custom line defined by a list of (on,off):
-custom [(10,5)] 5 -- a line that with dashes 10 long and spaces 5 long
-custom [(10,5),(20,5)] -- on for 10, off 5, on 20, off 5
+
+    custom [(10,5)] 5 -- a line that with dashes 10 long and spaces 5 long
+    custom [(10,5),(20,5)] -- on for 10, off 5, on 20, off 5
+
 -}
 custom : List ( Float, Float ) -> Float -> LineType
 custom list th =
     Broken list th
-
-
-{-| A line of increasing spaces from start to end with a given thickness, with
-each step multiplied (scaled) by the thickness.
-Example:
-
-    increasing 1 10 5 -- increases in 10 steps from 5 to 50 with a thickness of 5.
-
--}
-increasing : Int -> Int -> Float -> LineType
-increasing s e th =
-    Broken (List.map (makePair << (*) th << Basics.toFloat) (List.range s e)) th
 
 
 makePair : a -> ( a, a )
@@ -2334,7 +2491,9 @@ makePair n =
 --Text functions
 
 
-{-| Apply to a Stencil to render any text in the Stencil in the size given (in points), which depends on the size and type of screen used, but try 12 to start.
+{-| Apply to a `text` `Stencil` to change the font size of the text. w
+
+The size has a unit called "points", which depends on the size and type of screen used, but try 12 to start.
 -}
 size : Float -> Stencil -> Stencil
 size size stencil =
@@ -2346,7 +2505,7 @@ size size stencil =
             a
 
 
-{-| Apply to a Stencil to make any text in the Stencil bold.
+{-| Apply to a `text` `Stencil` to make the text bold.
 -}
 bold : Stencil -> Stencil
 bold stencil =
@@ -2358,7 +2517,7 @@ bold stencil =
             a
 
 
-{-| Apply to a Stencil to make any text in the Stencil italic (ie slanted).
+{-| Apply to a `text` `Stencil` to make the text italicized (slanted).
 -}
 italic : Stencil -> Stencil
 italic stencil =
@@ -2370,7 +2529,7 @@ italic stencil =
             a
 
 
-{-| Apply to a Stencil to underline any text in the Stencil.
+{-| Apply to a `text` `Stencil` to underline the text.
 -}
 underline : Stencil -> Stencil
 underline stencil =
@@ -2382,7 +2541,7 @@ underline stencil =
             a
 
 
-{-| Apply to a Stencil to draw a line through any text in the Stencil.
+{-| Apply to a `text` `Stencil` to centre put a line through the text.
 -}
 strikethrough : Stencil -> Stencil
 strikethrough stencil =
@@ -2394,7 +2553,7 @@ strikethrough stencil =
             a
 
 
-{-| Apply to a Stencil to make any text in the Stencil selectable (so users can copy your great quote and paste it in their essay).
+{-| Apply to a `text` `Stencil` to make the text selectable (so users can copy your text and paste it elsewhere).
 -}
 selectable : Stencil -> Stencil
 selectable stencil =
@@ -2406,7 +2565,7 @@ selectable stencil =
             a
 
 
-{-| Apply to a Stencil to centre any text in the Stencil.
+{-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
 centered stencil =
@@ -2418,7 +2577,7 @@ centered stencil =
             a
 
 
-{-| Apply to a Stencil to render any text in the Stencil with a Sans Serif font (ie one without thinner and thicker bits).
+{-| Apply to a `text` `Stencil` to render the text with a Sans Serif font (ie one without thinner and thicker bits).
 -}
 sansserif : Stencil -> Stencil
 sansserif stencil =
@@ -2430,7 +2589,7 @@ sansserif stencil =
             a
 
 
-{-| Apply to a Stencil to render any text in the Stencil with a Serif font (ie one with thinner and thicker bits).
+{-| Apply to a `text` `Stencil` to render the text with a Serif font (ie one with thinner and thicker bits).
 -}
 serif : Stencil -> Stencil
 serif stencil =
@@ -2442,7 +2601,8 @@ serif stencil =
             a
 
 
-{-| Apply to a Stencil to render any text in the Stencil with a font in which every character has the same width so that that letters line up from line to line which is important in programming languages like Elm.
+{-| Apply to a `text` `Stencil` to render the text `Stencil` with a font in which every character has the same width. 
+This will mean that the letters line up from line to line which is important in programming languages like Elm.
 -}
 fixedwidth : Stencil -> Stencil
 fixedwidth stencil =
@@ -2454,8 +2614,9 @@ fixedwidth stencil =
             a
 
 
-{-| Use a font of your choosing by specifying its string name. Use this sparingly as support for each font
-will vary accross browsers and devices.
+{-| Apply to a `text` `Stencil` to render the text with afont of your choosing by specifying its string name. 
+
+*Use this sparingly as support for each font will vary accross browsers and devices.*
 -}
 customFont : String -> Stencil -> Stencil
 customFont fStr stencil =
@@ -2471,72 +2632,78 @@ customFont fStr stencil =
 --Transformation functions
 
 
-{-| Rotate a Shape by the specified amount (in radians). Use the "degrees" function to convert
-from degrees into radians.
+{-| Rotate a `Shape` by the specified amount (in radians). Use the `degrees` function to convert
+from degrees into radians:
+
+    [
+        rect 30 60
+            |> filled blue
+            |> rotate(degrees 30)
+    ]
 -}
-rotate : Float -> Shape notification -> Shape notification
+rotate : Float -> Shape userMsg -> Shape userMsg
 rotate theta shape =
     Rotate theta shape
 
 
-{-| Move a Shape by a number of units in x and y.
+{-| Move a `Shape` by a number of units in x and y.
 -}
-move : ( Float, Float ) -> Shape notification -> Shape notification
+move : ( Float, Float ) -> Shape userMsg -> Shape userMsg
 move disp shape =
     Move disp shape
 
 
-{-| Scale a Shape by a given factor.
+{-| Scale a `Shape` by a given factor.
 -}
-scale : Float -> Shape notification -> Shape notification
+scale : Float -> Shape userMsg -> Shape userMsg
 scale s shape =
     ScaleXY s s shape
 
 
-{-| Scale a Shape in the x-axis by a given factor.
+{-| Scale a `Shape` in the x-axis by a given factor.
 -}
-scaleX : Float -> Shape notification -> Shape notification
+scaleX : Float -> Shape userMsg -> Shape userMsg
 scaleX s shape =
     ScaleXY s 1 shape
 
 
-{-| Scale a Shape in the y-axis by a given factor.
+{-| Scale a `Shape` in the y-axis by a given factor.
 -}
-scaleY : Float -> Shape notification -> Shape notification
+scaleY : Float -> Shape userMsg -> Shape userMsg
 scaleY s shape =
     ScaleXY 1 s shape
 
 
-{-| Flip a Shape along the x-axis.
+{-| Flip a `Shape` along the x-axis.
 -}
-mirrorX : Shape notification -> Shape notification
+mirrorX : Shape userMsg -> Shape userMsg
 mirrorX shape =
     ScaleXY -1 1 shape
 
 
-{-| Flip a shape along the y-axis.
+{-| Flip a `Shape` along the y-axis.
 -}
-mirrorY : Shape notification -> Shape notification
+mirrorY : Shape userMsg -> Shape userMsg
 mirrorY shape =
     ScaleXY 1 -1 shape
 
 
-{-| Combine n number of Shape types into one Shape that can be
-transformed as one.
+{-| Combine any number of `Shape` types into one `Shape` that can be
+transformed (moved, rotated, scaled, etc) as one `Shape`.
 -}
-group : List (Shape notification) -> Shape notification
+group : List (Shape userMsg) -> Shape userMsg
 group shapes =
     Group shapes
 
 
-{-| Create a custom colour given its red, green and blue components.
+{-| Define a colour given its red, green and blue components.
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
     RGBA r g b 1
 
 
-{-| Create a custom colour given its red, green, blue and alpha components.
+{-| Define a colour given its red, green, blue and alpha components.
 Alpha is a Float from 0 to 1 representing the Shape's level of transparency.
 -}
 rgba : Float -> Float -> Float -> Float -> Color
@@ -2636,7 +2803,7 @@ toHexHelper dec =
             ""
 
 
-{-| Create a custom colour given its hue, saturation and light components.
+{-| Define a colour given its hue, saturation and light components.
 -}
 hsl : Float -> Float -> Float -> Color
 hsl h s l =
@@ -2645,9 +2812,8 @@ hsl h s l =
             RGBA r g b 1
 
 
-{-| Create a custom colour given its hue, saturation, light and alpha components.
+{-| Define a colour given its hue, saturation, light and alpha components.
 Alpha is a Float from 0-1 representing the Shape's level of transparency.
-lp
 -}
 hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
@@ -2658,12 +2824,8 @@ hsla h s l a =
 
 
 {-
-   - Jack You
+   Contributed by Jack You.
 -}
-{-
-   - use for converting values (just use this)
--}
-
 
 convert : Float -> Float -> Float -> ( Float, Float, Float )
 convert hue sat lit =
@@ -2746,7 +2908,7 @@ mapTriple f ( a1, a2, a3 ) =
 
 
 
---
+-- Colours
 
 
 {-| -}
