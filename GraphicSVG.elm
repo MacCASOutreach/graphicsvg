@@ -3,6 +3,10 @@ module GraphicSVG
         ( Stencil
         , Shape
         , GraphicSVG
+        , Color
+        , LineType
+        , Face
+        , Font
         , collage
         , map
         , GraphicsProgram
@@ -404,16 +408,19 @@ actually used.
 type alias GraphicSVG userMsg =
     Collage (Msg userMsg)
 
-
+{-| The `Color` type is used for filling or outlining shapes.
+-}
 type Color
     = RGBA Float Float Float Float
 
-
+{-| The `LineType` type is used to define the appearance of an outline for a shape.
+-}
 type LineType
     = Solid Float
     | Broken (List ( Float, Float )) Float
 
-
+{-| The `Face` type describes the appearance of the text.
+-}
 type Face
     = Face
         Float   -- size
@@ -425,7 +432,8 @@ type Face
         Font   
         Bool    -- centred
 
-
+{-| The `Font` type describes the font of the text.
+-}
 type Font
     = Serif
     | Sansserif
