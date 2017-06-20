@@ -160,7 +160,7 @@ other applications including keyboard presses and mouse movements.
 @docs line, polygon, openPolygon, ngon, triangle, square, rect, rectangle, roundedRect, circle, oval, wedge
 
 
-# Creating Shapes by Filling and Outlining Stencils
+# Creating Shapes from Stencils
 
 @docs filled, outlined, addOutline, rgb, rgba, hsl, hsla
 
@@ -195,7 +195,7 @@ other applications including keyboard presses and mouse movements.
 @docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
 
 
-# Miscallaneous
+# Miscellaneous
 
 @docs makeTransparent, addHyperlink
 
@@ -1612,9 +1612,9 @@ addHyperlink link shape =
     Link link shape
 
 
-{-| Creates a text stencil. You can change this stencil using the text helper
+{-| Creates a text `Stencil`. You can change this `Stencil` using the text helper
 functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* of the infixes
-(ie note that all these functions are Stencil -> Stencil):
+(ie note that all these functions have type `Stencil -> Stencil`):
 
     text "Hello World"
         |> fixedwidth
@@ -1808,10 +1808,10 @@ type Collage userMsg
     = Collage ( Float, Float ) (List (Shape userMsg))
 
 
-{-| Creates a blank canvas on which you can draw shapes. Takes a width, height and a
-list of `Shape`s. Use this in your `view` functions in the three types of Apps above.
+{-| Creates a blank canvas on which you can draw. Takes a width, height and a
+list of `Shape`s. Use this in your `view` functions in the three types of Apps above:
 
-    view = collage 500 500 
+    collage 500 500 
         [ 
             circle 10 |> filled red
         ]
@@ -1895,112 +1895,112 @@ flippedComparison ( a, x ) ( b, y ) =
 --Notification functions
 
 
-{-| Receive a message when a `Shape` is tapped or clicked.
+{-| Receive a message (`userMsg`) when a `Shape` is tapped or clicked.
 -}
 notifyTap : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTap msg shape =
     Tap (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the `Shape` is tapped / clicked.
+{-| Receive a message (`userMsg`) with a tuple of position when the `Shape` is tapped / clicked.
 -}
 notifyTapAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTapAt msg shape =
     TapAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the mouse enters a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse enters a `Shape`.
 -}
 notifyEnter : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyEnter msg shape =
     EnterShape (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when mouse enters a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when mouse enters a `Shape`.
 -}
 notifyEnterAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyEnterAt msg shape =
     EnterAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the mouse leaves a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse leaves a `Shape`.
 -}
 notifyLeave : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyLeave msg shape =
     Exit (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the mouse leaves a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the mouse leaves a `Shape`.
 -}
 notifyLeaveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyLeaveAt msg shape =
     ExitAt (ReturnPosition msg) shape
 
 
-{-| Receive a message with a tuple of position when the mouse is moved accross a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the mouse is moved accross a `Shape`.
 -}
 notifyMouseMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseMoveAt msg shape =
     MoveOverAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the mouse button is down over a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse button is down over a `Shape`.
 -}
 notifyMouseDown : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDown msg shape =
     MouseDown (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the mouse button is down over a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the mouse button is down over a `Shape`.
 -}
 notifyMouseDownAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDownAt msg shape =
     MouseDownAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the mouse button goes up over a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse button goes up over a `Shape`.
 -}
 notifyMouseUp : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUp msg shape =
     MouseUp (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the mouse goes up over a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the mouse goes up over a `Shape`.
 -}
 notifyMouseUpAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUpAt msg shape =
     MouseUpAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the user begins touching a `Shape`.
+{-| Receive a message (`userMsg`) when the user begins touching a `Shape`.
 -}
 notifyTouchStart : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchStart msg shape =
     TouchStart (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the user begins touching a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the user begins touching a `Shape`.
 -}
 notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchStartAt msg shape =
     TouchStartAt (ReturnPosition msg) shape
 
 
-{-| Receive a message when the user stops touching a `Shape`.
+{-| Receive a message (`userMsg`) when the user stops touching a `Shape`.
 -}
 notifyTouchEnd : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEnd msg shape =
     TouchEnd (Graphics msg) shape
 
 
-{-| Receive a message with a tuple of position when the user stops touching a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the user stops touching a `Shape`.
 -}
 notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEndAt msg shape =
     TouchEndAt (ReturnPosition msg) shape
 
 
-{-| Receive a message with a tuple of position when the moves their finger over a `Shape`.
+{-| Receive a message (`userMsg`) with a tuple of position when the moves their finger over a `Shape`.
 -}
 notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchMoveAt msg shape =
@@ -2225,7 +2225,7 @@ createSVG trans shape =
 
                             stri =
                                 if s then
-                                    "text-decoration: strikethrough;"
+                                    "text-decoration: line-through;"
                                 else
                                     ""
 
@@ -2244,7 +2244,7 @@ createSVG trans shape =
                             font =
                                 case f of
                                     Sansserif ->
-                                        "sansserif;"
+                                        "sans-serif;"
 
                                     Serif ->
                                         "serif;"
@@ -2491,7 +2491,7 @@ makePair n =
 --Text functions
 
 
-{-| Apply to a `text` `Stencil` to change the font size of the text. w
+{-| Apply to a `text` `Stencil` to change the font size of the text.
 
 The size has a unit called "points", which depends on the size and type of screen used, but try 12 to start.
 -}
@@ -2704,7 +2704,7 @@ rgb r g b =
 
 
 {-| Define a colour given its red, green, blue and alpha components.
-Alpha is a Float from 0 to 1 representing the Shape's level of transparency.
+Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transparency.
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
@@ -2813,7 +2813,7 @@ hsl h s l =
 
 
 {-| Define a colour given its hue, saturation, light and alpha components.
-Alpha is a Float from 0-1 representing the Shape's level of transparency.
+Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transparency.
 -}
 hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
