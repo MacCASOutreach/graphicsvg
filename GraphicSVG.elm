@@ -7,7 +7,9 @@ module GraphicSVG
         , LineType
         , Face
         , Font
+        , Collage
         , collage
+        , Msg
         , map
         , GraphicsProgram
         , graphicsApp
