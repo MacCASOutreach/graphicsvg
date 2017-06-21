@@ -181,12 +181,12 @@ other applications including keyboard presses and mouse movements.
 
 # Line Styles
 
-@docs solid, dotted, dashed, longdash, dotdash, custom
+@docs LineType, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
 
-@docs text, size, bold, italic, underline, strikethrough, centered, sansserif, serif, fixedwidth, customFont
+@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
@@ -211,7 +211,7 @@ other applications including keyboard presses and mouse movements.
 
 # Let there be colours!
 
-@docs black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
+@docs Color,black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
 
 -}
 
@@ -407,18 +407,19 @@ actually used for these labels.
 type alias GraphicSVG userMsg =
     Collage (Msg userMsg)
 
-{-| The `Color` type is used for filling or outlining shapes.
+{-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
     = RGBA Float Float Float Float
 
-{-| The `LineType` type is used to define the appearance of an outline for a shape.
+{-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
+    `LineType` also defines the appearence of `line` and `curve`.
 -}
 type LineType
     = Solid Float
     | Broken (List ( Float, Float )) Float
 
-{-| The `Face` type describes the appearance of the text.
+{-| The `Face` type describes the appearance of a text `Stencil`.
 -}
 type Face
     = Face
@@ -431,7 +432,7 @@ type Face
         Font   
         Bool    -- centred
 
-{-| The `Font` type describes the font of the text.
+{-| The `Font` type describes the font of a text `Stencil`.
 -}
 type Font
     = Serif
@@ -2271,7 +2272,7 @@ createSVG trans shape =
                                     ++ font
                                     ++ select
                         in
-                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ]) [ Svg.text str ]
+                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] ++ [Svg.Attributes.xmlSpace "preserve"]) [ Svg.text str ]
                 )
 
         Move v shape ->
