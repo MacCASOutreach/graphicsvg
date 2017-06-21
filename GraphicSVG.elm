@@ -260,7 +260,6 @@ type Stencil
 -}
 type Shape userMsg
     = Inked Color (Maybe ( LineType, Color )) Stencil
-    | ClipPath String (Shape userMsg) (Shape userMsg)
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
     | ScaleXY Float Float (Shape userMsg)
@@ -328,9 +327,6 @@ map f sh =
 
             ScaleXY sx sy shape ->
                 ScaleXY sx sy (map f shape)
-
-            ClipPath name cshape shape ->
-                ClipPath name (map f cshape) (map f shape)
 
             Link href shape ->
                 Link href (map f shape)
@@ -2283,10 +2279,7 @@ createSVG trans shape =
 
         ScaleXY sx sy shape ->
             createSVG (scaleT trans ( sx, sy )) shape
-
-        ClipPath name cshape shape ->
-            Svg.g [ Svg.Attributes.clipPath ("url(#" ++ name ++ ")") ] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id name ] [ createSVG (coalesce trans) cshape ] ], createSVG (coalesce trans) shape ]
-
+            
         Link href shape ->
             Svg.a [ xlinkHref href, target "_blank" ] [ createSVG (coalesce trans) shape ]
 
@@ -2436,8 +2429,56 @@ makeTransparent alpha shape =
         Group list ->
             Group (List.map (makeTransparent alpha) list)
 
-        a ->
-            a
+        Link s shape ->
+            Link s (makeTransparent alpha shape)
+        
+        Tap userMsg shape ->
+            Tap userMsg (makeTransparent alpha shape)
+      
+        TapAt userMsg shape ->
+            TapAt userMsg (makeTransparent alpha shape)
+
+        EnterShape userMsg shape ->
+            EnterShape userMsg (makeTransparent alpha shape)
+       
+        EnterAt userMsg shape ->
+            EnterAt userMsg (makeTransparent alpha shape)
+       
+        Exit userMsg shape ->
+            Exit userMsg (makeTransparent alpha shape)
+
+        ExitAt userMsg shape ->
+            ExitAt userMsg (makeTransparent alpha shape)
+    
+        MouseDown userMsg shape ->
+            MouseDown userMsg (makeTransparent alpha shape)
+       
+        MouseDownAt userMsg shape ->
+            MouseDownAt userMsg (makeTransparent alpha shape)
+       
+        MouseUp userMsg shape ->
+            MouseUp userMsg (makeTransparent alpha shape)
+
+        MouseUpAt userMsg shape ->
+            MouseUpAt userMsg (makeTransparent alpha shape)
+
+        MoveOverAt userMsg shape ->
+            MoveOverAt userMsg (makeTransparent alpha shape)
+
+        TouchStart userMsg shape ->
+            TouchStart userMsg (makeTransparent alpha shape)
+
+        TouchEnd userMsg shape ->
+            TouchEnd userMsg (makeTransparent alpha shape)
+
+        TouchStartAt userMsg shape ->
+            TouchStartAt userMsg (makeTransparent alpha shape)
+
+        TouchEndAt userMsg shape ->
+            TouchEndAt userMsg (makeTransparent alpha shape)
+
+        TouchMoveAt userMsg shape ->
+            TouchMoveAt userMsg (makeTransparent alpha shape)
 
 
 
