@@ -389,16 +389,15 @@ This type is only used to define a type signature for a user defined `view` as f
 
     view : GraphicSVG.GraphicSVG userMsg
 
-for use with `graphicsApp` where `UserMsg` can be anything as messages
-are not used, and as follows:
+for use with `graphicsApp` and as follows:
 
     view : Model -> GraphicSVG.GraphicSVG MyMsg
 
 for use with `notificationsApp`, `gameApp` and `cmdApp`.
 
 These assume that `Model` is the name of the user model type alias and
-`MyMsg` is the name of the user message type; just substitute the names
-actually used.
+`MyMsg` is the name of the user message type. Simply substitute the names
+actually used for these labels.
 
 -}
 type alias GraphicSVG userMsg =
@@ -449,7 +448,7 @@ type Pull
 * `JustDown` is the frame after the key went down (will show up exactly once per press)
 * `Down` is a press that is continuing for more than one frame
 * `JustUp` is the frame after the key went up / stopped being pressed (will show up exactly once per press)
-* `Up` means the key is not currently being pressed nor was it recently released.
+* `Up` means the key is not currently being pressed nor was it recently released
 
 -}
 type KeyState
@@ -465,8 +464,8 @@ type KeyAction
 
 
 {-| The simplest way to render graphics to the screen. These graphics will be
-static (they don't move) and you can't interact with them. Great for beginners
-or for when you just need basic graphics. Note that your `view` function is bare,
+static (they don't move) and cannot be interacted with. This is great for beginners
+or for when only need static graphics are needed. Note that your `view` function is bare,
 with no parameters:
 
     view = collage 500 500 
@@ -518,7 +517,7 @@ type alias GraphicsProgram userMsg =
 {-| Like `graphicsApp`, but you can add interactivity to your graphics by using the
 `notify*` functions. This allows you to learn Elm's architecture in a fun way with
 graphics. Note that your `view` function needs a `model` parameter now, which in this
-example is the color of the shape:
+example is the colour of the shape:
 
     view model =
         collage 500 500
@@ -553,7 +552,7 @@ are as follows:
             }
 
 which will cause the drawn red circle to change to green the first time
-it is mouse clicked or touched.
+it is mouse clicked or tapped.
 
 -}
 notificationsApp : GraphicsApp model userMsg -> NotificationsProgram model userMsg
@@ -576,7 +575,7 @@ to make the type signature more clear and concise when `main` calls
 
 where `Model` is the type alias of the user persistent model, and
 `MyMsg` is the name of the user defined message type;
-if other names are used, they can just be substituted for these names.
+if other names are used, they can be substituted for these names.
 
 -}
 type alias NotificationsProgram model userMsg =
@@ -681,7 +680,7 @@ the type signature more clear and concise when `main` calls `gameApp`:
 where `Tick` is the message handler called once per browser window update,
 `Model` is the type alias of the user persistent model, and
 `Msg` is the name of the user message type; if other names are used,
-they can just be substituted for these names.
+they can be substituted for these names.
 
 -}
 type alias GameProgram model userMsg =
@@ -1075,7 +1074,7 @@ type alias KeyDict =
 {-| `GetKeyState` returns a triple where the first argument is of type `Keys -> KeyState`
 so you can ask if a certain key is pressed. The other two are tuples of arrow keys and
 WASD keys, respectively. They're in the form (x,y) which represents the key presses
-of each player. For example, (0,-1) represents the left arrow or "A" key, and (1,1)
+of each player. For example, (0,-1) represents the left arrow (or "A") key, and (1,1)
 would mean the up (or "W") and right (or "D") key are being pressed at the same time.
 -}
 type alias GetKeyState =
@@ -1613,8 +1612,8 @@ addHyperlink link shape =
 
 
 {-| Creates a text `Stencil`. You can change this `Stencil` using the text helper
-functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* of the infixes
-(ie note that all these functions have type `Stencil -> Stencil`):
+functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* of the text helper functions
+(ie note that all these functions have type `Stencil -> Stencil`). For example,
 
     text "Hello World"
         |> fixedwidth
@@ -1627,7 +1626,7 @@ text str =
     Text (Face 12 False False False False False Serif False) str
 
 
-{-| Apply to a curve or group of curves in order to annotate their start points,
+{-| Apply to a curve or group of curves in order to view their start points,
 end points and `Pull` points. Helpful while perfecting curves.
 
     curve (0,0) [Pull (0,10) (0,20)]
@@ -1895,14 +1894,14 @@ flippedComparison ( a, x ) ( b, y ) =
 --Notification functions
 
 
-{-| Receive a message (`userMsg`) when a `Shape` is tapped or clicked.
+{-| Receive a message (`userMsg`) when a `Shape` is clicked or tapped.
 -}
 notifyTap : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTap msg shape =
     Tap (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the `Shape` is tapped / clicked.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse or finger when the `Shape` is clicked or tapped.
 -}
 notifyTapAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTapAt msg shape =
@@ -1916,7 +1915,7 @@ notifyEnter msg shape =
     EnterShape (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when mouse enters a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse enters a `Shape`.
 -}
 notifyEnterAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyEnterAt msg shape =
@@ -1930,42 +1929,42 @@ notifyLeave msg shape =
     Exit (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the mouse leaves a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse leaves a `Shape`.
 -}
 notifyLeaveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyLeaveAt msg shape =
     ExitAt (ReturnPosition msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the mouse is moved accross a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse is moved across a `Shape`.
 -}
 notifyMouseMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseMoveAt msg shape =
     MoveOverAt (ReturnPosition msg) shape
 
 
-{-| Receive a message (`userMsg`) when the mouse button is down over a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse button is pressed while the cursor is over a `Shape`.
 -}
 notifyMouseDown : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDown msg shape =
     MouseDown (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the mouse button is down over a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse button is pressed while the cursor is over a `Shape`.
 -}
 notifyMouseDownAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseDownAt msg shape =
     MouseDownAt (ReturnPosition msg) shape
 
 
-{-| Receive a message (`userMsg`) when the mouse button goes up over a `Shape`.
+{-| Receive a message (`userMsg`) when the mouse button is released while the cursor is over a `Shape`.
 -}
 notifyMouseUp : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUp msg shape =
     MouseUp (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the mouse goes up over a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse button is released while the cursor is over a `Shape`.
 -}
 notifyMouseUpAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyMouseUpAt msg shape =
@@ -1979,28 +1978,28 @@ notifyTouchStart msg shape =
     TouchStart (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the user begins touching a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user begins touching a `Shape`.
 -}
 notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchStartAt msg shape =
     TouchStartAt (ReturnPosition msg) shape
 
 
-{-| Receive a message (`userMsg`) when the user stops touching a `Shape`.
+{-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
 -}
 notifyTouchEnd : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEnd msg shape =
     TouchEnd (Graphics msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the user stops touching a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user lifts their finger off a `Shape`.
 -}
 notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchEndAt msg shape =
     TouchEndAt (ReturnPosition msg) shape
 
 
-{-| Receive a message (`userMsg`) with a tuple of position when the moves their finger over a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user moves their finger over a `Shape`.
 -}
 notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
 notifyTouchMoveAt msg shape =
@@ -2450,7 +2449,7 @@ dotted th =
     Broken [ ( th, th ) ] th
 
 
-{-| Define a dashed `LineType` with the given width. Dashes are short line segments, versus dots which are theoretically points, but may be drawn with very sort line segments.
+{-| Define a dashed `LineType` with the given width. Dashes are short line segments, versus dots which are theoretically points, but may be drawn with very short line segments.
 -}
 dashed : Float -> LineType
 dashed th =
@@ -2473,7 +2472,7 @@ dotdash th =
 
 {-| A custom line defined by a list of (on,off):
 
-    custom [(10,5)] 5 -- a line that with dashes 10 long and spaces 5 long
+    custom [(10,5)] 5 -- a line with dashes 10 long and spaces 5 long
     custom [(10,5),(20,5)] -- on for 10, off 5, on 20, off 5
 
 -}
@@ -2541,7 +2540,7 @@ underline stencil =
             a
 
 
-{-| Apply to a `text` `Stencil` to centre put a line through the text.
+{-| Apply to a `text` `Stencil` to put a line through the centre of the text.
 -}
 strikethrough : Stencil -> Stencil
 strikethrough stencil =
@@ -2601,7 +2600,7 @@ serif stencil =
             a
 
 
-{-| Apply to a `text` `Stencil` to render the text `Stencil` with a font in which every character has the same width. 
+{-| Apply to a text `Stencil` to render the text `Stencil` with a font in which every character has the same width. 
 This will mean that the letters line up from line to line which is important in programming languages like Elm.
 -}
 fixedwidth : Stencil -> Stencil
@@ -2614,9 +2613,9 @@ fixedwidth stencil =
             a
 
 
-{-| Apply to a `text` `Stencil` to render the text with afont of your choosing by specifying its string name. 
+{-| Apply to a `text` `Stencil` to render the text with a font of your choosing by specifying its name in a `String`. 
 
-*Use this sparingly as support for each font will vary accross browsers and devices.*
+*Use this sparingly as support for each font will vary across browsers and devices.*
 -}
 customFont : String -> Stencil -> Stencil
 customFont fStr stencil =
@@ -2646,7 +2645,7 @@ rotate theta shape =
     Rotate theta shape
 
 
-{-| Move a `Shape` by a number of units in x and y.
+{-| Move a `Shape` by a number of units along the x-axis and y-axis.
 -}
 move : ( Float, Float ) -> Shape userMsg -> Shape userMsg
 move disp shape =
