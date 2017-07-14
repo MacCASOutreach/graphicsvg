@@ -25,6 +25,9 @@ module GraphicSVG
         , openPolygon
         , ngon
         , triangle
+        , rightTriangle
+        , isosceles
+        , sideAngleSide
         , square
         , rect
         , rectangle
@@ -49,6 +52,7 @@ module GraphicSVG
         , italic
         , underline
         , strikethrough
+        , selectable
         , centered
         , sansserif
         , serif
@@ -161,7 +165,7 @@ other applications including keyboard presses and mouse movements.
 
 # Stencils
 
-@docs line, polygon, openPolygon, ngon, triangle, square, rect, rectangle, roundedRect, circle, oval, wedge
+@docs line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
 
 
 # Creating Shapes from Stencils
@@ -186,7 +190,7 @@ other applications including keyboard presses and mouse movements.
 
 # Text
 
-@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, sansserif, serif, fixedwidth, customFont
+@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
@@ -1456,6 +1460,34 @@ ngon n r =
 triangle : Float -> Stencil
 triangle r =
     ngon 3 r
+
+
+{-| Creates a right-angled triangle with a given base and height.
+-}
+rightTriangle : Float -> Float -> Stencil
+rightTriangle base height = 
+    polygon [(0,0),(base,0),(0,height)]
+
+
+{-| Creates an isosceles triangle with a given base and height.
+-}
+isosceles : Float -> Float -> Stencil
+isosceles base height =
+    polygon [(0,0),(base,0),(base/2, height)]
+
+
+{-| Creates a triangle given two side lengths and the angle between them.
+
+For example, `sideAngleSide 30 (degrees 45) 50` creates a triangle with side lengths 
+30 and 50 with an angle of 45 degrees between them.
+-}
+sideAngleSide : Float -> Float -> Float -> Stencil
+sideAngleSide sideOne angle sideTwo =
+    polygon [(0,0),(sideOne,0),sideTwoPoint angle sideTwo]
+
+
+sideTwoPoint : Float -> Float -> (Float,Float)
+sideTwoPoint angle sideTwo = (cos(angle) * sideTwo,sin(angle) * sideTwo )
 
 
 {-| Creates a square with a given side length. (Synonym for `rect s s`)
