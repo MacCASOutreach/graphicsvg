@@ -429,7 +429,7 @@ type Face
         Bool    -- underline
         Bool    -- strikethrough
         Bool    -- selectable
-        Font   
+        Font
         Bool    -- centred
 
 {-| The `Font` type describes the font of a text `Stencil`.
@@ -477,8 +477,8 @@ static (they don't move) and cannot be interacted with. This is great for beginn
 or for when only need static graphics are needed. Note that your `view` function is bare,
 with no parameters:
 
-    view = collage 500 500 
-        [ 
+    view = collage 500 500
+        [
             circle 10 |> filled red
         ]
 
@@ -530,7 +530,7 @@ example is the colour of the shape:
 
     view model =
         collage 500 500
-            [ 
+            [
                 circle 10 |> filled model |> notifyTap Change
             ]
 
@@ -638,10 +638,10 @@ causes the direction of the spin to reverse:
             ]
 
     main =
-        gameApp Tick { 
+        gameApp Tick {
                        model = init
                      , update = update
-                     , view = view 
+                     , view = view
                      }
 
 -}
@@ -680,10 +680,10 @@ the type signature more clear and concise when `main` calls `gameApp`:
 
     main : GamesProgram Model Msg
     main =
-        gameApp Tick { 
+        gameApp Tick {
                        model = init
                      , update = update
-                     , view = view 
+                     , view = view
                      }
 
 where `Tick` is the message handler called once per browser window update,
@@ -697,7 +697,7 @@ type alias GameProgram model userMsg =
 
 
 {-| Advanced Function Warning! cmdApp takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
-    
+
     {
       init = (model, cmd)
     , view = view
@@ -1465,7 +1465,7 @@ triangle r =
 {-| Creates a right-angled triangle with a given base and height.
 -}
 rightTriangle : Float -> Float -> Stencil
-rightTriangle base height = 
+rightTriangle base height =
     polygon [(0,0),(base,0),(0,height)]
 
 
@@ -1473,21 +1473,21 @@ rightTriangle base height =
 -}
 isosceles : Float -> Float -> Stencil
 isosceles base height =
-    polygon [(0,0),(base,0),(base/2, height)]
+    polygon [(-base/2,0),(base/2,0),(0, height)]
 
 
 {-| Creates a triangle given two side lengths and the angle between them.
 
-For example, `sideAngleSide 30 (degrees 45) 50` creates a triangle with side lengths 
+For example, `sideAngleSide 30 (degrees 45) 50` creates a triangle with side lengths
 30 and 50 with an angle of 45 degrees between them.
 -}
 sideAngleSide : Float -> Float -> Float -> Stencil
 sideAngleSide sideOne angle sideTwo =
-    polygon [(0,0),(sideOne,0),sideTwoPoint angle sideTwo]
+    polygon [sideTwoPoint angle sideOne,(0,0),(sideTwo,0)]
 
 
 sideTwoPoint : Float -> Float -> (Float,Float)
-sideTwoPoint angle sideTwo = (cos(angle) * sideTwo,sin(angle) * sideTwo )
+sideTwoPoint angle sideOne = (cos(angle) * sideOne,sin(angle) * sideOne )
 
 
 {-| Creates a square with a given side length. (Synonym for `rect s s`)
@@ -1574,7 +1574,7 @@ createGraphY w s th c y =
 
 
 {-| Creates a wedge with a given radius, and a given fraction of a circle.
-    
+
     wedge 50 0.5 -- semi-circle
     wedge 50 0.25 -- quarter-circle
     wedge 50 0.75 -- three-quarter circle
@@ -1847,8 +1847,8 @@ type Collage userMsg
 {-| Creates a blank canvas on which you can draw. Takes a width, height and a
 list of `Shape`s. Use this in your `view` functions in the three types of Apps above:
 
-    collage 500 500 
-        [ 
+    collage 500 500
+        [
             circle 10 |> filled red
         ]
 -}
@@ -2311,7 +2311,7 @@ createSVG trans shape =
 
         ScaleXY sx sy shape ->
             createSVG (scaleT trans ( sx, sy )) shape
-            
+
         Link href shape ->
             Svg.a [ xlinkHref href, target "_blank" ] [ createSVG (coalesce trans) shape ]
 
@@ -2463,31 +2463,31 @@ makeTransparent alpha shape =
 
         Link s shape ->
             Link s (makeTransparent alpha shape)
-        
+
         Tap userMsg shape ->
             Tap userMsg (makeTransparent alpha shape)
-      
+
         TapAt userMsg shape ->
             TapAt userMsg (makeTransparent alpha shape)
 
         EnterShape userMsg shape ->
             EnterShape userMsg (makeTransparent alpha shape)
-       
+
         EnterAt userMsg shape ->
             EnterAt userMsg (makeTransparent alpha shape)
-       
+
         Exit userMsg shape ->
             Exit userMsg (makeTransparent alpha shape)
 
         ExitAt userMsg shape ->
             ExitAt userMsg (makeTransparent alpha shape)
-    
+
         MouseDown userMsg shape ->
             MouseDown userMsg (makeTransparent alpha shape)
-       
+
         MouseDownAt userMsg shape ->
             MouseDownAt userMsg (makeTransparent alpha shape)
-       
+
         MouseUp userMsg shape ->
             MouseUp userMsg (makeTransparent alpha shape)
 
@@ -2682,7 +2682,7 @@ serif stencil =
             a
 
 
-{-| Apply to a text `Stencil` to render the text `Stencil` with a font in which every character has the same width. 
+{-| Apply to a text `Stencil` to render the text `Stencil` with a font in which every character has the same width.
 This will mean that the letters line up from line to line which is important in programming languages like Elm.
 -}
 fixedwidth : Stencil -> Stencil
@@ -2695,7 +2695,7 @@ fixedwidth stencil =
             a
 
 
-{-| Apply to a `text` `Stencil` to render the text with a font of your choosing by specifying its name in a `String`. 
+{-| Apply to a `text` `Stencil` to render the text with a font of your choosing by specifying its name in a `String`.
 
 *Use this sparingly as support for each font will vary across browsers and devices.*
 -}
