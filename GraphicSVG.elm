@@ -2253,14 +2253,12 @@ createSVG trans shape =
                                 else
                                     ""
 
-                            un =
-                                if u then
+                            txtDec =
+                                if u && s then
+                                    "text-decoration: underline line-through;"
+                                else if u then
                                     "text-decoration: underline;"
-                                else
-                                    ""
-
-                            stri =
-                                if s then
+                                else if s then
                                     "text-decoration: line-through;"
                                 else
                                     ""
@@ -2294,8 +2292,7 @@ createSVG trans shape =
                             sty =
                                 bol
                                     ++ it
-                                    ++ un
-                                    ++ stri
+                                    ++ txtDec
                                     ++ "font-family: "
                                     ++ font
                                     ++ select
@@ -2781,7 +2778,7 @@ group shapes =
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
-    RGBA r g b 1
+    RGBA (sc r) (sc g) (sc b) 1
 
 
 {-| Define a colour given its red, green, blue and alpha components.
@@ -2789,8 +2786,13 @@ Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transp
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
-    RGBA r g b a
+    RGBA (sc r) (sc g) (sc b) (sa a)
 
+sc: number -> number
+sc n = clamp 0 255 n
+
+sa: Float -> Float
+sa n = clamp 0 1 n
 
 pairToString : ( a, b ) -> String
 pairToString ( x, y ) =
@@ -2900,7 +2902,7 @@ hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
     case (convert h s l) of
         ( r, g, b ) ->
-            RGBA r g b a
+            RGBA r g b (sa a)
 
 
 
@@ -2912,7 +2914,7 @@ convert : Float -> Float -> Float -> ( Float, Float, Float )
 convert hue sat lit =
     let
         hue_ =
-            modFloat hue (6.28318530718)
+            modFloat hue (2*pi)
 
         rgb_ =
             toRGB_ hue_ sat lit
