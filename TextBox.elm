@@ -16,6 +16,8 @@ import Tuple exposing (first, second)
 import Task
 import Html exposing (input)
 import Html.Events exposing (onInput)
+import String
+import Char exposing (isDigit, isUpper, isLower)
 
 
 type Msg
@@ -42,7 +44,7 @@ update msg model =
             ( { model | time = t }, Cmd.none )
 
         Username user ->
-            ( { model | user = user }, Cmd.none )
+            ( { model | user = String.left 15 <| String.filter (\char -> isUpper char || isLower char || isDigit char) user }, Cmd.none )
 
         Password pass ->
             ( { model | password = pass }, Cmd.none )
