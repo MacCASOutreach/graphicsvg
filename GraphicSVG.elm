@@ -2359,7 +2359,7 @@ createSVG id w h trans shape =
                 ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
                     coalesce trans
             in
-                Svg.foreignObject [ width (toString <| w), height (toString <| h), Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, b, c, d, tx, -ty ]) ++ ")" ] [ htm ]
+                Svg.foreignObject [ width (toString <| w), height (toString <| h), Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] [ htm ]
 
         Move v shape ->
             createSVG id w h (moveT trans v) shape
