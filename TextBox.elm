@@ -26,6 +26,8 @@ type Msg
     | Password String
 
 
+
+main : CmdProgram Model Msg
 main =
     cmdApp Tick
         { init =
@@ -38,22 +40,24 @@ main =
         }
 
 
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick t _ ->
             ( { model | time = t }, Cmd.none )
 
         Username user ->
-            ( { model | user = String.left 15 <| String.filter (\char -> isUpper char || isLower char || isDigit char) user }, Cmd.none )
+            ( { model | user = String.filter (\char -> isUpper char || isLower char || isDigit char) user }, Cmd.none )
 
         Password pass ->
             ( { model | password = pass }, Cmd.none )
 
 
+type alias Model = { password : String, time : Float, user : String }
 
 --List.map (\state -> )
 
-
+textBox : String -> Float -> Float -> String -> (String -> Msg) -> Shape Msg
 textBox txt w h place msg =
     move ( -w / 2, h / 2 ) <|
         html (w * 1.5) (h * 1.5) <|
@@ -66,7 +70,7 @@ textBox txt w h place msg =
                     , ( "height", toString h ++ "px" )
 
                     --, ( "padding", "0" )
-                    , ( "margin-top", "1%" )
+                    , ( "margin-top", "1px" )
                     ]
                 ]
                 []
@@ -85,13 +89,13 @@ passwordBox txt w h place msg =
                     , ( "height", toString h ++ "px" )
 
                     --, ( "padding", "0" )
-                    , ( "margin-top", "1%" )
-                    , ( "margin-bottom", "1%" )
+                    , ( "margin-top", "1px" )
+                    , ( "margin-bottom", "1px" )
                     ]
                 ]
                 []
 
-
+view : Model -> Collage Msg
 view model =
     collage
         500
@@ -100,6 +104,7 @@ view model =
         --winY
         [ textBox model.user 100 30 "Username" Username
         , passwordBox model.password 100 30 "Password" Password |> move ( 0, -50 ) |> rotate (model.time)
-        , text ("You entered Username: " ++ model.user ++ " and Password " ++ model.password) |> centered |> filled black |> move ( 0, 50 )
+        , group [(text ("You entered Username: " ++ model.user ++ " and Password " ++ model.password) |> centered |> filled black) 
+           ><% (circle 10 |> ghost |> move (100 * sin model.time, 0))] |> move ( 0, 50 )
         , group [ roundedRect 80 30 5 |> filled lightGrey, text "Log In" |> centered |> filled black |> move ( 0, -3 ) ] |> move ( 0, -100 )
         ]
