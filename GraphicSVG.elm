@@ -10,7 +10,7 @@ module GraphicSVG
         , collage
         , Collage
         , html
-          --, map
+        , map
         , GraphicsProgram
         , graphicsApp
         , NotificationsProgram
@@ -236,6 +236,9 @@ other applications including keyboard presses and mouse movements.
 
 @docs Color,black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
 
+# To embedd a submodule with it's own message type into an app, we need to embedd the messages with map.
+
+@docs map
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
