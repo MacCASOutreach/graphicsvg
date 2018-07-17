@@ -8,6 +8,8 @@ module GraphicSVG
         , Face
         , Font
         , collage
+        , Collage
+        , html
         , map
         , GraphicsProgram
         , graphicsApp
@@ -66,6 +68,7 @@ module GraphicSVG
         , mirrorX
         , mirrorY
         , filled
+        , repaint
         , outlined
         , addOutline
         , rgb
@@ -91,6 +94,12 @@ module GraphicSVG
         , makeTransparent
         , addHyperlink
         , group
+        , (><%)
+        , (%><)
+        , (<|>)
+        , (<->)
+        , outside
+        , ghost
         , black
         , blank
         , blue
@@ -140,7 +149,7 @@ other applications including keyboard presses and mouse movements.
 
 # Rendering To Screen
 
-@docs collage
+@docs collage, Collage
 
 
 # Graphics App
@@ -170,7 +179,7 @@ other applications including keyboard presses and mouse movements.
 
 # Creating Shapes from Stencils
 
-@docs filled, outlined, addOutline, rgb, rgba, hsl, hsla
+@docs filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
 
 
 # Grouping Shapes
@@ -198,6 +207,11 @@ other applications including keyboard presses and mouse movements.
 @docs move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY
 
 
+# Scissor Operations
+
+@docs (><%), (%><), (<|>), (<->), outside, ghost
+
+
 # Notifications
 
 @docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
@@ -210,13 +224,21 @@ other applications including keyboard presses and mouse movements.
 
 # Helpers
 
-@docs graphPaper, graphPaperCustom, map
+@docs graphPaper, graphPaperCustom
+
+
+# Displaying HTML
+
+@docs html
 
 
 # Let there be colours!
 
 @docs Color,black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
 
+# To embedd a submodule with it's own message type into an app, we need to embedd the messages with map.
+
+@docs map
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
@@ -229,7 +251,6 @@ other applications including keyboard presses and mouse movements.
 import Html
 import Html.Attributes
 import Html.Events
-import Http as Http
 import Svg
 import Svg.Attributes exposing (..)
 import String exposing (..)
@@ -264,10 +285,14 @@ type Stencil
 -}
 type Shape userMsg
     = Inked Color (Maybe ( LineType, Color )) Stencil
+    | ForeignObject Float Float (Html.Html userMsg)
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
     | ScaleXY Float Float (Shape userMsg)
     | Group (List (Shape userMsg))
+    | AlphaMask (Shape userMsg) (Shape userMsg)
+    | Clip (Shape userMsg) (Shape userMsg)
+    | Everything
     | Link String (Shape userMsg)
     | Tap userMsg (Shape userMsg)
     | TapAt (( Float, Float ) -> userMsg) (Shape userMsg)
@@ -287,104 +312,91 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
 
 
+
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
- (Ask if you don't know what this means.)
+(Ask if you don't know what this means.)
 -}
-map : (a -> b) -> Shape (Msg a) -> Shape (Msg b)
+map : (a -> b) -> Shape a -> Shape b
 map f sh =
-    let
-        ff mmsg =
-            case mmsg of
-                Graphics userMsg ->
-                    Graphics (f userMsg)
+           case sh of
+               Inked fillClr lt stencil ->
+                   Inked fillClr lt stencil
 
-                WindowResize a ->
-                    WindowResize a
+               ForeignObject w h htm ->
+                   ForeignObject w h (Html.map f htm)
 
-                ReturnPosition a b ->
-                    ReturnPosition (f << a) b
+               Move v shape ->
+                   Move v (map f shape)
 
-                CollageSize a ->
-                    CollageSize a
+               Rotate deg shape ->
+                   Rotate deg (map f shape)
 
-                InitTime a ->
-                    InitTime a
+               ScaleXY sx sy shape ->
+                   ScaleXY sx sy (map f shape)
 
-                TickTime a ->
-                    TickTime a
+               Link href shape ->
+                   Link href (map f shape)
 
-                KeyDown a ->
-                    KeyDown a
+               AlphaMask sh1 sh2 ->
+                   AlphaMask (map f sh1) (map f sh2)
 
-                KeyUp a ->
-                    KeyUp a
-    in
-        case sh of
-            Inked fillClr lt stencil ->
-                Inked fillClr lt stencil
+               Clip sh1 sh2 ->
+                   Clip (map f sh1) (map f sh2)
 
-            Move v shape ->
-                Move v (map f shape)
+               Everything ->
+                   Everything
 
-            Rotate deg shape ->
-                Rotate deg (map f shape)
+               Tap msg shape ->
+                   Tap (f msg) (map f shape)
 
-            ScaleXY sx sy shape ->
-                ScaleXY sx sy (map f shape)
+               TapAt msg shape ->
+                   TapAt (f << msg) (map f shape)
 
-            Link href shape ->
-                Link href (map f shape)
+               EnterShape msg shape ->
+                   EnterShape (f msg) (map f shape)
 
-            Tap msg shape ->
-                Tap (ff msg) (map f shape)
+               EnterAt msg shape ->
+                   EnterAt (f << msg) (map f shape)
 
-            TapAt msg shape ->
-                TapAt (ff << msg) (map f shape)
+               Exit msg shape ->
+                   Exit (f msg) (map f shape)
 
-            EnterShape msg shape ->
-                EnterShape (ff msg) (map f shape)
+               ExitAt msg shape ->
+                   ExitAt (f << msg) (map f shape)
 
-            EnterAt msg shape ->
-                EnterAt (ff << msg) (map f shape)
+               MouseDown msg shape ->
+                   MouseDown (f msg) (map f shape)
 
-            Exit msg shape ->
-                Exit (ff msg) (map f shape)
+               MouseDownAt msg shape ->
+                   MouseDownAt (f << msg) (map f shape)
 
-            ExitAt msg shape ->
-                ExitAt (ff << msg) (map f shape)
+               MouseUp msg shape ->
+                   MouseUp (f msg) (map f shape)
 
-            MouseDown msg shape ->
-                MouseDown (ff msg) (map f shape)
+               MouseUpAt msg shape ->
+                   MouseUpAt (f << msg) (map f shape)
 
-            MouseDownAt msg shape ->
-                MouseDownAt (ff << msg) (map f shape)
+               MoveOverAt msg shape ->
+                   MoveOverAt (f << msg) (map f shape)
 
-            MouseUp msg shape ->
-                MouseUp (ff msg) (map f shape)
+               TouchStart msg shape ->
+                   TouchStart (f msg) (map f shape)
 
-            MouseUpAt msg shape ->
-                MouseUpAt (ff << msg) (map f shape)
+               TouchEnd msg shape ->
+                   TouchEnd (f msg) (map f shape)
 
-            MoveOverAt msg shape ->
-                MoveOverAt (ff << msg) (map f shape)
+               TouchStartAt msg shape ->
+                   TouchStartAt (f << msg) (map f shape)
 
-            TouchStart msg shape ->
-                TouchStart (ff msg) (map f shape)
+               TouchEndAt msg shape ->
+                   TouchEndAt (f << msg) (map f shape)
 
-            TouchEnd msg shape ->
-                TouchEnd (ff msg) (map f shape)
+               TouchMoveAt msg shape ->
+                   TouchMoveAt (f << msg) (map f shape)
 
-            TouchStartAt msg shape ->
-                TouchStartAt (ff << msg) (map f shape)
+               Group shapes ->
+                   Group (List.map (map f) shapes)
 
-            TouchEndAt msg shape ->
-                TouchEndAt (ff << msg) (map f shape)
-
-            TouchMoveAt msg shape ->
-                TouchMoveAt (ff << msg) (map f shape)
-
-            Group shapes ->
-                Group (List.map (map f) shapes)
 
 
 {-| The `GraphicSVG` type alias represents the drawable surface of the window.
@@ -405,32 +417,43 @@ actually used for these labels.
 
 -}
 type alias GraphicSVG userMsg =
-    Collage (Msg userMsg)
+    Collage userMsg
+
 
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
     = RGBA Float Float Float Float
 
+
 {-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
-    `LineType` also defines the appearence of `line` and `curve`.
+`LineType` also defines the appearence of `line` and `curve`.
 -}
 type LineType
     = Solid Float
     | Broken (List ( Float, Float )) Float
 
+
 {-| The `Face` type describes the appearance of a text `Stencil`.
 -}
 type Face
     = Face
-        Float   -- size
-        Bool    -- bold
-        Bool    -- italic
-        Bool    -- underline
-        Bool    -- strikethrough
-        Bool    -- selectable
+        Float
+        -- size
+        Bool
+        -- bold
+        Bool
+        -- italic
+        Bool
+        -- underline
+        Bool
+        -- strikethrough
+        Bool
+        -- selectable
         Font
-        Bool    -- centred
+        -- centred
+        Bool
+
 
 {-| The `Font` type describes the font of a text `Stencil`.
 -}
@@ -454,10 +477,10 @@ type Pull
 
 {-| The possible states when you ask for a key's state:
 
-* `JustDown` is the frame after the key went down (will show up exactly once per press)
-* `Down` is a press that is continuing for more than one frame
-* `JustUp` is the frame after the key went up / stopped being pressed (will show up exactly once per press)
-* `Up` means the key is not currently being pressed nor was it recently released
+  - `JustDown` is the frame after the key went down (will show up exactly once per press)
+  - `Down` is a press that is continuing for more than one frame
+  - `JustUp` is the frame after the key went up / stopped being pressed (will show up exactly once per press)
+  - `Up` means the key is not currently being pressed nor was it recently released
 
 -}
 type KeyState
@@ -477,10 +500,11 @@ static (they don't move) and cannot be interacted with. This is great for beginn
 or for when only need static graphics are needed. Note that your `view` function is bare,
 with no parameters:
 
-    view = collage 500 500
-        [
-            circle 10 |> filled red
-        ]
+    view =
+        collage 500
+            500
+            [ circle 10 |> filled red
+            ]
 
 `graphicsApp` takes a parameter like `{ view = view }`
 so the main program that would get the whole thing started for the above
@@ -490,7 +514,7 @@ so the main program that would get the whole thing started for the above
         graphicsApp { view = view }
 
 -}
-graphicsApp : JustGraphics a -> GraphicsProgram a
+graphicsApp : JustGraphics userMsg -> GraphicsProgram userMsg
 graphicsApp input =
     Html.program
         { init = ( ( 0, initHiddenModel () ), initialSizeCmd [] input.view )
@@ -504,8 +528,8 @@ graphicsApp input =
 the users view constant, which `view` does not take any arguments and returns
 a `GraphicsProgram` type.
 -}
-type alias JustGraphics a =
-    { view : Collage (Msg a) }
+type alias JustGraphics userMsg =
+    { view : Collage userMsg }
 
 
 {-| This type alias is only used as a target for a user `main` type signature
@@ -529,9 +553,9 @@ graphics. Note that your `view` function needs a `model` parameter now, which in
 example is the colour of the shape:
 
     view model =
-        collage 500 500
-            [
-                circle 10 |> filled model |> notifyTap Change
+        collage 500
+            500
+            [ circle 10 |> filled model |> notifyTap Change
             ]
 
 `notificationApp` takes a parameter like:
@@ -631,18 +655,19 @@ causes the direction of the spin to reverse:
                         { model | angle = model.angle + model.speed }
 
     view model =
-        collage 500 500
+        collage 500
+            500
             [ line ( 0, 0 ) ( 250, 0 )
                 |> outlined (solid 1) green
                 |> rotate (degrees model)
             ]
 
     main =
-        gameApp Tick {
-                       model = init
-                     , update = update
-                     , view = view
-                     }
+        gameApp Tick
+            { model = init
+            , update = update
+            , view = view
+            }
 
 -}
 gameApp : InputHandler userMsg -> GraphicsApp model userMsg -> GameProgram model userMsg
@@ -672,7 +697,7 @@ the `view` function, which takes one argument of the current state of the model
 and returns a `Collage` type.
 -}
 type alias GraphicsApp model userMsg =
-    { model : model, update : userMsg -> model -> model, view : model -> Collage (Msg userMsg) }
+    { model : model, update : userMsg -> model -> model, view : model -> Collage userMsg }
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
@@ -680,11 +705,11 @@ the type signature more clear and concise when `main` calls `gameApp`:
 
     main : GamesProgram Model Msg
     main =
-        gameApp Tick {
-                       model = init
-                     , update = update
-                     , view = view
-                     }
+        gameApp Tick
+            { model = init
+            , update = update
+            , view = view
+            }
 
 where `Tick` is the message handler called once per browser window update,
 `Model` is the type alias of the user persistent model, and
@@ -706,25 +731,26 @@ type alias GameProgram model userMsg =
     }
 
 This matches the Elm architecture and is analogous to `Html.program`.
+
 -}
 cmdApp : InputHandler userMsg -> CmdApp model userMsg -> CmdProgram model userMsg
 cmdApp tickMsg input =
     Html.program
         { init =
             ( ( Tuple.first input.init, initHiddenModel tickMsg )
-            , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second input.init) ]
+            , initialSizeCmd [ (Tuple.second input.init) ]
                 (input.view (Tuple.first input.init))
             )
         , update = hiddenCmdUpdate input.update
         , view = hiddenCmdView input.view
-        , subscriptions = subs [ Sub.map (\sub -> Graphics sub) (input.subscriptions (Tuple.first input.init)) ]
+        , subscriptions = subs [ (input.subscriptions (Tuple.first input.init)) ]
         }
 
 
 type alias CmdApp model userMsg =
     { init : ( model, Cmd userMsg )
     , update : userMsg -> model -> ( model, Cmd userMsg )
-    , view : model -> Collage (Msg userMsg)
+    , view : model -> Collage userMsg
     , subscriptions : model -> Sub userMsg
     }
 
@@ -746,14 +772,14 @@ type alias CmdProgram model userMsg =
     Program Never ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
 
 
-subs : List (Sub (Msg userMsg)) -> a -> Sub (Msg userMsg)
-subs extraSubs model =
+subs : List (Sub userMsg) -> a -> Sub (Msg userMsg)
+subs userSubs model =
     Sub.batch
         ([ Time.every (1000 / 30 * millisecond) (createTimeMessage)
          , Window.resizes sizeToMsg
          ]
             ++ keySubs
-            ++ extraSubs
+            ++ ( List.map (Sub.map Graphics) userSubs )
         )
 
 
@@ -774,7 +800,7 @@ createTimeMessage t =
 blankUpdate :
     Msg userMsg
     -> ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } )
-    -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd msg )
+    -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd (Msg msg) )
 blankUpdate msg ( model, gModel ) =
     case msg of
         Graphics message ->
@@ -810,7 +836,11 @@ hiddenUpdate update msg ( model, gModel ) =
         _ ->
             ( ( model, gModel ), Cmd.none )
 
-
+hiddenGameUpdate :
+    (userMsg -> model -> model)
+    -> Msg userMsg
+    -> ( model, HiddenModel (InputHandler userMsg) )
+    -> ( ( model, HiddenModel (InputHandler userMsg) ), Cmd (Msg userMsg) )
 hiddenGameUpdate update msg ( model, gModel ) =
     let
         updateTick =
@@ -890,14 +920,14 @@ hiddenCmdUpdate update msg ( model, gModel ) =
                 ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
 
 
-blankView : Collage userMsg -> ( a, b ) -> Html.Html userMsg
+blankView : Collage userMsg -> ( a, b ) -> Html.Html (Msg userMsg)
 blankView view ( model, gModel ) =
     case view of
         Collage ( w, h ) shapes ->
             createCollage w h shapes
 
 
-hiddenView : (a -> Collage userMsg) -> ( a, b ) -> Html.Html userMsg
+hiddenView : (a -> Collage userMsg) -> ( a, b ) -> Html.Html (Msg userMsg)
 hiddenView view ( model, gModel ) =
     case (view model) of
         Collage ( w, h ) shapes ->
@@ -972,8 +1002,8 @@ convertCoords ( x, y ) gModel =
 
 
 initialSizeCmd :
-    List (Cmd (Msg userMsg))
-    -> Collage (Msg userMsg)
+    List (Cmd userMsg)
+    -> Collage userMsg
     -> Cmd (Msg userMsg)
 initialSizeCmd otherCmds userView =
     Cmd.batch
@@ -981,7 +1011,7 @@ initialSizeCmd otherCmds userView =
          , Task.perform getCollageSize (Task.succeed userView)
          , Task.perform getInitTime Time.now
          ]
-            ++ otherCmds
+            ++ (List.map (Cmd.map Graphics) otherCmds)
         )
 
 
@@ -995,7 +1025,7 @@ sizeToMsg size =
     WindowResize ( size.width, size.height )
 
 
-getCollageSize : Collage (Msg userMsg) -> Msg userMsg
+getCollageSize : Collage userMsg -> Msg userMsg
 getCollageSize userView =
     case userView of
         Collage ( w, h ) _ ->
@@ -1033,7 +1063,7 @@ These assume that `Model` is the type alias of the user persistent model, and
 type Msg userMsg
     = Graphics userMsg
     | WindowResize ( Int, Int )
-    | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
+    | ReturnPosition (( Float, Float ) -> userMsg) (Float,Float)
     | CollageSize ( Int, Int )
     | InitTime Time
     | TickTime Time
@@ -1466,28 +1496,30 @@ triangle r =
 -}
 rightTriangle : Float -> Float -> Stencil
 rightTriangle base height =
-    polygon [(0,0),(base,0),(0,height)]
+    polygon [ ( 0, 0 ), ( base, 0 ), ( 0, height ) ]
 
 
 {-| Creates an isosceles triangle with a given base and height.
 -}
 isosceles : Float -> Float -> Stencil
 isosceles base height =
-    polygon [(-base/2,0),(base/2,0),(0, height)]
+    polygon [ ( -base / 2, 0 ), ( base / 2, 0 ), ( 0, height ) ]
 
 
 {-| Creates a triangle given two side lengths and the angle between them.
 
 For example, `sideAngleSide 30 (degrees 45) 50` creates a triangle with side lengths
 30 and 50 with an angle of 45 degrees between them.
+
 -}
 sideAngleSide : Float -> Float -> Float -> Stencil
 sideAngleSide sideOne angle sideTwo =
-    polygon [sideTwoPoint angle sideOne,(0,0),(sideTwo,0)]
+    polygon [ sideTwoPoint angle sideOne, ( 0, 0 ), ( sideTwo, 0 ) ]
 
 
-sideTwoPoint : Float -> Float -> (Float,Float)
-sideTwoPoint angle sideOne = (cos(angle) * sideOne,sin(angle) * sideOne )
+sideTwoPoint : Float -> Float -> ( Float, Float )
+sideTwoPoint angle sideOne =
+    ( cos (angle) * sideOne, sin (angle) * sideOne )
 
 
 {-| Creates a square with a given side length. (Synonym for `rect s s`)
@@ -1578,6 +1610,7 @@ createGraphY w s th c y =
     wedge 50 0.5 -- semi-circle
     wedge 50 0.25 -- quarter-circle
     wedge 50 0.75 -- three-quarter circle
+
 -}
 wedge : Float -> Float -> Stencil
 wedge r frac =
@@ -1626,6 +1659,7 @@ bendy sticks with their ends glued down to a board, and then pulling each stick
 towards another point.
 You always need an initial point and at least one `Pull`, but you can add as many `Pull`s as you want to
 add additional curve segments, but each curve segment can only bend one way, since it is pulled in one direction.
+
 -}
 curve : ( Float, Float ) -> List Pull -> Stencil
 curve ( a, b ) list =
@@ -1642,6 +1676,7 @@ curveListHelper (Pull ( a, b ) ( c, d )) =
     circle 10
         |> filled red
         |> addHyperLink "http://outreach.mcmaster.ca"
+
 -}
 addHyperlink : String -> Shape userMsg -> Shape userMsg
 addHyperlink link shape =
@@ -1657,6 +1692,7 @@ functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* o
         |> bold
         |> size 14
         |> filled black
+
 -}
 text : String -> Stencil
 text str =
@@ -1668,6 +1704,7 @@ end points and `Pull` points. Helpful while perfecting curves.
 
     curve (0,0) [Pull (0,10) (0,20)]
         |> curveHelper
+
 -}
 curveHelper : Shape userMsg -> Shape userMsg
 curveHelper shape =
@@ -1807,8 +1844,8 @@ coalesce ( ( ( a, b ), ( c, d ), ( tx, ty ) ), ( ( sx, sy ), rot, ( shx, shy ) )
         )
 
 
-id : ( ( ( number, number1 ), ( number2, number3 ), ( number4, number5 ) ), ( ( number6, number7 ), number8, ( number9, number10 ) ) )
-id =
+ident : ( ( ( number, number1 ), ( number2, number3 ), ( number4, number5 ) ), ( ( number6, number7 ), number8, ( number9, number10 ) ) )
+ident =
     ( ( ( 1, 0 )
       , ( 0, 1 )
       , ( 0, 0 )
@@ -1851,17 +1888,18 @@ list of `Shape`s. Use this in your `view` functions in the three types of Apps a
         [
             circle 10 |> filled red
         ]
+
 -}
 collage : Float -> Float -> List (Shape userMsg) -> Collage userMsg
 collage w h shapes =
     Collage ( w, h ) shapes
 
 
-createCollage : Float -> Float -> List (Shape a) -> Html.Html a
+createCollage : Float -> Float -> List (Shape a) -> Html.Html (Msg a)
 createCollage w h shapes =
     Svg.svg
         [ width "100%", height "99%", style "position:absolute", viewBox ((toString (-w / 2)) ++ " " ++ (toString (-h / 2)) ++ " " ++ (toString w) ++ " " ++ (toString h)) ]
-        ([ cPath w h ] ++ [ Svg.g [ clipPath "url(#cPath)" ] (List.map (createSVG id) shapes) ])
+        ([ cPath w h ] ++ [ Svg.g [ clipPath "url(#cPath)" ] (List.indexedMap (\n -> (createSVG (toString n) w h ident)) shapes) ])
 
 
 myStyle : Html.Attribute msg
@@ -1933,114 +1971,114 @@ flippedComparison ( a, x ) ( b, y ) =
 
 {-| Receive a message (`userMsg`) when a `Shape` is clicked or tapped.
 -}
-notifyTap : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTap : userMsg -> Shape userMsg -> Shape userMsg
 notifyTap msg shape =
-    Tap (Graphics msg) shape
+    Tap msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse or finger when the `Shape` is clicked or tapped.
 -}
-notifyTapAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTapAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTapAt msg shape =
-    TapAt (ReturnPosition msg) shape
+    TapAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the mouse enters a `Shape`.
 -}
-notifyEnter : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyEnter : userMsg -> Shape userMsg -> Shape userMsg
 notifyEnter msg shape =
-    EnterShape (Graphics msg) shape
+    EnterShape msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse enters a `Shape`.
 -}
-notifyEnterAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyEnterAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyEnterAt msg shape =
-    EnterAt (ReturnPosition msg) shape
+    EnterAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the mouse leaves a `Shape`.
 -}
-notifyLeave : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyLeave : userMsg -> Shape userMsg -> Shape userMsg
 notifyLeave msg shape =
-    Exit (Graphics msg) shape
+    Exit msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse leaves a `Shape`.
 -}
-notifyLeaveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyLeaveAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyLeaveAt msg shape =
-    ExitAt (ReturnPosition msg) shape
+    ExitAt msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse is moved across a `Shape`.
 -}
-notifyMouseMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyMouseMoveAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyMouseMoveAt msg shape =
-    MoveOverAt (ReturnPosition msg) shape
+    MoveOverAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the mouse button is pressed while the cursor is over a `Shape`.
 -}
-notifyMouseDown : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyMouseDown : userMsg -> Shape userMsg -> Shape userMsg
 notifyMouseDown msg shape =
-    MouseDown (Graphics msg) shape
+    MouseDown msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse button is pressed while the cursor is over a `Shape`.
 -}
-notifyMouseDownAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyMouseDownAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyMouseDownAt msg shape =
-    MouseDownAt (ReturnPosition msg) shape
+    MouseDownAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the mouse button is released while the cursor is over a `Shape`.
 -}
-notifyMouseUp : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyMouseUp : userMsg -> Shape userMsg -> Shape userMsg
 notifyMouseUp msg shape =
-    MouseUp (Graphics msg) shape
+    MouseUp msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the mouse when the mouse button is released while the cursor is over a `Shape`.
 -}
-notifyMouseUpAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyMouseUpAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyMouseUpAt msg shape =
-    MouseUpAt (ReturnPosition msg) shape
+    MouseUpAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the user begins touching a `Shape`.
 -}
-notifyTouchStart : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTouchStart : userMsg -> Shape userMsg -> Shape userMsg
 notifyTouchStart msg shape =
-    TouchStart (Graphics msg) shape
+    TouchStart msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user begins touching a `Shape`.
 -}
-notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTouchStartAt msg shape =
-    TouchStartAt (ReturnPosition msg) shape
+    TouchStartAt msg shape
 
 
 {-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
 -}
-notifyTouchEnd : userMsg -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTouchEnd : userMsg -> Shape userMsg -> Shape userMsg
 notifyTouchEnd msg shape =
-    TouchEnd (Graphics msg) shape
+    TouchEnd msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user lifts their finger off a `Shape`.
 -}
-notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTouchEndAt msg shape =
-    TouchEndAt (ReturnPosition msg) shape
+    TouchEndAt msg shape
 
 
 {-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user moves their finger over a `Shape`.
 -}
-notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape (Msg userMsg) -> Shape (Msg userMsg)
+notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTouchMoveAt msg shape =
-    TouchMoveAt (ReturnPosition msg) shape
+    TouchMoveAt msg shape
 
 
 xyToPair : { a | x : Int, y : Int } -> ( Float, Float )
@@ -2055,73 +2093,73 @@ touchToPair tp =
             ( x, -y )
 
 
-onTapAt : (( Float, Float ) -> c) -> Html.Attribute c
+onTapAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onTapAt msg =
     Html.Events.on "click"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onEnterAt : (( Float, Float ) -> c) -> Html.Attribute c
+onEnterAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onEnterAt msg =
     Html.Events.on "mouseover"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onLeaveAt : (( Float, Float ) -> c) -> Html.Attribute c
+onLeaveAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onLeaveAt msg =
     Html.Events.on "mouseleave"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onMoveAt : (( Float, Float ) -> c) -> Html.Attribute c
+onMoveAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onMoveAt msg =
     Html.Events.on "mousemove"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onMouseDownAt : (( Float, Float ) -> c) -> Html.Attribute c
+onMouseDownAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onMouseDownAt msg =
     Html.Events.on "mousedown"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onMouseUpAt : (( Float, Float ) -> c) -> Html.Attribute c
+onMouseUpAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onMouseUpAt msg =
     Html.Events.on "mouseup"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map ((ReturnPosition msg) << xyToPair) Mouse.position)
 
 
-onTouchStart : a -> Html.Attribute a
+onTouchStart : userMsg -> Html.Attribute (Msg userMsg)
 onTouchStart msg =
-    Html.Events.on "touchstart" (Json.succeed msg)
+    Html.Events.on "touchstart" (Json.succeed (Graphics msg))
 
 
-onTouchStartAt : (( Float, Float ) -> c) -> Html.Attribute c
+onTouchStartAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onTouchStartAt msg =
     Html.Events.on "touchstart"
-        (Json.map (msg << touchToPair) touchDecoder)
+        (Json.map ((ReturnPosition msg) << touchToPair) touchDecoder)
 
 
-onTouchEndAt : (( Float, Float ) -> c) -> Html.Attribute c
+onTouchEndAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
 onTouchEndAt msg =
     Html.Events.on "touchend"
-        (Json.map (msg << touchToPair) touchDecoder)
+        (Json.map ((ReturnPosition msg) << touchToPair) touchDecoder)
 
 
-onTouchEnd : a -> Html.Attribute a
+onTouchEnd : userMsg -> Html.Attribute (Msg userMsg)
 onTouchEnd msg =
-    Html.Events.on "touchend" (Json.succeed msg)
+    Html.Events.on "touchend" (Json.succeed (Graphics msg))
 
 
-onTouchMove : (( Float, Float ) -> c) -> Html.Attribute c
-onTouchMove msg =
+onTouchMoveAt : (( Float, Float ) -> userMsg) -> Html.Attribute (Msg userMsg)
+onTouchMoveAt msg =
     let
         dOp =
             Html.Events.defaultOptions
     in
         Html.Events.onWithOptions "touchmove"
             { dOp | preventDefault = True }
-            (Json.map (msg << touchToPair) touchDecoder)
+            (Json.map ((ReturnPosition msg) << touchToPair) touchDecoder)
 
 
 type TouchPos
@@ -2136,8 +2174,8 @@ touchDecoder =
         ]
 
 
-createSVG : Transform -> Shape a -> Svg.Svg a
-createSVG trans shape =
+createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
+createSVG id w h trans shape =
     case shape of
         Inked fillClr lt stencil ->
             let
@@ -2297,71 +2335,94 @@ createSVG trans shape =
                                     ++ font
                                     ++ select
                         in
-                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] ++ [Svg.Attributes.xmlSpace "preserve"]) [ Svg.text str ]
+                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] ++ [ Svg.Attributes.xmlSpace "preserve" ]) [ Svg.text str ]
                 )
 
+        ForeignObject w h htm ->
+            let
+                ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
+                    coalesce trans
+            in
+                Svg.foreignObject [ width (toString <| w), height (toString <| h), Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] [ Html.map Graphics htm ]
+
         Move v shape ->
-            createSVG (moveT trans v) shape
+            createSVG id w h (moveT trans v) shape
+
+        Everything ->
+            createSVG id w h ident (rect w h |> filled white)
 
         Rotate deg shape ->
-            createSVG (rotT trans deg) shape
+            createSVG id w h (rotT trans deg) shape
 
         ScaleXY sx sy shape ->
-            createSVG (scaleT trans ( sx, sy )) shape
+            createSVG id w h (scaleT trans ( sx, sy )) shape
 
         Link href shape ->
-            Svg.a [ xlinkHref href, target "_blank" ] [ createSVG (coalesce trans) shape ]
+            Svg.a [ xlinkHref href, target "_blank" ] [ createSVG id w h (coalesce trans) shape ]
+
+        AlphaMask region shape ->
+            Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) shape ] ]
+
+        Clip region shape ->
+            Svg.g [] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id ("c" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ clipPath ("url(#c" ++ id ++ ")") ] [ createSVG (id ++ "cc") w h (coalesce trans) shape] ]
 
         Tap msg shape ->
-            Svg.g [ Html.Events.onClick msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ Html.Events.onClick (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
         TapAt msg shape ->
-            Svg.g [ onTapAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTapAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         EnterShape msg shape ->
-            Svg.g [ Html.Events.onMouseEnter msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ Html.Events.onMouseEnter (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
         EnterAt msg shape ->
-            Svg.g [ onEnterAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onEnterAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         Exit msg shape ->
-            Svg.g [ Html.Events.onMouseLeave msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ Html.Events.onMouseLeave (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
         ExitAt msg shape ->
-            Svg.g [ onLeaveAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onLeaveAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         MouseDown msg shape ->
-            Svg.g [ Html.Events.onMouseDown msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ Html.Events.onMouseDown (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
         MouseDownAt msg shape ->
-            Svg.g [ onMouseDownAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onMouseDownAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         MouseUp msg shape ->
-            Svg.g [ Html.Events.onMouseUp msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ Html.Events.onMouseUp (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
         MouseUpAt msg shape ->
-            Svg.g [ onMouseUpAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onMouseUpAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         MoveOverAt msg shape ->
-            Svg.g [ onMoveAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onMoveAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         TouchStart msg shape ->
-            Svg.g [ onTouchStart msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTouchStart msg ] [ createSVG id w h (coalesce trans) shape ]
 
         TouchEnd msg shape ->
-            Svg.g [ onTouchEnd msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTouchEnd msg ] [ createSVG id w h (coalesce trans) shape ]
 
         TouchStartAt msg shape ->
-            Svg.g [ onTouchStartAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTouchStartAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         TouchEndAt msg shape ->
-            Svg.g [ onTouchStartAt msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTouchEndAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         TouchMoveAt msg shape ->
-            Svg.g [ onTouchMove msg ] [ createSVG (coalesce trans) shape ]
+            Svg.g [ onTouchMoveAt msg ] [ createSVG id w h (coalesce trans) shape ]
 
         Group shapes ->
-            Svg.g [] <| List.map (createSVG <| coalesce trans) shapes
+            Svg.g [] <| List.indexedMap (\n -> (createSVG (id ++ "g" ++ toString (n)) w h <| coalesce trans)) shapes
+
+
+{-| Display HTML inside an SVG foreignObject.
+-}
+html : Float -> Float -> Html.Html userMsg -> Shape userMsg
+html w h htm =
+    ForeignObject w h htm
 
 
 
@@ -2372,24 +2433,72 @@ createSVG trans shape =
 
     circle 10
         |> filled red
+
 -}
 filled : Color -> Stencil -> Shape userMsg
-filled color shape =
-    Inked color Nothing shape
+filled color stencil =
+    Inked color Nothing stencil
+
+
+{-| Make a `Shape` into a ghost. Mostly to be used inside of the scissor operations `><%` and `%><`.
+-}
+ghost : Stencil -> Shape userMsg
+ghost stencil =
+    Inked white Nothing stencil
+
+
+{-| Repaint an already-`filled` `Shape`. This is helpful for repainting every `Shape` inside a `group` as well.
+
+    group
+        [ circle 10
+            |> filled orange
+        , rect 10 40
+            |> filled blue
+        ]
+        |> repaint green
+
+-}
+repaint : Color -> Shape userMsg -> Shape userMsg
+repaint color shape =
+    case shape of
+        Inked clr outline shape ->
+            Inked color outline shape
+
+        Move s shape ->
+            Move s (repaint color shape)
+
+        Rotate r shape ->
+            Rotate r (repaint color shape)
+
+        ScaleXY sx sy shape ->
+            ScaleXY sx sy (repaint color shape)
+
+        Group shapes ->
+            Group (List.map (repaint color) shapes)
+
+        AlphaMask shape1 shape2 ->
+            AlphaMask shape1 (repaint color shape2)
+
+        Clip shape1 shape2 ->
+            Clip shape1 (repaint color shape2)
+
+        a ->
+            a
 
 
 {-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`.
 
     circle 10
         |> outlined (solid 5) red
+
 -}
 outlined : LineType -> Color -> Stencil -> Shape userMsg
-outlined style outlineClr shape =
+outlined style outlineClr stencil =
     let
         lineStyle =
             ( style, outlineClr )
     in
-        Inked (rgba 0 0 0 0) (Just lineStyle) shape
+        Inked (rgba 0 0 0 0) (Just lineStyle) stencil
 
 
 {-| Add an outline to an already-filled `Shape`.
@@ -2397,6 +2506,7 @@ outlined style outlineClr shape =
     circle 10
         |> filled red
         |> addOutline (solid 5) white
+
 -}
 addOutline : LineType -> Color -> Shape userMsg -> Shape userMsg
 addOutline style outlineClr shape =
@@ -2436,12 +2546,16 @@ addOutline style outlineClr shape =
         |> makeTransparent 0.5
         |> makeTransparent 0.5
     --results in a transparency of 0.25 (a quarter visible)
+
 -}
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
         Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) shape ->
             Inked (RGBA r g b (a * alpha)) (Just ( lineType, (RGBA sr sg sb (sa * alpha)) )) shape
+
+        ForeignObject w h html ->
+            ForeignObject w h html
 
         Inked (RGBA r g b a) Nothing shape ->
             Inked (RGBA r g b (a * alpha)) Nothing shape
@@ -2460,6 +2574,15 @@ makeTransparent alpha shape =
 
         Link s shape ->
             Link s (makeTransparent alpha shape)
+
+        AlphaMask reg shape ->
+            AlphaMask reg (makeTransparent alpha shape)
+
+        Clip reg shape ->
+            Clip reg (makeTransparent alpha shape)
+
+        Everything ->
+            Everything
 
         Tap userMsg shape ->
             Tap userMsg (makeTransparent alpha shape)
@@ -2572,6 +2695,7 @@ makePair n =
 {-| Apply to a `text` `Stencil` to change the font size of the text.
 
 The size has a unit called "points", which depends on the size and type of screen used, but try 12 to start.
+
 -}
 size : Float -> Stencil -> Stencil
 size size stencil =
@@ -2695,6 +2819,7 @@ fixedwidth stencil =
 {-| Apply to a `text` `Stencil` to render the text with a font of your choosing by specifying its name in a `String`.
 
 *Use this sparingly as support for each font will vary across browsers and devices.*
+
 -}
 customFont : String -> Stencil -> Stencil
 customFont fStr stencil =
@@ -2718,6 +2843,7 @@ from degrees into radians:
             |> filled blue
             |> rotate(degrees 30)
     ]
+
 -}
 rotate : Float -> Shape userMsg -> Shape userMsg
 rotate theta shape =
@@ -2788,11 +2914,16 @@ rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
     RGBA (sc r) (sc g) (sc b) (sa a)
 
-sc: number -> number
-sc n = clamp 0 255 n
 
-sa: Float -> Float
-sa n = clamp 0 1 n
+sc : number -> number
+sc n =
+    clamp 0 255 n
+
+
+sa : Float -> Float
+sa n =
+    clamp 0 1 n
+
 
 pairToString : ( a, b ) -> String
 pairToString ( x, y ) =
@@ -2906,15 +3037,79 @@ hsla h s l a =
 
 
 
+-- Clip path functionality
+
+
+{-| Right-handed scissors
+
+    Cut out the `Shape` on the left using the `Shape` on the right.
+
+-}
+(><%) : Shape userMsg -> Shape userMsg -> Shape userMsg
+(><%) shape1 shape2 =
+    Clip (shape2 |> repaint white) shape1
+
+
+{-| Left-handed scissors
+
+    Cut out the `Shape` on the right using the `Shape` on the left.
+
+-}
+(%><) : Shape userMsg -> Shape userMsg -> Shape userMsg
+(%><) shape1 shape2 =
+    Clip (Group [ shape1 |> repaint white ]) shape2
+
+
+{-| Shape union
+
+    Combine two `Shape`s together into one to use with the scissors (`><%` and `%><`).
+
+-}
+(<|>) : Shape userMsg -> Shape userMsg -> Shape userMsg
+(<|>) shape1 shape2 =
+    Group [ shape1, shape2 ]
+
+
+{-| Shape subtraction
+
+    Subtract the `Shape` on the right from the `Shape` on the left.
+
+-}
+(<->) : Shape userMsg -> Shape userMsg -> Shape userMsg
+(<->) shape1 shape2 =
+    AlphaMask (Group [ Everything, shape2 |> repaint black ]) shape1
+
+
+{-| The whole region outside the given `Shape`.
+-}
+outside : Shape userMsg -> Shape userMsg
+outside shape =
+    AlphaMask (Group [ Everything, shape |> repaint black ]) Everything
+
+
+infixr 2 ><%
+
+
+infixr 2 %><
+
+
+infixr 3 <|>
+
+
+infixr 6 <->
+
+
+
 {-
    Contributed by Jack You.
 -}
+
 
 convert : Float -> Float -> Float -> ( Float, Float, Float )
 convert hue sat lit =
     let
         hue_ =
-            modFloat hue (2*pi)
+            modFloat hue (2 * pi)
 
         rgb_ =
             toRGB_ hue_ sat lit
