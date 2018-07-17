@@ -291,6 +291,7 @@ type Shape userMsg
     | ScaleXY Float Float (Shape userMsg)
     | Group (List (Shape userMsg))
     | AlphaMask (Shape userMsg) (Shape userMsg)
+    | Clip (Shape userMsg) (Shape userMsg)
     | Everything
     | Link String (Shape userMsg)
     | Tap userMsg (Shape userMsg)
@@ -338,6 +339,9 @@ map f sh =
 
                AlphaMask sh1 sh2 ->
                    AlphaMask (map f sh1) (map f sh2)
+
+               Clip sh1 sh2 ->
+                   Clip (map f sh1) (map f sh2)
 
                Everything ->
                    Everything
@@ -2359,6 +2363,9 @@ createSVG id w h trans shape =
         AlphaMask region shape ->
             Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) shape ] ]
 
+        Clip region shape ->
+            Svg.g [] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id ("c" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ clipPath ("url(#c" ++ id ++ ")") ] [ createSVG (id ++ "cc") w h (coalesce trans) shape] ]
+
         Tap msg shape ->
             Svg.g [ Html.Events.onClick (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
 
@@ -2472,6 +2479,9 @@ repaint color shape =
         AlphaMask shape1 shape2 ->
             AlphaMask shape1 (repaint color shape2)
 
+        Clip shape1 shape2 ->
+            Clip shape1 (repaint color shape2)
+
         a ->
             a
 
@@ -2567,6 +2577,9 @@ makeTransparent alpha shape =
 
         AlphaMask reg shape ->
             AlphaMask reg (makeTransparent alpha shape)
+
+        Clip reg shape ->
+            Clip reg (makeTransparent alpha shape)
 
         Everything ->
             Everything
@@ -3034,7 +3047,7 @@ hsla h s l a =
 -}
 (><%) : Shape userMsg -> Shape userMsg -> Shape userMsg
 (><%) shape1 shape2 =
-    AlphaMask (shape2 |> repaint white) shape1
+    Clip (shape2 |> repaint white) shape1
 
 
 {-| Left-handed scissors
@@ -3044,7 +3057,7 @@ hsla h s l a =
 -}
 (%><) : Shape userMsg -> Shape userMsg -> Shape userMsg
 (%><) shape1 shape2 =
-    AlphaMask (Group [ shape1 |> repaint white ]) shape2
+    Clip (Group [ shape1 |> repaint white ]) shape2
 
 
 {-| Shape union
