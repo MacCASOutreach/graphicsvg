@@ -238,9 +238,11 @@ other applications including keyboard presses and mouse movements.
 
 @docs Color,black,blank,blue,brown,charcoal,darkBlue,darkBrown,darkCharcoal,darkGray,darkGreen,darkGrey,darkOrange,darkPurple,darkRed,darkYellow,gray,green,grey,hotPink,lightBlue,lightBrown,lightCharcoal,lightGray,lightGreen,lightGrey,lightOrange,lightPurple,lightRed,lightYellow,orange,pink,purple,red,white,yellow
 
+
 # To embedd a submodule with it's own message type into an app, we need to embedd the messages with map.
 
 @docs map
+
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
@@ -314,97 +316,89 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
 
 
-
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
 (Ask if you don't know what this means.)
 -}
 map : (a -> b) -> Shape a -> Shape b
 map f sh =
-           case sh of
-               Inked fillClr lt stencil ->
-                   Inked fillClr lt stencil
+    case sh of
+        Inked fillClr lt stencil ->
+            Inked fillClr lt stencil
 
-               ForeignObject w h htm ->
-                   ForeignObject w h (Html.map f htm)
+        ForeignObject w h htm ->
+            ForeignObject w h (Html.map f htm)
 
-               Move v shape ->
-                   Move v (map f shape)
+        Move v shape ->
+            Move v (map f shape)
 
-               Rotate deg shape ->
-                   Rotate deg (map f shape)
+        Rotate deg shape ->
+            Rotate deg (map f shape)
 
-               ScaleXY sx sy shape ->
-                   ScaleXY sx sy (map f shape)
+        ScaleXY sx sy shape ->
+            ScaleXY sx sy (map f shape)
 
-               Link href shape ->
-                   Link href (map f shape)
+        Link href shape ->
+            Link href (map f shape)
 
-               AlphaMask sh1 sh2 ->
-                   AlphaMask (map f sh1) (map f sh2)
+        AlphaMask sh1 sh2 ->
+            AlphaMask (map f sh1) (map f sh2)
 
-               Clip sh1 sh2 ->
-                   Clip (map f sh1) (map f sh2)
+        Clip sh1 sh2 ->
+            Clip (map f sh1) (map f sh2)
 
-               Everything ->
-                   Everything
+        Everything ->
+            Everything
 
-               Tap msg shape ->
-                   Tap (f msg) (map f shape)
+        Tap msg shape ->
+            Tap (f msg) (map f shape)
 
-               AlphaMask sh1 sh2 ->
-                   AlphaMask (map f sh1) (map f sh2)
+        TapAt msg shape ->
+            TapAt (f << msg) (map f shape)
 
-               Everything ->
-                   Everything
+        EnterShape msg shape ->
+            EnterShape (f msg) (map f shape)
 
-               TapAt msg shape ->
-                   TapAt (f << msg) (map f shape)
+        EnterAt msg shape ->
+            EnterAt (f << msg) (map f shape)
 
-               EnterShape msg shape ->
-                   EnterShape (f msg) (map f shape)
+        Exit msg shape ->
+            Exit (f msg) (map f shape)
 
-               EnterAt msg shape ->
-                   EnterAt (f << msg) (map f shape)
+        ExitAt msg shape ->
+            ExitAt (f << msg) (map f shape)
 
-               Exit msg shape ->
-                   Exit (f msg) (map f shape)
+        MouseDown msg shape ->
+            MouseDown (f msg) (map f shape)
 
-               ExitAt msg shape ->
-                   ExitAt (f << msg) (map f shape)
+        MouseDownAt msg shape ->
+            MouseDownAt (f << msg) (map f shape)
 
-               MouseDown msg shape ->
-                   MouseDown (f msg) (map f shape)
+        MouseUp msg shape ->
+            MouseUp (f msg) (map f shape)
 
-               MouseDownAt msg shape ->
-                   MouseDownAt (f << msg) (map f shape)
+        MouseUpAt msg shape ->
+            MouseUpAt (f << msg) (map f shape)
 
-               MouseUp msg shape ->
-                   MouseUp (f msg) (map f shape)
+        MoveOverAt msg shape ->
+            MoveOverAt (f << msg) (map f shape)
 
-               MouseUpAt msg shape ->
-                   MouseUpAt (f << msg) (map f shape)
+        TouchStart msg shape ->
+            TouchStart (f msg) (map f shape)
 
-               MoveOverAt msg shape ->
-                   MoveOverAt (f << msg) (map f shape)
+        TouchEnd msg shape ->
+            TouchEnd (f msg) (map f shape)
 
-               TouchStart msg shape ->
-                   TouchStart (f msg) (map f shape)
+        TouchStartAt msg shape ->
+            TouchStartAt (f << msg) (map f shape)
 
-               TouchEnd msg shape ->
-                   TouchEnd (f msg) (map f shape)
+        TouchEndAt msg shape ->
+            TouchEndAt (f << msg) (map f shape)
 
-               TouchStartAt msg shape ->
-                   TouchStartAt (f << msg) (map f shape)
+        TouchMoveAt msg shape ->
+            TouchMoveAt (f << msg) (map f shape)
 
-               TouchEndAt msg shape ->
-                   TouchEndAt (f << msg) (map f shape)
-
-               TouchMoveAt msg shape ->
-                   TouchMoveAt (f << msg) (map f shape)
-
-               Group shapes ->
-                   Group (List.map (map f) shapes)
-
+        Group shapes ->
+            Group (List.map (map f) shapes)
 
 
 {-| The `GraphicSVG` type alias represents the drawable surface of the window.
@@ -426,7 +420,6 @@ actually used for these labels.
 -}
 type alias GraphicSVG userMsg =
     Collage userMsg
-
 
 
 {-| The `Color` type is used for filling or outlining a `Stencil`.
@@ -796,7 +789,7 @@ subs userSubs model =
          , Window.resizes sizeToMsg
          ]
             ++ keySubs
-            ++ ( List.map (Sub.map Graphics) userSubs )
+            ++ (List.map (Sub.map Graphics) userSubs)
         )
 
 
@@ -852,6 +845,7 @@ hiddenUpdate update msg ( model, gModel ) =
 
         _ ->
             ( ( model, gModel ), Cmd.none )
+
 
 hiddenGameUpdate :
     (userMsg -> model -> model)
@@ -1080,7 +1074,7 @@ These assume that `Model` is the type alias of the user persistent model, and
 type Msg userMsg
     = Graphics userMsg
     | WindowResize ( Int, Int )
-    | ReturnPosition (( Float, Float ) -> userMsg) (Float,Float)
+    | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
     | CollageSize ( Int, Int )
     | InitTime Time
     | TickTime Time
@@ -2190,6 +2184,7 @@ touchDecoder =
         , Json.map2 TouchPos (Json.field "pageX" Json.float) (Json.field "pageY" Json.float)
         ]
 
+
 createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
 createSVG id w h trans shape =
     case shape of
@@ -2385,7 +2380,7 @@ createSVG id w h trans shape =
             Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) shape ] ]
 
         Clip region shape ->
-            Svg.g [] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id ("c" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ clipPath ("url(#c" ++ id ++ ")") ] [ createSVG (id ++ "cc") w h (coalesce trans) shape] ]
+            Svg.g [] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id ("c" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ clipPath ("url(#c" ++ id ++ ")") ] [ createSVG (id ++ "cc") w h (coalesce trans) shape ] ]
 
         Tap msg shape ->
             Svg.g [ Html.Events.onClick (Graphics msg) ] [ createSVG id w h (coalesce trans) shape ]
@@ -2502,6 +2497,7 @@ repaint color shape =
 
         Clip shape1 shape2 ->
             Clip shape1 (repaint color shape2)
+
         a ->
             a
 
@@ -2597,7 +2593,7 @@ makeTransparent alpha shape =
 
         AlphaMask reg shape ->
             AlphaMask reg (makeTransparent alpha shape)
-            
+
         Clip reg shape ->
             Clip reg (makeTransparent alpha shape)
 
@@ -2874,20 +2870,20 @@ customFont fStr stencil =
         a ->
             a
 
+
 {-| Use a text box as part of your collage. The text box takes in text to display (this should be the string you store
 in your model), a width, a height, a placeholder string when the box is empty and a message you wish to receive when the
 box is changed.
-
 -}
 textBox : String -> Float -> Float -> String -> (String -> userMsg) -> Shape userMsg
 textBox txt w h place msg =
     move ( -w / 2, h / 2 ) <|
         html (w * 1.5) (h * 1.5) <|
-            input
-                [ placeholder place
-                , onInput msg
-                , value txt
-                , style
+            Html.input
+                [ Html.Attributes.placeholder place
+                , Html.Events.onInput msg
+                , Html.Attributes.value txt
+                , Html.Attributes.style
                     [ ( "width", toString w ++ "px" )
                     , ( "height", toString h ++ "px" )
 
@@ -2897,21 +2893,21 @@ textBox txt w h place msg =
                 ]
                 []
 
-{-| Use a password box as part of your collage. The password box does not show the current string in the box. It takes in 
-text to display (this should be the string you store in your model), a width, a height, a placeholder string when the box 
-is empty and a message you wish to receive when the box is changed.
 
+{-| Use a password box as part of your collage. The password box does not show the current string in the box. It takes in
+text to display (this should be the string you store in your model), a width, a height, a placeholder string when the box
+is empty and a message you wish to receive when the box is changed.
 -}
 passwordBox : String -> Float -> Float -> String -> (String -> userMsg) -> Shape userMsg
 passwordBox txt w h place msg =
     move ( -w / 2, h / 2 ) <|
         html (w * 1.5) (h * 1.5) <|
-            input
-                [ placeholder place
-                , onInput msg
-                , value txt
+            Html.input
+                [ Html.Attributes.placeholder place
+                , Html.Events.onInput msg
+                , Html.Attributes.value txt
                 , type_ "password"
-                , style
+                , Html.Attributes.style
                     [ ( "width", toString w ++ "px" )
                     , ( "height", toString h ++ "px" )
 
@@ -2921,6 +2917,8 @@ passwordBox txt w h place msg =
                     ]
                 ]
                 []
+
+
 
 --Transformation functions
 
