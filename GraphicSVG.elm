@@ -659,7 +659,7 @@ causes the direction of the spin to reverse:
             500
             [ line ( 0, 0 ) ( 250, 0 )
                 |> outlined (solid 1) green
-                |> rotate (degrees model)
+                |> rotate (degrees model.angle)
             ]
 
     main =
