@@ -56,6 +56,8 @@ module GraphicSVG
         , strikethrough
         , selectable
         , centered
+        , alignLeft
+        , alignRight
         , sansserif
         , serif
         , fixedwidth
@@ -199,7 +201,7 @@ other applications including keyboard presses and mouse movements.
 
 # Text
 
-@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
+@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
@@ -349,6 +351,12 @@ map f sh =
                Tap msg shape ->
                    Tap (f msg) (map f shape)
 
+               AlphaMask sh1 sh2 ->
+                   AlphaMask (map f sh1) (map f sh2)
+
+               Everything ->
+                   Everything
+
                TapAt msg shape ->
                    TapAt (f << msg) (map f shape)
 
@@ -420,6 +428,7 @@ type alias GraphicSVG userMsg =
     Collage userMsg
 
 
+
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
@@ -451,8 +460,8 @@ type Face
         Bool
         -- selectable
         Font
-        -- centred
-        Bool
+        -- font alignment
+        FontAlign
 
 
 {-| The `Font` type describes the font of a text `Stencil`.
@@ -462,6 +471,14 @@ type Font
     | Sansserif
     | FixedWidth
     | Custom String
+
+
+{-| `FontAlign` describes how to align a text `Stencil`.
+-}
+type FontAlign
+    = AlignLeft
+    | AlignCentred
+    | AlignRight
 
 
 {-| To make it easier to read the code defining a `curve`,
@@ -1696,7 +1713,7 @@ functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* o
 -}
 text : String -> Stencil
 text str =
-    Text (Face 12 False False False False False Serif False) str
+    Text (Face 12 False False False False False Serif AlignLeft) str
 
 
 {-| Apply to a curve or group of curves in order to view their start points,
@@ -2173,7 +2190,6 @@ touchDecoder =
         , Json.map2 TouchPos (Json.field "pageX" Json.float) (Json.field "pageY" Json.float)
         ]
 
-
 createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
 createSVG id w h trans shape =
     case shape of
@@ -2277,7 +2293,7 @@ createSVG id w h trans shape =
                             )
                             []
 
-                    Text (Face si bo i u s sel f cen) str ->
+                    Text (Face si bo i u s sel f align) str ->
                         let
                             bol =
                                 if bo then
@@ -2308,10 +2324,15 @@ createSVG id w h trans shape =
                                     ""
 
                             anchor =
-                                if cen then
-                                    "middle"
-                                else
-                                    "left"
+                                case align of
+                                    AlignCentred ->
+                                        "middle"
+
+                                    AlignLeft ->
+                                        "start"
+
+                                    AlignRight ->
+                                        "end"
 
                             font =
                                 case f of
@@ -2481,7 +2502,6 @@ repaint color shape =
 
         Clip shape1 shape2 ->
             Clip shape1 (repaint color shape2)
-
         a ->
             a
 
@@ -2577,7 +2597,7 @@ makeTransparent alpha shape =
 
         AlphaMask reg shape ->
             AlphaMask reg (makeTransparent alpha shape)
-
+            
         Clip reg shape ->
             Clip reg (makeTransparent alpha shape)
 
@@ -2773,7 +2793,31 @@ centered : Stencil -> Stencil
 centered stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face si bo i u s sel f True) str
+            Text (Face si bo i u s sel f AlignCentred) str
+
+        a ->
+            a
+
+
+{-| Apply to a `text` `Stencil` to left-align the text.
+-}
+alignLeft : Stencil -> Stencil
+alignLeft stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignLeft) str
+
+        a ->
+            a
+
+
+{-| Apply to a `text` `Stencil` to right-align the text.
+-}
+alignRight : Stencil -> Stencil
+alignRight stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignRight) str
 
         a ->
             a
@@ -3093,7 +3137,7 @@ hsla h s l a =
 -}
 (><%) : Shape userMsg -> Shape userMsg -> Shape userMsg
 (><%) shape1 shape2 =
-    Clip (shape2 |> repaint white) shape1
+    Clip shape2 shape1
 
 
 {-| Left-handed scissors
@@ -3103,7 +3147,7 @@ hsla h s l a =
 -}
 (%><) : Shape userMsg -> Shape userMsg -> Shape userMsg
 (%><) shape1 shape2 =
-    Clip (Group [ shape1 |> repaint white ]) shape2
+    Clip shape1 shape2
 
 
 {-| Shape union
