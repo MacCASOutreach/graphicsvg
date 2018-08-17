@@ -2830,7 +2830,53 @@ customFont fStr stencil =
         a ->
             a
 
+{-| Use a text box as part of your collage. The text box takes in text to display (this should be the string you store
+in your model), a width, a height, a placeholder string when the box is empty and a message you wish to receive when the
+box is changed.
 
+-}
+textBox : String -> Float -> Float -> String -> (String -> userMsg) -> Shape userMsg
+textBox txt w h place msg =
+    move ( -w / 2, h / 2 ) <|
+        html (w * 1.5) (h * 1.5) <|
+            input
+                [ placeholder place
+                , onInput msg
+                , value txt
+                , style
+                    [ ( "width", toString w ++ "px" )
+                    , ( "height", toString h ++ "px" )
+
+                    --, ( "padding", "0" )
+                    , ( "margin-top", "1px" )
+                    ]
+                ]
+                []
+
+{-| Use a password box as part of your collage. The password box does not show the current string in the box. It takes in 
+text to display (this should be the string you store in your model), a width, a height, a placeholder string when the box 
+is empty and a message you wish to receive when the box is changed.
+
+-}
+passwordBox : String -> Float -> Float -> String -> (String -> userMsg) -> Shape userMsg
+passwordBox txt w h place msg =
+    move ( -w / 2, h / 2 ) <|
+        html (w * 1.5) (h * 1.5) <|
+            input
+                [ placeholder place
+                , onInput msg
+                , value txt
+                , type_ "password"
+                , style
+                    [ ( "width", toString w ++ "px" )
+                    , ( "height", toString h ++ "px" )
+
+                    --, ( "padding", "0" )
+                    , ( "margin-top", "1px" )
+                    , ( "margin-bottom", "1px" )
+                    ]
+                ]
+                []
 
 --Transformation functions
 
