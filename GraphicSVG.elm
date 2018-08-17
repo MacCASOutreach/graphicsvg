@@ -473,9 +473,13 @@ type Font
     | FixedWidth
     | Custom String
 
+
 {-| `FontAlign` describes how to align a text `Stencil`.
 -}
-type FontAlign = AlignLeft | AlignCentred | AlignRight
+type FontAlign
+    = AlignLeft
+    | AlignCentred
+    | AlignRight
 
 
 {-| To make it easier to read the code defining a `curve`,
@@ -2319,9 +2323,14 @@ createSVG id w h trans shape =
 
                             anchor =
                                 case align of
-                                    AlignCentred -> "middle"
-                                    AlignLeft -> "start"
-                                    AlignRight -> "end"
+                                    AlignCentred ->
+                                        "middle"
+
+                                    AlignLeft ->
+                                        "start"
+
+                                    AlignRight ->
+                                        "end"
 
                             font =
                                 case f of
@@ -2750,6 +2759,7 @@ selectable stencil =
         a ->
             a
 
+
 {-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
@@ -2760,7 +2770,8 @@ centered stencil =
 
         a ->
             a
-            
+
+
 {-| Apply to a `text` `Stencil` to left-align the text.
 -}
 alignLeft : Stencil -> Stencil
@@ -2772,6 +2783,7 @@ alignLeft stencil =
         a ->
             a
 
+
 {-| Apply to a `text` `Stencil` to right-align the text.
 -}
 alignRight : Stencil -> Stencil
@@ -2782,9 +2794,6 @@ alignRight stencil =
 
         a ->
             a
-
-
-
 
 
 {-| Apply to a `text` `Stencil` to render the text with a Sans Serif font (ie one without thinner and thicker bits).
