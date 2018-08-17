@@ -54,6 +54,8 @@ module GraphicSVG
         , strikethrough
         , selectable
         , centered
+        , alignLeft
+        , alignRight
         , sansserif
         , serif
         , fixedwidth
@@ -197,7 +199,7 @@ other applications including keyboard presses and mouse movements.
 
 # Text
 
-@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
+@docs Face, Font, text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
@@ -459,8 +461,8 @@ type Face
         Bool
         -- selectable
         Font
-        -- centred
-        Bool
+        -- font alignment
+        FontAlign
 
 
 {-| The `Font` type describes the font of a text `Stencil`.
@@ -470,6 +472,10 @@ type Font
     | Sansserif
     | FixedWidth
     | Custom String
+
+{-| `FontAlign` describes how to align a text `Stencil`.
+-}
+type FontAlign = AlignLeft | AlignCentred | AlignRight
 
 
 {-| To make it easier to read the code defining a `curve`,
@@ -1700,7 +1706,7 @@ functions. Note that `|> filled ...` or `|> outlined ...` must go at the *end* o
 -}
 text : String -> Stencil
 text str =
-    Text (Face 12 False False False False False Serif False) str
+    Text (Face 12 False False False False False Serif AlignLeft) str
 
 
 {-| Apply to a curve or group of curves in order to view their start points,
@@ -2281,7 +2287,7 @@ createSVG id w h trans shape =
                             )
                             []
 
-                    Text (Face si bo i u s sel f cen) str ->
+                    Text (Face si bo i u s sel f align) str ->
                         let
                             bol =
                                 if bo then
@@ -2312,10 +2318,10 @@ createSVG id w h trans shape =
                                     ""
 
                             anchor =
-                                if cen then
-                                    "middle"
-                                else
-                                    "left"
+                                case align of
+                                    AlignCentred -> "middle"
+                                    AlignLeft -> "start"
+                                    AlignRight -> "end"
 
                             font =
                                 case f of
@@ -2744,17 +2750,41 @@ selectable stencil =
         a ->
             a
 
-
 {-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
 centered stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face si bo i u s sel f True) str
+            Text (Face si bo i u s sel f AlignCentred) str
 
         a ->
             a
+            
+{-| Apply to a `text` `Stencil` to left-align the text.
+-}
+alignLeft : Stencil -> Stencil
+alignLeft stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignLeft) str
+
+        a ->
+            a
+
+{-| Apply to a `text` `Stencil` to right-align the text.
+-}
+alignRight : Stencil -> Stencil
+alignRight stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignRight) str
+
+        a ->
+            a
+
+
+
 
 
 {-| Apply to a `text` `Stencil` to render the text with a Sans Serif font (ie one without thinner and thicker bits).
