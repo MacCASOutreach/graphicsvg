@@ -92,10 +92,9 @@ module GraphicSVG
         , makeTransparent
         , addHyperlink
         , group
-        , (><%)
-        , (%><)
-        , (<|>)
-        , (<->)
+        , clip
+        , union
+        , subtract
         , outside
         , ghost
         , black
@@ -247,15 +246,16 @@ import Svg.Attributes exposing (..)
 import String exposing (..)
 import Svg exposing (Attribute)
 import Array
-import Mouse exposing (Position)
 import Json.Decode as Json exposing (..)
 import Time exposing (..)
-import Window
 import Task
-import Keyboard exposing (..)
+import Browser
+import Browser.Events exposing (onKeyPress, onKeyUp, onKeyDown, onResize)
+import Browser.Dom exposing (Viewport, getViewport)
 import Dict
 import Char
 import Tuple
+import Json.Decode as D
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -524,11 +524,11 @@ so the main program that would get the whole thing started for the above
 -}
 graphicsApp : JustGraphics a -> GraphicsProgram a
 graphicsApp input =
-    Html.program
-        { init = ( ( 0, initHiddenModel () ), initialSizeCmd [] input.view )
+    Browser.document
+        { init = \_ -> ( ( 0, initHiddenModel () ), initialSizeCmd [] input.view )
         , update = blankUpdate
-        , view = blankView input.view
-        , subscriptions = \_ -> Window.resizes sizeToMsg
+        , view = \a -> { title = "GraphicSVG Canvas", body = [ blankView input.view a ] }
+        , subscriptions = \_ -> onResize (\w h -> WindowResize ( w, h ))
         }
 
 
@@ -598,11 +598,11 @@ it is mouse clicked or tapped.
 -}
 notificationsApp : GraphicsApp model userMsg -> NotificationsProgram model userMsg
 notificationsApp input =
-    Html.program
-        { init = ( ( input.model, initHiddenModel () ), initialSizeCmd [] (input.view input.model) )
+    Browser.document
+        { init = \_ -> ( ( input.model, initHiddenModel () ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenUpdate input.update
-        , view = hiddenView input.view
-        , subscriptions = \_ -> Window.resizes sizeToMsg
+        , view = \a -> { title = "GraphicSVG App", body = [ hiddenView input.view a ] }
+        , subscriptions = \_ -> onResize (\w h -> WindowResize ( w, h ))
         }
 
 
@@ -680,10 +680,10 @@ causes the direction of the spin to reverse:
 -}
 gameApp : InputHandler userMsg -> GraphicsApp model userMsg -> GameProgram model userMsg
 gameApp tickMsg input =
-    Html.program
-        { init = ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
+    Browser.document
+        { init = \_ -> ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenGameUpdate input.update
-        , view = hiddenView input.view
+        , view = \a -> { title = "GraphicSVG Game", body = [ hiddenView input.view a ] }
         , subscriptions = subs []
         }
 
@@ -743,14 +743,15 @@ This matches the Elm architecture and is analogous to `Html.program`.
 -}
 cmdApp : InputHandler userMsg -> CmdApp model userMsg -> CmdProgram model userMsg
 cmdApp tickMsg input =
-    Html.program
+    Browser.document
         { init =
-            ( ( Tuple.first input.init, initHiddenModel tickMsg )
-            , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second input.init) ]
-                (input.view (Tuple.first input.init))
-            )
+            \_ ->
+                ( ( Tuple.first input.init, initHiddenModel tickMsg )
+                , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second input.init) ]
+                    (input.view (Tuple.first input.init))
+                )
         , update = hiddenCmdUpdate input.update
-        , view = hiddenCmdView input.view
+        , view = \a -> { title = "GraphicSVG CmdApp", body = [ hiddenCmdView input.view a ] }
         , subscriptions = subs [ Sub.map (\sub -> Graphics sub) (input.subscriptions (Tuple.first input.init)) ]
         }
 
@@ -777,14 +778,14 @@ they can just be substituted for these names.
 
 -}
 type alias CmdProgram model userMsg =
-    Program Never ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
+    Program D.Value ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
 
 
 subs : List (Sub (Msg userMsg)) -> a -> Sub (Msg userMsg)
 subs extraSubs model =
     Sub.batch
-        ([ Time.every (1000 / 30 * millisecond) (createTimeMessage)
-         , Window.resizes sizeToMsg
+        ([ Time.every (1000 / 30) createTimeMessage
+         , onResize (\w h -> WindowResize ( w, h ))
          ]
             ++ keySubs
             ++ extraSubs
@@ -793,16 +794,14 @@ subs extraSubs model =
 
 keySubs : List (Sub (Msg userMsg))
 keySubs =
-    [ Keyboard.ups (KeyUp), Keyboard.downs (KeyDown) ]
+    [ onKeyUp (D.map KeyUp (D.field "keyCode" D.int))
+    , onKeyDown (D.map KeyDown (D.field "keyCode" D.int))
+    ]
 
 
-createTimeMessage : Time -> Msg userMsg
+createTimeMessage : Time.Posix -> Msg userMsg
 createTimeMessage t =
-    let
-        time =
-            inSeconds t
-    in
-        TickTime time
+    TickTime t
 
 
 blankUpdate :
@@ -867,13 +866,18 @@ hiddenGameUpdate update msg ( model, gModel ) =
                 ( ( model, { gModel | initT = t } ), Cmd.none )
 
             TickTime t ->
-                ( ( update (gModel.updateTick (t - gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model, { gModel | keys = maintainKeyDict gModel.keys } ), Cmd.none )
+                ( ( update (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model, { gModel | keys = maintainKeyDict gModel.keys } ), Cmd.none )
 
             KeyDown n ->
                 ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
 
             KeyUp n ->
                 ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
+
+
+subtractTimeSeconds : Time.Posix -> Time.Posix -> Float
+subtractTimeSeconds t1 t0 =
+    ((Basics.toFloat <| posixToMillis t1) - Basics.toFloat (posixToMillis t0)) / 1000
 
 
 hiddenCmdUpdate :
@@ -884,7 +888,7 @@ hiddenCmdUpdate :
 hiddenCmdUpdate update msg ( model, gModel ) =
     let
         mapUserCmd cmd =
-            Cmd.map (\cmd -> Graphics cmd) cmd
+            Cmd.map (\c -> Graphics c) cmd
     in
         case msg of
             Graphics message ->
@@ -913,7 +917,7 @@ hiddenCmdUpdate update msg ( model, gModel ) =
             TickTime t ->
                 let
                     ( newModel, userCmds ) =
-                        update (gModel.updateTick (t - gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model
+                        update (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model
                 in
                     ( ( newModel, { gModel | keys = maintainKeyDict gModel.keys } ), mapUserCmd userCmds )
 
@@ -970,7 +974,7 @@ convertCoords ( x, y ) gModel =
         scaledInY =
             aspect > 4 / 3
 
-        scale =
+        sc =
             if scaledInX then
                 sw / cw
             else if scaledInY then
@@ -979,10 +983,10 @@ convertCoords ( x, y ) gModel =
                 1
 
         newW =
-            cw * scale
+            cw * sc
 
         newH =
-            ch * scale
+            ch * sc
 
         leadX =
             if scaledInY then
@@ -1002,7 +1006,7 @@ convertCoords ( x, y ) gModel =
             else
                 0
     in
-        ( (x - leadX - newW / 2) / scale, (y + leadY + offsetY + newH / 2) / scale )
+        ( (x - leadX - newW / 2) / sc, (y + leadY + offsetY + newH / 2) / sc )
 
 
 initialSizeCmd :
@@ -1011,22 +1015,12 @@ initialSizeCmd :
     -> Cmd (Msg userMsg)
 initialSizeCmd otherCmds userView =
     Cmd.batch
-        ([ Task.perform sizeToMsg Window.size
+        ([ Task.perform (\vp -> WindowResize ( round vp.viewport.width, round vp.viewport.height )) getViewport
          , Task.perform getCollageSize (Task.succeed userView)
-         , Task.perform getInitTime Time.now
+         , Task.perform InitTime Time.now
          ]
             ++ otherCmds
         )
-
-
-getInitTime : Time -> Msg userMsg
-getInitTime t =
-    InitTime (inSeconds t)
-
-
-sizeToMsg : Window.Size -> Msg userMsg
-sizeToMsg size =
-    WindowResize ( size.width, size.height )
 
 
 getCollageSize : Collage (Msg userMsg) -> Msg userMsg
@@ -1069,8 +1063,8 @@ type Msg userMsg
     | WindowResize ( Int, Int )
     | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
     | CollageSize ( Int, Int )
-    | InitTime Time
-    | TickTime Time
+    | InitTime Time.Posix
+    | TickTime Time.Posix
     | KeyDown Int
     | KeyUp Int
 
@@ -1093,7 +1087,7 @@ type alias HiddenModel inputHandler =
     , ch : Float
     , sw : Float
     , sh : Float
-    , initT : Float
+    , initT : Time.Posix
     , updateTick : inputHandler
     , keys : KeyDict
     }
@@ -1104,10 +1098,14 @@ initHiddenModel userTick =
     , ch = 0
     , sw = 0
     , sh = 0
-    , initT = 0
+    , initT = millisToPosix 0
     , updateTick = userTick
     , keys = Dict.empty
     }
+
+
+type alias KeyCode =
+    Int
 
 
 type alias KeyDict =
@@ -1716,14 +1714,14 @@ curveHelper shape =
         Inked clr outline (BezierPath ( a, b ) list) ->
             group [ shape, generateCurveHelper ( a, b ) list ]
 
-        Move s shape ->
-            Move s (curveHelper shape)
+        Move s sh ->
+            Move s (curveHelper sh)
 
-        Rotate r shape ->
-            Rotate r (curveHelper shape)
+        Rotate r sh ->
+            Rotate r (curveHelper sh)
 
-        ScaleXY sx sy shape ->
-            ScaleXY sx sy (curveHelper shape)
+        ScaleXY sx sy sh ->
+            ScaleXY sx sy (curveHelper sh)
 
         Group list ->
             Group (List.map curveHelper list)
@@ -1733,8 +1731,8 @@ curveHelper shape =
 
 
 generateCurveHelper :
-    ( number, number1 )
-    -> List ( ( number, number1 ), ( number, number1 ) )
+    ( Float, Float )
+    -> List ( ( Float, Float ), ( Float, Float ) )
     -> Shape userMsg
 generateCurveHelper ( a, b ) list =
     let
@@ -1744,7 +1742,7 @@ generateCurveHelper ( a, b ) list =
         group [ generateCHLines l1Array, generateCHCircles l1Array ]
 
 
-generateCHLines : Array.Array ( number, number1 ) -> Shape userMsg
+generateCHLines : Array.Array ( Float, Float ) -> Shape userMsg
 generateCHLines ar =
     let
         len =
@@ -1753,7 +1751,7 @@ generateCHLines ar =
         group (List.map (generateCHLine ar) (List.range 0 (len - 2)))
 
 
-generateCHLine : Array.Array ( number, number1 ) -> Int -> Shape userMsg
+generateCHLine : Array.Array ( Float, Float ) -> Int -> Shape userMsg
 generateCHLine ar int =
     let
         p1 =
@@ -1772,10 +1770,10 @@ generateCHLine ar int =
                 Nothing ->
                     ( 0, 0 )
     in
-        outlined (dashed 0.5) black (line (p1) (p2))
+        outlined (dashed 0.5) black (line p1 p2)
 
 
-generateCHCircles : Array.Array ( number, number1 ) -> Shape userMsg
+generateCHCircles : Array.Array ( Float, Float ) -> Shape userMsg
 generateCHCircles ar =
     let
         len =
@@ -1784,7 +1782,7 @@ generateCHCircles ar =
         group (List.map (generateCHCircle ar) (List.range 0 (len - 1)))
 
 
-generateCHCircle : Array.Array ( number, number1 ) -> Int -> Shape userMsg
+generateCHCircle : Array.Array ( Float, Float ) -> Int -> Shape userMsg
 generateCHCircle ar int =
     let
         p1 =
@@ -1902,13 +1900,13 @@ collage w h shapes =
 createCollage : Float -> Float -> List (Shape a) -> Html.Html a
 createCollage w h shapes =
     Svg.svg
-        [ width "100%", height "99%", style "position:absolute", viewBox ((toString (-w / 2)) ++ " " ++ (toString (-h / 2)) ++ " " ++ (toString w) ++ " " ++ (toString h)) ]
-        ([ cPath w h ] ++ [ Svg.g [ clipPath "url(#cPath)" ] (List.indexedMap (\n -> (createSVG (toString n) w h ident)) shapes) ])
+        [ width "100%", height "99%", style "position:absolute", viewBox ((String.fromFloat (-w / 2)) ++ " " ++ (String.fromFloat (-h / 2)) ++ " " ++ (String.fromFloat w) ++ " " ++ (String.fromFloat h)) ]
+        ([ cPath w h ] ++ [ Svg.g [ clipPath "url(#cPath)" ] (List.indexedMap (\n -> (createSVG (String.fromInt n) w h ident)) shapes) ])
 
 
-myStyle : Html.Attribute msg
+myStyle : List (Html.Attribute msg)
 myStyle =
-    Html.Attributes.style
+    List.map (\( a, b ) -> Html.Attributes.style a b)
         [ ( "width", "100%" )
         , ( "height", "20px" )
         , ( "padding", "10px 0" )
@@ -1930,11 +1928,11 @@ myStyle =
 
 cPath : Float -> Float -> Svg.Svg msg
 cPath w h =
-    Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id "cPath" ] [ Svg.rect [ width (toString w), height (toString h), x (toString (-w / 2)), y (toString (-h / 2)) ] [] ] ]
+    Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id "cPath" ] [ Svg.rect [ width (String.fromFloat w), height (String.fromFloat h), x (String.fromFloat (-w / 2)), y (String.fromFloat (-h / 2)) ] [] ] ]
 
 
-f : number
-f =
+fl : number
+fl =
     500
 
 
@@ -1951,7 +1949,7 @@ extractShape : ( Float, Shape userMsg ) -> Shape userMsg
 extractShape ( z, shape ) =
     let
         s =
-            f / (f + z)
+            fl / (fl + z)
     in
         group [ shape ] |> scale s
 
@@ -2085,11 +2083,6 @@ notifyTouchMoveAt msg shape =
     TouchMoveAt (ReturnPosition msg) shape
 
 
-xyToPair : { a | x : Int, y : Int } -> ( Float, Float )
-xyToPair xy =
-    ( Basics.toFloat (xy.x), Basics.toFloat (-xy.y) )
-
-
 touchToPair : TouchPos -> ( Float, Float )
 touchToPair tp =
     case tp of
@@ -2097,40 +2090,44 @@ touchToPair tp =
             ( x, -y )
 
 
+mousePosDecoder =
+    D.map2 (\x y -> ( x, y )) (D.field "pageX" D.float) (D.field "pageY" D.float)
+
+
 onTapAt : (( Float, Float ) -> c) -> Html.Attribute c
 onTapAt msg =
     Html.Events.on "click"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onEnterAt : (( Float, Float ) -> c) -> Html.Attribute c
 onEnterAt msg =
     Html.Events.on "mouseover"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onLeaveAt : (( Float, Float ) -> c) -> Html.Attribute c
 onLeaveAt msg =
     Html.Events.on "mouseleave"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onMoveAt : (( Float, Float ) -> c) -> Html.Attribute c
 onMoveAt msg =
     Html.Events.on "mousemove"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onMouseDownAt : (( Float, Float ) -> c) -> Html.Attribute c
 onMouseDownAt msg =
     Html.Events.on "mousedown"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onMouseUpAt : (( Float, Float ) -> c) -> Html.Attribute c
 onMouseUpAt msg =
     Html.Events.on "mouseup"
-        (Json.map (msg << xyToPair) Mouse.position)
+        (Json.map msg mousePosDecoder)
 
 
 onTouchStart : a -> Html.Attribute a
@@ -2157,13 +2154,8 @@ onTouchEnd msg =
 
 onTouchMove : (( Float, Float ) -> c) -> Html.Attribute c
 onTouchMove msg =
-    let
-        dOp =
-            Html.Events.defaultOptions
-    in
-        Html.Events.onWithOptions "touchmove"
-            { dOp | preventDefault = True }
-            (Json.map (msg << touchToPair) touchDecoder)
+    Html.Events.preventDefaultOn "touchmove"
+        (Json.map (\a -> ( (msg << touchToPair) a, True )) touchDecoder)
 
 
 type TouchPos
@@ -2190,7 +2182,7 @@ createSVG id w h trans shape =
                     transAttrs ++ clrAttrs ++ strokeAttrs
 
                 transAttrs =
-                    [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, c, -d, tx, -ty ]) ++ ")" ]
+                    [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map String.fromFloat [ a, -b, c, -d, tx, -ty ]) ++ ")" ]
 
                 clrAttrs =
                     [ fill (mkRGB fillClr), fillOpacity (mkAlpha fillClr) ]
@@ -2200,14 +2192,14 @@ createSVG id w h trans shape =
                         Nothing ->
                             []
 
-                        Just ( Solid w, strokeClr ) ->
-                            [ strokeWidth (toString w)
+                        Just ( Solid th, strokeClr ) ->
+                            [ strokeWidth (String.fromFloat th)
                             , stroke (mkRGB strokeClr)
                             , strokeOpacity (mkAlpha strokeClr)
                             ]
 
-                        Just ( Broken dashes w, strokeClr ) ->
-                            [ strokeWidth (toString w)
+                        Just ( Broken dashes th, strokeClr ) ->
+                            [ strokeWidth (String.fromFloat th)
                             , stroke (mkRGB strokeClr)
                             , strokeOpacity (mkAlpha strokeClr)
                             ]
@@ -2218,42 +2210,42 @@ createSVG id w h trans shape =
                         Svg.circle
                             ([ cx "0"
                              , cy "0"
-                             , Svg.Attributes.r (toString r)
+                             , Svg.Attributes.r (String.fromFloat r)
                              ]
                                 ++ attrs
                             )
                             []
 
-                    Rect w h ->
+                    Rect rw rh ->
                         Svg.rect
-                            ([ x (toString (-w / 2))
-                             , y (toString (-h / 2))
-                             , width (toString w)
-                             , height (toString h)
+                            ([ x <| String.fromFloat <| -w / 2
+                             , y <| String.fromFloat <| -h / 2
+                             , width <| String.fromFloat rw
+                             , height <| String.fromFloat rh
                              ]
                                 ++ attrs
                             )
                             []
 
-                    RoundRect w h r ->
+                    RoundRect rw rh r ->
                         Svg.rect
-                            ([ x (toString (-w / 2))
-                             , y (toString (-h / 2))
-                             , rx (toString r)
-                             , ry (toString r)
-                             , width (toString w)
-                             , height (toString h)
+                            ([ x <| String.fromFloat <| -rw / 2
+                             , y <| String.fromFloat <| -rh / 2
+                             , rx <| String.fromFloat r
+                             , ry <| String.fromFloat r
+                             , width <| String.fromFloat w
+                             , height <| String.fromFloat h
                              ]
                                 ++ attrs
                             )
                             []
 
-                    Oval w h ->
+                    Oval ow oh ->
                         Svg.ellipse
                             ([ cx "0"
                              , cy "0"
-                             , rx (toString (0.5 * w))
-                             , ry (toString (0.5 * h))
+                             , rx <| String.fromFloat <| 0.5 * ow
+                             , ry <| String.fromFloat <| 0.5 * oh
                              ]
                                 ++ attrs
                             )
@@ -2307,7 +2299,7 @@ createSVG id w h trans shape =
 
                             select =
                                 if not sel then
-                                    "-webkit-touch-callout: none;\x0D\n                                                                                      -webkit-user-select: none;\x0D\n                                                                                      -khtml-user-select: none;\x0D\n                                                                                      -moz-user-select: none;\x0D\n                                                                                      -ms-user-select: none;\x0D\n                                                                                      user-select: none;cursor: default;"
+                                    "-webkit-touch-callout: none;\n-webkit-user-select: none;\n-khtml-user-select: none;\n-moz-user-select: none;\n-ms-user-select: none;\nuser-select: none;cursor: default;"
                                 else
                                     ""
 
@@ -2339,77 +2331,77 @@ createSVG id w h trans shape =
                                     ++ font
                                     ++ select
                         in
-                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (toString (si)), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map toString [ a, -b, -c, d, tx, -ty ]) ++ ")" ] ++ [ Svg.Attributes.xmlSpace "preserve" ]) [ Svg.text str ]
+                            Svg.text_ ([ x "0", y "0", Svg.Attributes.style sty, Svg.Attributes.fontSize (String.fromFloat si), Svg.Attributes.textAnchor anchor, Html.Attributes.contenteditable True ] ++ attrs ++ [ Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map String.fromFloat [ a, -b, -c, d, tx, -ty ]) ++ ")" ] ++ [ Svg.Attributes.xmlSpace "preserve" ]) [ Svg.text str ]
                 )
 
-        Move v shape ->
-            createSVG id w h (moveT trans v) shape
+        Move v sh ->
+            createSVG id w h (moveT trans v) sh
 
         Everything ->
             createSVG id w h ident (rect w h |> filled white)
 
-        Rotate deg shape ->
-            createSVG id w h (rotT trans deg) shape
+        Rotate deg sh ->
+            createSVG id w h (rotT trans deg) sh
 
-        ScaleXY sx sy shape ->
-            createSVG id w h (scaleT trans ( sx, sy )) shape
+        ScaleXY sx sy sh ->
+            createSVG id w h (scaleT trans ( sx, sy )) sh
 
-        Link href shape ->
-            Svg.a [ xlinkHref href, target "_blank" ] [ createSVG id w h (coalesce trans) shape ]
+        Link href sh ->
+            Svg.a [ xlinkHref href, target "_blank" ] [ createSVG id w h (coalesce trans) sh ]
 
-        AlphaMask region shape ->
-            Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) shape ] ]
+        AlphaMask region sh ->
+            Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) sh ] ]
 
-        Tap msg shape ->
-            Svg.g [ Html.Events.onClick msg ] [ createSVG id w h (coalesce trans) shape ]
+        Tap msg sh ->
+            Svg.g [ Html.Events.onClick msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TapAt msg shape ->
-            Svg.g [ onTapAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        TapAt msg sh ->
+            Svg.g [ onTapAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        EnterShape msg shape ->
-            Svg.g [ Html.Events.onMouseEnter msg ] [ createSVG id w h (coalesce trans) shape ]
+        EnterShape msg sh ->
+            Svg.g [ Html.Events.onMouseEnter msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        EnterAt msg shape ->
-            Svg.g [ onEnterAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        EnterAt msg sh ->
+            Svg.g [ onEnterAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        Exit msg shape ->
-            Svg.g [ Html.Events.onMouseLeave msg ] [ createSVG id w h (coalesce trans) shape ]
+        Exit msg sh ->
+            Svg.g [ Html.Events.onMouseLeave msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        ExitAt msg shape ->
-            Svg.g [ onLeaveAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        ExitAt msg sh ->
+            Svg.g [ onLeaveAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        MouseDown msg shape ->
-            Svg.g [ Html.Events.onMouseDown msg ] [ createSVG id w h (coalesce trans) shape ]
+        MouseDown msg sh ->
+            Svg.g [ Html.Events.onMouseDown msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        MouseDownAt msg shape ->
-            Svg.g [ onMouseDownAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        MouseDownAt msg sh ->
+            Svg.g [ onMouseDownAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        MouseUp msg shape ->
-            Svg.g [ Html.Events.onMouseUp msg ] [ createSVG id w h (coalesce trans) shape ]
+        MouseUp msg sh ->
+            Svg.g [ Html.Events.onMouseUp msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        MouseUpAt msg shape ->
-            Svg.g [ onMouseUpAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        MouseUpAt msg sh ->
+            Svg.g [ onMouseUpAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        MoveOverAt msg shape ->
-            Svg.g [ onMoveAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        MoveOverAt msg sh ->
+            Svg.g [ onMoveAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TouchStart msg shape ->
-            Svg.g [ onTouchStart msg ] [ createSVG id w h (coalesce trans) shape ]
+        TouchStart msg sh ->
+            Svg.g [ onTouchStart msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TouchEnd msg shape ->
-            Svg.g [ onTouchEnd msg ] [ createSVG id w h (coalesce trans) shape ]
+        TouchEnd msg sh ->
+            Svg.g [ onTouchEnd msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TouchStartAt msg shape ->
-            Svg.g [ onTouchStartAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        TouchStartAt msg sh ->
+            Svg.g [ onTouchStartAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TouchEndAt msg shape ->
-            Svg.g [ onTouchStartAt msg ] [ createSVG id w h (coalesce trans) shape ]
+        TouchEndAt msg sh ->
+            Svg.g [ onTouchStartAt msg ] [ createSVG id w h (coalesce trans) sh ]
 
-        TouchMoveAt msg shape ->
-            Svg.g [ onTouchMove msg ] [ createSVG id w h (coalesce trans) shape ]
+        TouchMoveAt msg sh ->
+            Svg.g [ onTouchMove msg ] [ createSVG id w h (coalesce trans) sh ]
 
         Group shapes ->
-            Svg.g [] <| List.indexedMap (\n -> (createSVG (id ++ "g" ++ toString (n)) w h <| coalesce trans)) shapes
+            Svg.g [] <| List.indexedMap (\n -> (createSVG (id ++ "g" ++ String.fromInt n) w h <| coalesce trans)) shapes
 
 
 
@@ -2448,23 +2440,23 @@ ghost stencil =
 repaint : Color -> Shape userMsg -> Shape userMsg
 repaint color shape =
     case shape of
-        Inked clr outline shape ->
-            Inked color outline shape
+        Inked clr outline sh ->
+            Inked color outline sh
 
-        Move s shape ->
-            Move s (repaint color shape)
+        Move s sh ->
+            Move s (repaint color sh)
 
-        Rotate r shape ->
-            Rotate r (repaint color shape)
+        Rotate r sh ->
+            Rotate r (repaint color sh)
 
-        ScaleXY sx sy shape ->
-            ScaleXY sx sy (repaint color shape)
+        ScaleXY sx sy sh ->
+            ScaleXY sx sy (repaint color sh)
 
         Group shapes ->
             Group (List.map (repaint color) shapes)
 
-        AlphaMask shape1 shape2 ->
-            AlphaMask shape1 (repaint color shape2)
+        AlphaMask sh1 sh2 ->
+            AlphaMask sh1 (repaint color sh2)
 
         a ->
             a
@@ -2499,17 +2491,17 @@ addOutline style outlineClr shape =
             ( style, outlineClr )
     in
         case shape of
-            Inked clr outline shape ->
-                Inked clr (Just lineStyle) shape
+            Inked clr outline sh ->
+                Inked clr (Just lineStyle) sh
 
-            Move s shape ->
-                Move s (addOutline style outlineClr shape)
+            Move s sh ->
+                Move s (addOutline style outlineClr sh)
 
-            Rotate r shape ->
-                Rotate r (addOutline style outlineClr shape)
+            Rotate r sh ->
+                Rotate r (addOutline style outlineClr sh)
 
-            ScaleXY sx sy shape ->
-                ScaleXY sx sy (addOutline style outlineClr shape)
+            ScaleXY sx sy sh ->
+                ScaleXY sx sy (addOutline style outlineClr sh)
 
             Group list ->
                 Group list
@@ -2535,80 +2527,80 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) shape ->
-            Inked (RGBA r g b (a * alpha)) (Just ( lineType, (RGBA sr sg sb (sa * alpha)) )) shape
+        Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) sh ->
+            Inked (RGBA r g b (a * alpha)) (Just ( lineType, (RGBA sr sg sb (sa * alpha)) )) sh
 
-        Inked (RGBA r g b a) Nothing shape ->
-            Inked (RGBA r g b (a * alpha)) Nothing shape
+        Inked (RGBA r g b a) Nothing sh ->
+            Inked (RGBA r g b (a * alpha)) Nothing sh
 
-        Move s shape ->
-            Move s (makeTransparent alpha shape)
+        Move s sh ->
+            Move s (makeTransparent alpha sh)
 
-        Rotate r shape ->
-            Rotate r (makeTransparent alpha shape)
+        Rotate r sh ->
+            Rotate r (makeTransparent alpha sh)
 
-        ScaleXY sx sy shape ->
-            ScaleXY sx sy (makeTransparent alpha shape)
+        ScaleXY sx sy sh ->
+            ScaleXY sx sy (makeTransparent alpha sh)
 
         Group list ->
             Group (List.map (makeTransparent alpha) list)
 
-        Link s shape ->
-            Link s (makeTransparent alpha shape)
+        Link s sh ->
+            Link s (makeTransparent alpha sh)
 
-        AlphaMask reg shape ->
-            AlphaMask reg (makeTransparent alpha shape)
+        AlphaMask reg sh ->
+            AlphaMask reg (makeTransparent alpha sh)
 
         Everything ->
             Everything
 
-        Tap userMsg shape ->
-            Tap userMsg (makeTransparent alpha shape)
+        Tap userMsg sh ->
+            Tap userMsg (makeTransparent alpha sh)
 
-        TapAt userMsg shape ->
-            TapAt userMsg (makeTransparent alpha shape)
+        TapAt userMsg sh ->
+            TapAt userMsg (makeTransparent alpha sh)
 
-        EnterShape userMsg shape ->
-            EnterShape userMsg (makeTransparent alpha shape)
+        EnterShape userMsg sh ->
+            EnterShape userMsg (makeTransparent alpha sh)
 
-        EnterAt userMsg shape ->
-            EnterAt userMsg (makeTransparent alpha shape)
+        EnterAt userMsg sh ->
+            EnterAt userMsg (makeTransparent alpha sh)
 
-        Exit userMsg shape ->
-            Exit userMsg (makeTransparent alpha shape)
+        Exit userMsg sh ->
+            Exit userMsg (makeTransparent alpha sh)
 
-        ExitAt userMsg shape ->
-            ExitAt userMsg (makeTransparent alpha shape)
+        ExitAt userMsg sh ->
+            ExitAt userMsg (makeTransparent alpha sh)
 
-        MouseDown userMsg shape ->
-            MouseDown userMsg (makeTransparent alpha shape)
+        MouseDown userMsg sh ->
+            MouseDown userMsg (makeTransparent alpha sh)
 
-        MouseDownAt userMsg shape ->
-            MouseDownAt userMsg (makeTransparent alpha shape)
+        MouseDownAt userMsg sh ->
+            MouseDownAt userMsg (makeTransparent alpha sh)
 
-        MouseUp userMsg shape ->
-            MouseUp userMsg (makeTransparent alpha shape)
+        MouseUp userMsg sh ->
+            MouseUp userMsg (makeTransparent alpha sh)
 
-        MouseUpAt userMsg shape ->
-            MouseUpAt userMsg (makeTransparent alpha shape)
+        MouseUpAt userMsg sh ->
+            MouseUpAt userMsg (makeTransparent alpha sh)
 
-        MoveOverAt userMsg shape ->
-            MoveOverAt userMsg (makeTransparent alpha shape)
+        MoveOverAt userMsg sh ->
+            MoveOverAt userMsg (makeTransparent alpha sh)
 
-        TouchStart userMsg shape ->
-            TouchStart userMsg (makeTransparent alpha shape)
+        TouchStart userMsg sh ->
+            TouchStart userMsg (makeTransparent alpha sh)
 
-        TouchEnd userMsg shape ->
-            TouchEnd userMsg (makeTransparent alpha shape)
+        TouchEnd userMsg sh ->
+            TouchEnd userMsg (makeTransparent alpha sh)
 
-        TouchStartAt userMsg shape ->
-            TouchStartAt userMsg (makeTransparent alpha shape)
+        TouchStartAt userMsg sh ->
+            TouchStartAt userMsg (makeTransparent alpha sh)
 
-        TouchEndAt userMsg shape ->
-            TouchEndAt userMsg (makeTransparent alpha shape)
+        TouchEndAt userMsg sh ->
+            TouchEndAt userMsg (makeTransparent alpha sh)
 
-        TouchMoveAt userMsg shape ->
-            TouchMoveAt userMsg (makeTransparent alpha shape)
+        TouchMoveAt userMsg sh ->
+            TouchMoveAt userMsg (makeTransparent alpha sh)
 
 
 
@@ -2676,10 +2668,10 @@ The size has a unit called "points", which depends on the size and type of scree
 
 -}
 size : Float -> Stencil -> Stencil
-size size stencil =
+size sze stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face size bo i u s sel f c) str
+            Text (Face sze bo i u s sel f c) str
 
         a ->
             a
@@ -2882,7 +2874,7 @@ group shapes =
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
-    RGBA (sc r) (sc g) (sc b) 1
+    RGBA (ssc r) (ssc g) (ssc b) 1
 
 
 {-| Define a colour given its red, green, blue and alpha components.
@@ -2890,37 +2882,37 @@ Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transp
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
-    RGBA (sc r) (sc g) (sc b) (sa a)
+    RGBA (ssc r) (ssc g) (ssc b) (ssa a)
 
 
-sc : number -> number
-sc n =
+ssc : number -> number
+ssc n =
     clamp 0 255 n
 
 
-sa : Float -> Float
-sa n =
+ssa : Float -> Float
+ssa n =
     clamp 0 1 n
 
 
-pairToString : ( a, b ) -> String
+pairToString : ( Float, Float ) -> String
 pairToString ( x, y ) =
-    (toString x) ++ "," ++ (toString y)
+    (String.fromFloat x) ++ "," ++ (String.fromFloat y)
 
 
-createBezierString : ( a, b ) -> List ( ( c, d ), ( e, f ) ) -> String
+createBezierString : ( Float, Float ) -> List ( ( Float, Float ), ( Float, Float ) ) -> String
 createBezierString first list =
     "M " ++ (pairToString first) ++ String.concat (List.map bezierStringHelper list)
 
 
-bezierStringHelper : ( ( a, b ), ( c, d ) ) -> String
+bezierStringHelper : ( ( Float, Float ), ( Float, Float ) ) -> String
 bezierStringHelper ( ( a, b ), ( c, d ) ) =
     " Q " ++ pairToString ( a, b ) ++ " " ++ pairToString ( c, d )
 
 
 mkAlpha : Color -> String
 mkAlpha (RGBA _ _ _ a) =
-    toString a
+    String.fromFloat a
 
 
 mkRGB : Color -> String
@@ -2935,7 +2927,7 @@ toHex dec =
             dec // 16
 
         second =
-            (dec % 16)
+            modBy 16 dec
     in
         (toHexHelper first) ++ (toHexHelper second)
 
@@ -3011,31 +3003,21 @@ hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
     case (convert h s l) of
         ( r, g, b ) ->
-            RGBA r g b (sa a)
+            RGBA r g b (ssa a)
 
 
 
 -- Clip path functionality
 
 
-{-| Right-handed scissors
+{-| Clipping to a shape
 
     Cut out the `Shape` on the left using the `Shape` on the right.
 
 -}
-(><%) : Shape userMsg -> Shape userMsg -> Shape userMsg
-(><%) shape1 shape2 =
-    AlphaMask (shape2 |> repaint white) shape1
-
-
-{-| Left-handed scissors
-
-    Cut out the `Shape` on the right using the `Shape` on the left.
-
--}
-(%><) : Shape userMsg -> Shape userMsg -> Shape userMsg
-(%><) shape1 shape2 =
-    AlphaMask (Group [ shape1 |> repaint white ]) shape2
+clip : Shape userMsg -> Shape userMsg -> Shape userMsg
+clip shape1 shape2 =
+    AlphaMask (shape1 |> repaint white) shape2
 
 
 {-| Shape union
@@ -3043,8 +3025,8 @@ hsla h s l a =
     Combine two `Shape`s together into one to use with the scissors (`><%` and `%><`).
 
 -}
-(<|>) : Shape userMsg -> Shape userMsg -> Shape userMsg
-(<|>) shape1 shape2 =
+union : Shape userMsg -> Shape userMsg -> Shape userMsg
+union shape1 shape2 =
     Group [ shape1, shape2 ]
 
 
@@ -3053,9 +3035,9 @@ hsla h s l a =
     Subtract the `Shape` on the right from the `Shape` on the left.
 
 -}
-(<->) : Shape userMsg -> Shape userMsg -> Shape userMsg
-(<->) shape1 shape2 =
-    AlphaMask (Group [ Everything, shape2 |> repaint black ]) shape1
+subtract : Shape userMsg -> Shape userMsg -> Shape userMsg
+subtract shape1 shape2 =
+    AlphaMask (Group [ Everything, shape1 |> repaint black ]) shape2
 
 
 {-| The whole region outside the given `Shape`.
@@ -3063,18 +3045,6 @@ hsla h s l a =
 outside : Shape userMsg -> Shape userMsg
 outside shape =
     AlphaMask (Group [ Everything, shape |> repaint black ]) Everything
-
-
-infixr 2 ><%
-
-
-infixr 2 %><
-
-
-infixr 3 <|>
-
-
-infixr 6 <->
 
 
 
