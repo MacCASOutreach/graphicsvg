@@ -598,7 +598,7 @@ which will cause the drawn red circle to change to green the first time
 it is mouse clicked or tapped.
 
 -}
-notificationsApp : GraphicsApp model userMsg -> NotificationsProgram model userMsg
+notificationsApp : GraphicsApp userModel userMsg -> NotificationsProgram userModel userMsg
 notificationsApp input =
     Browser.document
         { init = \_ -> ( ( input.model, initHiddenModel (\_ _ -> ()) ), initialSizeCmd [] (input.view input.model) )
@@ -621,8 +621,8 @@ where `Model` is the type alias of the user persistent model, and
 if other names are used, they can be substituted for these names.
 
 -}
-type alias NotificationsProgram model userMsg =
-    Program Never ( model, HiddenModel () ) (Msg userMsg)
+type alias NotificationsProgram userModel userMsg =
+    Program Never ( userModel, HiddenModel () ) (Msg userMsg)
 
 
 {-| Automatically maps time and keyboard presses to your program. This should
@@ -680,7 +680,7 @@ causes the direction of the spin to reverse:
             }
 
 -}
-gameApp : InputHandler userMsg -> GraphicsApp model userMsg -> GameProgram model userMsg
+gameApp : InputHandler userMsg -> GraphicsApp userModel userMsg -> GameProgram userModel userMsg
 gameApp tickMsg input =
     Browser.document
         { init = \_ -> ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
@@ -706,8 +706,8 @@ and the current state of the model and returns the new state of the model, and
 the `view` function, which takes one argument of the current state of the model
 and returns a `Collage` type.
 -}
-type alias GraphicsApp model userMsg =
-    { model : model, update : userMsg -> model -> model, view : model -> Collage (Msg userMsg) }
+type alias GraphicsApp userModel userMsg =
+    { model : userModel, update : userMsg -> userModel -> userModel, view : userModel -> Collage (Msg userMsg) }
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
@@ -727,8 +727,8 @@ where `Tick` is the message handler called once per browser window update,
 they can be substituted for these names.
 
 -}
-type alias GameProgram model userMsg =
-    Program Never ( model, HiddenModel userMsg ) (Msg userMsg)
+type alias GameProgram userModel userMsg =
+    Program Never ( userModel, HiddenModel userMsg ) (Msg userMsg)
 
 
 {-| Advanced Function Warning! cmdApp takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
@@ -746,14 +746,14 @@ This matches the Elm architecture and is analogous to `Html.program`.
 app :
     InputHandler userMsg
     ->
-        { init : flags -> Url -> Key -> ( model, Cmd userMsg )
-        , update : userMsg -> model -> ( model, Cmd userMsg )
-        , view : model -> { title : String, body : Collage (Msg userMsg) }
-        , subscriptions : model -> Sub userMsg
+        { init : flags -> Url -> Key -> ( userModel, Cmd userMsg )
+        , update : userMsg -> userModel -> ( userModel, Cmd userMsg )
+        , view : userModel -> { title : String, body : Collage (Msg userMsg) }
+        , subscriptions : userModel -> Sub userMsg
         , onUrlRequest : UrlRequest -> userMsg
         , onUrlChange : Url -> userMsg
         }
-    -> App flags model userMsg
+    -> App flags userModel userMsg
 app tickMsg input =
     Browser.application
         { init =
@@ -783,8 +783,8 @@ where `Tick` is a message handler called once per browser window update,
 they can just be substituted for these names.
 
 -}
-type alias App flags model userMsg =
-    Program flags ( model, HiddenModel userMsg ) (Msg userMsg)
+type alias App flags userModel userMsg =
+    Program flags ( userModel, HiddenModel userMsg ) (Msg userMsg)
 
 
 subs : (userModel -> List (Sub (Msg userMsg))) -> ( userModel, gModel ) -> Sub (Msg userMsg)
@@ -814,71 +814,71 @@ blankUpdate :
     Msg userMsg
     -> ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } )
     -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd msg )
-blankUpdate msg ( model, gModel ) =
+blankUpdate msg ( userModel, hiddenModel ) =
     case msg of
         Graphics message ->
-            ( ( model, gModel ), Cmd.none )
+            ( ( userModel, hiddenModel ), Cmd.none )
 
         WindowResize ( width, height ) ->
-            ( ( model, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
+            ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
 
         ReturnPosition message ( x, y ) ->
-            ( ( model, gModel ), Cmd.none )
+            ( ( userModel, hiddenModel ), Cmd.none )
 
         CollageSize ( width, height ) ->
-            ( ( model, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
+            ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
 
         _ ->
-            ( ( model, gModel ), Cmd.none )
+            ( ( userModel, hiddenModel ), Cmd.none )
 
 
-hiddenUpdate update msg ( model, gModel ) =
+hiddenUpdate userUpdate msg ( userModel, hiddenModel ) =
     case msg of
         Graphics message ->
-            ( ( update message model, gModel ), Cmd.none )
+            ( ( userUpdate message userModel, hiddenModel ), Cmd.none )
 
         WindowResize ( width, height ) ->
-            ( ( model, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
+            ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
 
         ReturnPosition message ( x, y ) ->
-            ( ( update (message (convertCoords ( x, y ) gModel)) model, gModel ), Cmd.none )
+            ( ( userUpdate (message (convertCoords ( x, y ) hiddenModel)) userModel, hiddenModel ), Cmd.none )
 
         CollageSize ( width, height ) ->
-            ( ( model, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
+            ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
 
         _ ->
-            ( ( model, gModel ), Cmd.none )
+            ( ( userModel, hiddenModel ), Cmd.none )
 
 
-hiddenGameUpdate update msg ( model, gModel ) =
+hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
     let
         updateTick =
-            gModel.updateTick
+            hiddenModel.updateTick
     in
         case msg of
             Graphics message ->
-                ( ( update message model, gModel ), Cmd.none )
+                ( ( userUpdate message userModel, hiddenModel ), Cmd.none )
 
             WindowResize ( width, height ) ->
-                ( ( model, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
+                ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
 
             ReturnPosition message ( x, y ) ->
-                ( ( update (message (convertCoords ( x, y ) gModel)) model, gModel ), Cmd.none )
+                ( ( userUpdate (message (convertCoords ( x, y ) hiddenModel)) userModel, hiddenModel ), Cmd.none )
 
             CollageSize ( width, height ) ->
-                ( ( model, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
+                ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
 
             InitTime t ->
-                ( ( model, { gModel | initT = t } ), Cmd.none )
+                ( ( userModel, { hiddenModel | initT = t } ), Cmd.none )
 
             TickTime t ->
-                ( ( update (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model, { gModel | keys = maintainKeyDict gModel.keys } ), Cmd.none )
+                ( ( userUpdate (hiddenModel.updateTick (subtractTimeSeconds t hiddenModel.initT) ( (keyCheckerFunction hiddenModel.keys), arrowKeys (keyCheckerFunction hiddenModel.keys), wasdKeys (keyCheckerFunction hiddenModel.keys) )) userModel, { hiddenModel | keys = maintainKeyDict hiddenModel.keys } ), Cmd.none )
 
             KeyDown n ->
-                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
+                ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys n WentDown } ), Cmd.none )
 
             KeyUp n ->
-                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
+                ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys n WentUp } ), Cmd.none )
 
 
 subtractTimeSeconds : Time.Posix -> Time.Posix -> Float
@@ -887,11 +887,11 @@ subtractTimeSeconds t1 t0 =
 
 
 hiddenAppUpdate :
-    (userMsg -> model -> ( model, Cmd userMsg ))
+    (userMsg -> userModel -> ( userModel, Cmd userMsg ))
     -> Msg userMsg
-    -> ( model, HiddenModel userMsg )
-    -> ( ( model, HiddenModel userMsg ), Cmd (Msg userMsg) )
-hiddenAppUpdate update msg ( model, gModel ) =
+    -> ( userModel, HiddenModel userMsg )
+    -> ( ( userModel, HiddenModel userMsg ), Cmd (Msg userMsg) )
+hiddenAppUpdate userUpdate msg ( userModel, gModel ) =
     let
         mapUserCmd cmd =
             Cmd.map (\c -> Graphics c) cmd
@@ -900,50 +900,50 @@ hiddenAppUpdate update msg ( model, gModel ) =
             Graphics message ->
                 let
                     ( newModel, userCmds ) =
-                        update message model
+                        userUpdate message userModel
                 in
                     ( ( newModel, gModel ), mapUserCmd userCmds )
 
             WindowResize ( width, height ) ->
-                ( ( model, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
+                ( ( userModel, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
 
             ReturnPosition message ( x, y ) ->
                 let
                     ( newModel, userCmds ) =
-                        update (message (convertCoords ( x, y ) gModel)) model
+                        userUpdate (message (convertCoords ( x, y ) gModel)) userModel
                 in
                     ( ( newModel, gModel ), mapUserCmd userCmds )
 
             CollageSize ( width, height ) ->
-                ( ( model, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
+                ( ( userModel, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
 
             InitTime t ->
-                ( ( model, { gModel | initT = t } ), Cmd.none )
+                ( ( userModel, { gModel | initT = t } ), Cmd.none )
 
             TickTime t ->
                 let
                     ( newModel, userCmds ) =
-                        update (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) model
+                        userUpdate (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) userModel
                 in
                     ( ( newModel, { gModel | keys = maintainKeyDict gModel.keys } ), mapUserCmd userCmds )
 
             KeyDown n ->
-                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
+                ( ( userModel, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
 
             KeyUp n ->
-                ( ( model, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
+                ( ( userModel, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
 
 
 blankView : Collage userMsg -> ( a, b ) -> Html.Html userMsg
-blankView view ( model, gModel ) =
+blankView view ( userModel, gModel ) =
     case view of
         Collage ( w, h ) shapes ->
             createCollage w h shapes
 
 
 hiddenView : (a -> Collage userMsg) -> ( a, b ) -> Html.Html userMsg
-hiddenView view ( model, gModel ) =
-    case (view model) of
+hiddenView view ( userModel, gModel ) =
+    case (view userModel) of
         Collage ( w, h ) shapes ->
             createCollage w h shapes
 
@@ -1085,16 +1085,6 @@ type Msg userMsg
     | TickTime Time.Posix
     | KeyDown Int
     | KeyUp Int
-
-
-aHiddenUpdate : (a -> b -> c) -> a -> b -> ( c, Cmd msg )
-aHiddenUpdate update msg model =
-    ( update msg model, Cmd.none )
-
-
-aHiddenView : (a -> b) -> a -> b
-aHiddenView view model =
-    view model
 
 
 {-| The `HiddenModel` type alias encapsulates the GraphicSVG internal model
