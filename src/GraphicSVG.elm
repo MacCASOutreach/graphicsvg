@@ -18,8 +18,8 @@ module GraphicSVG
         , KeyState(..)
         , GameProgram
         , gameApp
-        , CmdProgram
-        , cmdApp
+        , App
+        , app
         , line
         , polygon
         , openPolygon
@@ -164,9 +164,9 @@ other applications including keyboard presses and mouse movements.
 @docs GetKeyState, Keys, KeyState, gameApp, GameProgram
 
 
-# Cmd App
+# App
 
-@docs cmdApp, CmdProgram
+@docs app
 
 
 # Stencils
@@ -249,13 +249,15 @@ import Array
 import Json.Decode as Json exposing (..)
 import Time exposing (..)
 import Task
-import Browser
+import Browser exposing (UrlRequest)
 import Browser.Events exposing (onKeyPress, onKeyUp, onKeyDown, onResize)
 import Browser.Dom exposing (Viewport, getViewport)
 import Dict
 import Char
 import Tuple
 import Json.Decode as D
+import Url exposing (Url)
+import Browser.Navigation exposing (Key)
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -684,7 +686,7 @@ gameApp tickMsg input =
         { init = \_ -> ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenGameUpdate input.update
         , view = \a -> { title = "GraphicSVG Game", body = [ hiddenView input.view a ] }
-        , subscriptions = subs []
+        , subscriptions = subs <| \_ -> []
         }
 
 
@@ -741,27 +743,31 @@ type alias GameProgram model userMsg =
 This matches the Elm architecture and is analogous to `Html.program`.
 
 -}
-cmdApp : InputHandler userMsg -> CmdApp model userMsg -> CmdProgram model userMsg
-cmdApp tickMsg input =
-    Browser.document
+app :
+    InputHandler userMsg
+    ->
+        { init : flags -> Url -> Key -> ( model, Cmd userMsg )
+        , update : userMsg -> model -> ( model, Cmd userMsg )
+        , view : model -> { title : String, body : Collage (Msg userMsg) }
+        , subscriptions : model -> Sub userMsg
+        , onUrlRequest : UrlRequest -> userMsg
+        , onUrlChange : Url -> userMsg
+        }
+    -> App flags model userMsg
+app tickMsg input =
+    Browser.application
         { init =
-            \_ ->
-                ( ( Tuple.first input.init, initHiddenModel tickMsg )
-                , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second input.init) ]
-                    (input.view (Tuple.first input.init))
+            \flags url key ->
+                ( ( Tuple.first <| input.init flags url key, initHiddenModel tickMsg )
+                , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second <| input.init flags url key) ]
+                    (input.view (Tuple.first <| input.init flags url key)).body
                 )
         , update = hiddenCmdUpdate input.update
-        , view = \a -> { title = "GraphicSVG CmdApp", body = [ hiddenCmdView input.view a ] }
-        , subscriptions = subs [ Sub.map (\sub -> Graphics sub) (input.subscriptions (Tuple.first input.init)) ]
+        , view = hiddenCmdView input.view
+        , subscriptions = subs <| \userModel -> [ Sub.map (\sub -> Graphics sub) (input.subscriptions userModel) ]
+        , onUrlRequest = Graphics << input.onUrlRequest
+        , onUrlChange = Graphics << input.onUrlChange
         }
-
-
-type alias CmdApp model userMsg =
-    { init : ( model, Cmd userMsg )
-    , update : userMsg -> model -> ( model, Cmd userMsg )
-    , view : model -> Collage (Msg userMsg)
-    , subscriptions : model -> Sub userMsg
-    }
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
@@ -777,18 +783,18 @@ where `Tick` is a message handler called once per browser window update,
 they can just be substituted for these names.
 
 -}
-type alias CmdProgram model userMsg =
-    Program D.Value ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
+type alias App flags model userMsg =
+    Program flags ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
 
 
-subs : List (Sub (Msg userMsg)) -> a -> Sub (Msg userMsg)
-subs extraSubs model =
+subs : (userModel -> List (Sub (Msg userMsg))) -> ( userModel, gModel ) -> Sub (Msg userMsg)
+subs extraSubs ( userModel, _ ) =
     Sub.batch
         ([ Time.every (1000 / 30) createTimeMessage
          , onResize (\w h -> WindowResize ( w, h ))
          ]
             ++ keySubs
-            ++ extraSubs
+            ++ (extraSubs userModel)
         )
 
 
@@ -942,10 +948,18 @@ hiddenView view ( model, gModel ) =
             createCollage w h shapes
 
 
-hiddenCmdView view ( model, gModel ) =
-    case (view model) of
-        Collage ( w, h ) shapes ->
-            createCollage w h shapes
+hiddenCmdView userView ( userModel, _ ) =
+    let
+        userViewEval =
+            userView userModel
+
+        title =
+            userViewEval.title
+
+        (Collage ( w, h ) shapes) =
+            userViewEval.body
+    in
+        { title = title, body = [ createCollage w h shapes ] }
 
 
 convertCoords ( x, y ) gModel =
