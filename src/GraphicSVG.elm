@@ -527,7 +527,7 @@ so the main program that would get the whole thing started for the above
 graphicsApp : JustGraphics a -> GraphicsProgram a
 graphicsApp input =
     Browser.document
-        { init = \_ -> ( ( 0, initHiddenModel () ), initialSizeCmd [] input.view )
+        { init = \_ -> ( ( 0, initHiddenModel (\_ _ -> ()) ), initialSizeCmd [] input.view )
         , update = blankUpdate
         , view = \a -> { title = "GraphicSVG Canvas", body = [ blankView input.view a ] }
         , subscriptions = \_ -> onResize (\w h -> WindowResize ( w, h ))
@@ -601,7 +601,7 @@ it is mouse clicked or tapped.
 notificationsApp : GraphicsApp model userMsg -> NotificationsProgram model userMsg
 notificationsApp input =
     Browser.document
-        { init = \_ -> ( ( input.model, initHiddenModel () ), initialSizeCmd [] (input.view input.model) )
+        { init = \_ -> ( ( input.model, initHiddenModel (\_ _ -> ()) ), initialSizeCmd [] (input.view input.model) )
         , update = hiddenUpdate input.update
         , view = \a -> { title = "GraphicSVG App", body = [ hiddenView input.view a ] }
         , subscriptions = \_ -> onResize (\w h -> WindowResize ( w, h ))
@@ -728,7 +728,7 @@ they can be substituted for these names.
 
 -}
 type alias GameProgram model userMsg =
-    Program Never ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
+    Program Never ( model, HiddenModel userMsg ) (Msg userMsg)
 
 
 {-| Advanced Function Warning! cmdApp takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
@@ -784,7 +784,7 @@ they can just be substituted for these names.
 
 -}
 type alias App flags model userMsg =
-    Program flags ( model, HiddenModel (InputHandler userMsg) ) (Msg userMsg)
+    Program flags ( model, HiddenModel userMsg ) (Msg userMsg)
 
 
 subs : (userModel -> List (Sub (Msg userMsg))) -> ( userModel, gModel ) -> Sub (Msg userMsg)
@@ -889,8 +889,8 @@ subtractTimeSeconds t1 t0 =
 hiddenAppUpdate :
     (userMsg -> model -> ( model, Cmd userMsg ))
     -> Msg userMsg
-    -> ( model, HiddenModel (InputHandler userMsg) )
-    -> ( ( model, HiddenModel (InputHandler userMsg) ), Cmd (Msg userMsg) )
+    -> ( model, HiddenModel userMsg )
+    -> ( ( model, HiddenModel userMsg ), Cmd (Msg userMsg) )
 hiddenAppUpdate update msg ( model, gModel ) =
     let
         mapUserCmd cmd =
@@ -1100,13 +1100,13 @@ aHiddenView view model =
 {-| The `HiddenModel` type alias encapsulates the GraphicSVG internal model
 which is not exposed to user code.
 -}
-type alias HiddenModel inputHandler =
+type alias HiddenModel userMsg =
     { cw : Float
     , ch : Float
     , sw : Float
     , sh : Float
     , initT : Time.Posix
-    , updateTick : inputHandler
+    , updateTick : InputHandler userMsg
     , keys : KeyDict
     }
 
