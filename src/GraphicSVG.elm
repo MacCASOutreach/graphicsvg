@@ -762,8 +762,8 @@ app tickMsg input =
                 , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second <| input.init flags url key) ]
                     (input.view (Tuple.first <| input.init flags url key)).body
                 )
-        , update = hiddenCmdUpdate input.update
-        , view = hiddenCmdView input.view
+        , update = hiddenAppUpdate input.update
+        , view = hiddenAppView input.view
         , subscriptions = subs <| \userModel -> [ Sub.map (\sub -> Graphics sub) (input.subscriptions userModel) ]
         , onUrlRequest = Graphics << input.onUrlRequest
         , onUrlChange = Graphics << input.onUrlChange
@@ -886,12 +886,12 @@ subtractTimeSeconds t1 t0 =
     ((Basics.toFloat <| posixToMillis t1) - Basics.toFloat (posixToMillis t0)) / 1000
 
 
-hiddenCmdUpdate :
+hiddenAppUpdate :
     (userMsg -> model -> ( model, Cmd userMsg ))
     -> Msg userMsg
     -> ( model, HiddenModel (InputHandler userMsg) )
     -> ( ( model, HiddenModel (InputHandler userMsg) ), Cmd (Msg userMsg) )
-hiddenCmdUpdate update msg ( model, gModel ) =
+hiddenAppUpdate update msg ( model, gModel ) =
     let
         mapUserCmd cmd =
             Cmd.map (\c -> Graphics c) cmd
@@ -948,7 +948,11 @@ hiddenView view ( model, gModel ) =
             createCollage w h shapes
 
 
-hiddenCmdView userView ( userModel, _ ) =
+hiddenAppView :
+    (userModel -> { title : String, body : Collage userMsg })
+    -> ( userModel, hiddenModel )
+    -> { title : String, body : List (Html.Html userMsg) }
+hiddenAppView userView ( userModel, _ ) =
     let
         userViewEval =
             userView userModel
