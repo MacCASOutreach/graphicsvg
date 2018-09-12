@@ -283,6 +283,7 @@ type Shape userMsg
     | ScaleXY Float Float (Shape userMsg)
     | Group (List (Shape userMsg))
     | AlphaMask (Shape userMsg) (Shape userMsg)
+    | Clip (Shape userMsg) (Shape userMsg)
     | Everything
     | Link String (Shape userMsg)
     | Tap userMsg (Shape userMsg)
@@ -353,6 +354,9 @@ map f sh =
 
             AlphaMask sh1 sh2 ->
                 AlphaMask (map f sh1) (map f sh2)
+
+            Clip sh1 sh2 ->
+                Clip (map f sh1) (map f sh2)
 
             Everything ->
                 Everything
@@ -2226,8 +2230,8 @@ createSVG id w h trans shape =
 
                     Rect rw rh ->
                         Svg.rect
-                            ([ x <| String.fromFloat <| -w / 2
-                             , y <| String.fromFloat <| -h / 2
+                            ([ x <| String.fromFloat <| -rw / 2
+                             , y <| String.fromFloat <| -rh / 2
                              , width <| String.fromFloat rw
                              , height <| String.fromFloat rh
                              ]
@@ -2360,6 +2364,9 @@ createSVG id w h trans shape =
         AlphaMask region sh ->
             Svg.g [] [ Svg.defs [] [ Svg.mask [ Svg.Attributes.id ("m" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ] [ createSVG (id ++ "mm") w h (coalesce trans) sh ] ]
 
+        Clip region sh ->
+            Svg.g [] [ Svg.defs [] [ Svg.clipPath [ Svg.Attributes.id ("c" ++ id) ] [ createSVG (id ++ "m") w h (coalesce trans) region ] ], Svg.g [ clipPath ("url(#c" ++ id ++ ")") ] [ createSVG (id ++ "cc") w h (coalesce trans) sh ] ]
+
         Tap msg sh ->
             Svg.g [ Html.Events.onClick msg ] [ createSVG id w h (coalesce trans) sh ]
 
@@ -2466,6 +2473,9 @@ repaint color shape =
         AlphaMask sh1 sh2 ->
             AlphaMask sh1 (repaint color sh2)
 
+        Clip shape1 shape2 ->
+            Clip shape1 (repaint color shape2)
+
         a ->
             a
 
@@ -2558,6 +2568,9 @@ makeTransparent alpha shape =
 
         AlphaMask reg sh ->
             AlphaMask reg (makeTransparent alpha sh)
+
+        Clip reg sh ->
+            Clip reg (makeTransparent alpha sh)
 
         Everything ->
             Everything
@@ -3025,7 +3038,7 @@ hsla h s l a =
 -}
 clip : Shape userMsg -> Shape userMsg -> Shape userMsg
 clip shape1 shape2 =
-    AlphaMask (shape1 |> repaint white) shape2
+    Clip shape1 shape2
 
 
 {-| Shape union
