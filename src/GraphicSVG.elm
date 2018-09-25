@@ -10,13 +10,6 @@ module GraphicSVG
         , Font
         , collage
         , map
-        , GraphicsProgram
-        , graphicsApp
-        , GetKeyState
-        , Keys(..)
-        , KeyState(..)
-        , GameProgram
-        , gameApp
         , App
         , app
         , line
@@ -460,185 +453,7 @@ curve segments.
 type Pull
     = Pull ( Float, Float ) ( Float, Float )
 
-
-{-| The possible states when you ask for a key's state:
-
-  - `JustDown` is the frame after the key went down (will show up exactly once per press)
-  - `Down` is a press that is continuing for more than one frame
-  - `JustUp` is the frame after the key went up / stopped being pressed (will show up exactly once per press)
-  - `Up` means the key is not currently being pressed nor was it recently released
-
--}
-type KeyState
-    = JustDown
-    | Down
-    | JustUp
-    | Up
-
-
-type KeyAction
-    = WentUp
-    | WentDown
-
-
-{-| The simplest way to render graphics to the screen. These graphics will be
-static (they don't move) and cannot be interacted with. This is great for beginners
-or for when only need static graphics are needed. Note that your `view` function is bare,
-with no parameters:
-
-    view =
-        collage 500
-            500
-            [ circle 10 |> filled red
-            ]
-
-`graphicsApp` takes a parameter like `{ view = view }`
-so the main program that would get the whole thing started for the above
-`view` would be:
-
-    main =
-        graphicsApp { view = view }
-
--}
-graphicsApp : JustGraphics () -> GraphicsProgram ()
-graphicsApp input =
-    Browser.document
-        { init = \_ -> ( ( 0, initHiddenModel (\_ _ -> ()) ), initialSizeCmd [] input.view )
-        , update = blankUpdate
-        , view = \(_,hiddenModel) -> { title = "GraphicSVG Canvas", body = [ blankView input.view ((),hiddenModel) ] }
-        , subscriptions = \_ -> onResize (\w h -> WindowResize ( w, h ))
-        }
-
-
-{-| The `JustGraphics` type alias is a simple record that contains the pointer to
-the users view constant, which `view` does not take any arguments and returns
-a `GraphicsProgram` type.
--}
-type alias JustGraphics userMsg =
-    { view : Collage userMsg }
-
-
-{-| This type alias is only used as a target for a user `main` type signature
-to make the type signature more clear and concise when `main` calls
-`graphicsApp`:
-
-    main : GraphicsProgram userMsg
-    main =
-        graphicsApp { view = view }
-
-Note that `userMsg` can be anything as no messages are used in this type of program.
-
--}
-type alias GraphicsProgram userMsg =
-    Program Never ( Int, HiddenModel () ) (Msg userMsg)
-
-
-{-| Automatically maps time and keyboard presses to your program. This should
-be all you need for making complex interactive games and animations.
-`gameApp` takes two parameters: one is your own type of `InputHandler` message
-which will be automatically called each time the browser window is refreshed
-(30 times per second)
-of the form `Float -> GetKeyState -> UserMsg` and the other is
-
-    {
-      model = model
-    , view = view
-    , update = update
-    }
-
-The following program causes animation of the drawn line,
-causing it to spin around; also, a press of the "r" key
-causes the direction of the spin to reverse:
-
-    type Msg
-        = Tick Float GetKeyState
-
-    type alias Model =
-        { angle : Float, speed : Float }
-
-    init =
-        { angle = 0, speed = 1 }
-
-    update msg model =
-        case msg of
-            Tick _ ( keys, _, _ ) ->
-                case keys (Key "r") of
-                    JustDown ->
-                        { model
-                            | angle = model.angle - model.speed
-                            , speed = -model.speed
-                        }
-
-                    _ ->
-                        { model | angle = model.angle + model.speed }
-
-    view model =
-        collage 500
-            500
-            [ line ( 0, 0 ) ( 250, 0 )
-                |> outlined (solid 1) green
-                |> rotate (degrees model.angle)
-            ]
-
-    main =
-        gameApp Tick
-            { model = init
-            , update = update
-            , view = view
-            }
-
--}
-gameApp : InputHandler userMsg -> GraphicsApp userModel userMsg -> GameProgram userModel userMsg
-gameApp tickMsg input =
-    Browser.document
-        { init = \_ -> ( ( input.model, initHiddenModel tickMsg ), initialSizeCmd [] (input.view input.model) )
-        , update = hiddenGameUpdate input.update
-        , view = \a -> { title = "GraphicSVG Game", body = [ hiddenView input.view a ] }
-        , subscriptions = subs <| \_ -> Sub.none
-        }
-
-{-| The `InputHandler` type alias descripts a message that contains a Float representing the time in seconds from
-the time the program started and the `GetKeyState` type alias used for returning key actions.
--}
-type alias InputHandler userMsg =
-    Float
-    -> GetKeyState
-    -> userMsg
-
-
-{-| The `GraphicsApp` type alias is a record that contains the
-the initial state of the user-defined model of any type, the
-user's `update` function which takes arguments of the message to be acted on
-and the current state of the model and returns the new state of the model, and
-the `view` function, which takes one argument of the current state of the model
-and returns a `Collage` type.
--}
-type alias GraphicsApp userModel userMsg =
-    { model : userModel, update : userMsg -> userModel -> userModel, view : userModel -> Collage userMsg }
-
-
-{-| This type alias is only used as a target for a user `main` type signature to make
-the type signature more clear and concise when `main` calls `gameApp`:
-
-    main : GamesProgram Model Msg
-    main =
-        gameApp Tick
-            { model = init
-            , update = update
-            , view = view
-            }
-
-where `Tick` is the message handler called once per browser window update,
-`Model` is the type alias of the user persistent model, and
-`Msg` is the name of the user message type; if other names are used,
-they can be substituted for these names.
-
--}
-type alias GameProgram userModel userMsg =
-    Program Never ( userModel, HiddenModel userMsg ) (Msg userMsg)
-
-
-{-| Advanced Function Warning! cmdApp takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
+{-| Advanced Function Warning! app takes two parameters: one is your own type of the form `Float -> GetKeyState -> CustomMsg` and the other is
 
     {
       init = (model, cmd)
@@ -651,8 +466,6 @@ This matches the Elm architecture and is analogous to `Html.program`.
 
 -}
 app :
-    InputHandler userMsg
-    ->
         { init : flags -> Url -> Key -> ( userModel, Cmd userMsg )
         , update : userMsg -> userModel -> ( userModel, Cmd userMsg )
         , view : userModel -> { title : String, body : Collage userMsg }
@@ -661,15 +474,22 @@ app :
         , onUrlChange : Url -> userMsg
         }
     -> App flags userModel userMsg
-app tickMsg input =
+app input =
     Browser.application
         { init =
             \flags url key ->
-                ( ( Tuple.first <| input.init flags url key, initHiddenModel tickMsg )
-                , initialSizeCmd [ Cmd.map (\cmdMap -> Graphics cmdMap) (Tuple.second <| input.init flags url key) ]
-                    (input.view (Tuple.first <| input.init flags url key)).body
-                )
-        , update = hiddenAppUpdate input.update
+                let
+                    userInit = 
+                        Tuple.first <| input.init flags url key
+                    userView =
+                        (input.view userInit).body
+                    (Collage (initW,initH) _) =
+                        userView
+                    userInitCmd =
+                        Tuple.second <| input.init flags url key
+                in       
+                    ( ( userInit, { initHiddenModel | cw = initW, ch = initH } ), initialCmd <| Cmd.map Graphics userInitCmd )
+        , update = hiddenAppUpdate input.view input.update
         , view = hiddenAppView input.view
         , subscriptions = subs <| input.subscriptions
         , onUrlRequest = Graphics << input.onUrlRequest
@@ -691,118 +511,31 @@ they can just be substituted for these names.
 
 -}
 type alias App flags userModel userMsg =
-    Program flags ( userModel, HiddenModel userMsg ) (Msg userMsg)
+    Program flags ( userModel, HiddenModel ) (Msg userMsg)
 
 
 subs : (userModel -> Sub userMsg) -> ( userModel, gModel ) -> Sub (Msg userMsg)
 subs userSubs ( userModel, _ ) =
     Sub.batch
-        ([ Time.every (1000 / 30) createTimeMessage
-         , onResize (\w h -> WindowResize ( w, h ))
+        ([ onResize (\w h -> WindowResize ( w, h ))
          ]
-            ++ keySubs
             ++ [Sub.map Graphics (userSubs userModel)]
         )
 
 
-keySubs : List (Sub (Msg userMsg))
-keySubs =
-    [ onKeyUp (D.map KeyUp (D.field "keyCode" D.int))
-    , onKeyDown (D.map KeyDown (D.field "keyCode" D.int))
-    ]
-
-
-createTimeMessage : Time.Posix -> Msg userMsg
-createTimeMessage t =
-    TickTime t
-
-
-blankUpdate :
-    Msg ()
-    -> ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } )
-    -> ( ( a, { b | ch : Float, cw : Float, sh : Float, sw : Float } ), Cmd (Msg ()) )
-blankUpdate msg ( userModel, hiddenModel ) =
-    case msg of
-        WindowResize ( width, height ) ->
-            ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
-
-
-        CollageSize ( width, height ) ->
-            ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
-
-        _ ->
-            ( ( userModel, hiddenModel ), Cmd.none )
-
-hiddenUpdate:   (userMsg -> userModel -> userModel)
-             -> Msg userMsg
-             -> (userModel, HiddenModel userMsg)
-             -> ((userModel, HiddenModel userMsg), Cmd (Msg userMsg))
-hiddenUpdate userUpdate msg ( userModel, hiddenModel ) =
-    case msg of
-        Graphics message ->
-            ( ( userUpdate message userModel, hiddenModel ), Cmd.none )
-
-        WindowResize ( width, height ) ->
-            ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
-
-        ReturnPosition message ( x, y ) ->
-            ( ( userUpdate (message (convertCoords ( x, y ) hiddenModel)) userModel, hiddenModel ), Cmd.none )
-
-        CollageSize ( width, height ) ->
-            ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
-
-        _ ->
-            ( ( userModel, hiddenModel ), Cmd.none )
-
-hiddenGameUpdate : (userMsg -> userModel -> userModel) 
-                   -> Msg userMsg 
-                   -> (userModel, HiddenModel userMsg) 
-                   -> ((userModel, HiddenModel userMsg), Cmd (Msg userMsg))
-hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
-    let
-        updateTick =
-            hiddenModel.updateTick
-    in
-        case msg of
-            Graphics message ->
-                ( ( userUpdate message userModel, hiddenModel ), Cmd.none )
-
-            WindowResize ( width, height ) ->
-                ( ( userModel, { hiddenModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
-
-            ReturnPosition message ( x, y ) ->
-                ( ( userUpdate (message (convertCoords ( x, y ) hiddenModel)) userModel, hiddenModel ), Cmd.none )
-
-            CollageSize ( width, height ) ->
-                ( ( userModel, { hiddenModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
-
-            InitTime t ->
-                ( ( userModel, { hiddenModel | initT = t } ), Cmd.none )
-
-            TickTime t ->
-                ( ( userUpdate (hiddenModel.updateTick (subtractTimeSeconds t hiddenModel.initT) ( (keyCheckerFunction hiddenModel.keys), arrowKeys (keyCheckerFunction hiddenModel.keys), wasdKeys (keyCheckerFunction hiddenModel.keys) )) userModel, { hiddenModel | keys = maintainKeyDict hiddenModel.keys } ), Cmd.none )
-
-            KeyDown n ->
-                ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys n WentDown } ), Cmd.none )
-
-            KeyUp n ->
-                ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys n WentUp } ), Cmd.none )
-
-
-subtractTimeSeconds : Time.Posix -> Time.Posix -> Float
-subtractTimeSeconds t1 t0 =
-    ((Basics.toFloat <| posixToMillis t1) - Basics.toFloat (posixToMillis t0)) / 1000
-
 
 hiddenAppUpdate :
-    (userMsg -> userModel -> ( userModel, Cmd userMsg ))
+       (userModel -> { title : String, body : Collage userMsg } )
+    -> (userMsg -> userModel -> ( userModel, Cmd userMsg ))
     -> Msg userMsg
-    -> ( userModel, HiddenModel userMsg )
-    -> ( ( userModel, HiddenModel userMsg ), Cmd (Msg userMsg) )
-hiddenAppUpdate userUpdate msg ( userModel, gModel ) =
+    -> ( userModel, HiddenModel )
+    -> ( ( userModel, HiddenModel ), Cmd (Msg userMsg) )
+hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
     let
         mapUserCmd cmd =
-            Cmd.map (\c -> Graphics c) cmd
+            Cmd.map Graphics cmd
+
+        (Collage (cw,ch) _) = (userView userModel).body
     in
         case msg of
             Graphics message ->
@@ -810,7 +543,7 @@ hiddenAppUpdate userUpdate msg ( userModel, gModel ) =
                     ( newModel, userCmds ) =
                         userUpdate message userModel
                 in
-                    ( ( newModel, gModel ), mapUserCmd userCmds )
+                    ( ( newModel, { gModel | cw = cw, ch = ch } ), mapUserCmd userCmds )
 
             WindowResize ( width, height ) ->
                 ( ( userModel, { gModel | sw = Basics.toFloat width, sh = Basics.toFloat height } ), Cmd.none )
@@ -822,43 +555,9 @@ hiddenAppUpdate userUpdate msg ( userModel, gModel ) =
                 in
                     ( ( newModel, gModel ), mapUserCmd userCmds )
 
-            CollageSize ( width, height ) ->
-                ( ( userModel, { gModel | cw = Basics.toFloat width, ch = Basics.toFloat height } ), Cmd.none )
-
-            InitTime t ->
-                ( ( userModel, { gModel | initT = t } ), Cmd.none )
-
-            TickTime t ->
-                let
-                    ( newModel, userCmds ) =
-                        userUpdate (gModel.updateTick (subtractTimeSeconds t gModel.initT) ( (keyCheckerFunction gModel.keys), arrowKeys (keyCheckerFunction gModel.keys), wasdKeys (keyCheckerFunction gModel.keys) )) userModel
-                in
-                    ( ( newModel, { gModel | keys = maintainKeyDict gModel.keys } ), mapUserCmd userCmds )
-
-            KeyDown n ->
-                ( ( userModel, { gModel | keys = insertKeyDict gModel.keys n WentDown } ), Cmd.none )
-
-            KeyUp n ->
-                ( ( userModel, { gModel | keys = insertKeyDict gModel.keys n WentUp } ), Cmd.none )
-
-
-blankView : Collage () -> ( (), HiddenModel () ) -> Html.Html (Msg ())
-blankView view ( userModel, gModel ) =
-    case view of
-        Collage ( w, h ) shapes ->
-            createCollage w h shapes
-
-
-hiddenView : (userModel -> Collage userMsg) -> ( userModel, HiddenModel userMsg ) -> Html.Html (Msg userMsg)
-hiddenView userView ( userModel, gModel ) =
-    case (userView userModel) of
-        Collage ( w, h ) shapes ->
-            createCollage w h shapes
-
-
 hiddenAppView :
     (userModel -> { title : String, body : Collage userMsg })
-    -> ( userModel, HiddenModel userMsg )
+    -> ( userModel, HiddenModel )
     -> { title : String, body : List (Html.Html (Msg userMsg)) }
 hiddenAppView userView ( userModel, _ ) =
     let
@@ -935,25 +634,13 @@ convertCoords ( x, y ) gModel =
         ( (x - leadX - newW / 2) / sc, (y + leadY + offsetY + newH / 2) / sc )
 
 
-initialSizeCmd :
-    List (Cmd (Msg userMsg))
-    -> Collage userMsg
+initialCmd :
+    Cmd (Msg userMsg)
     -> Cmd (Msg userMsg)
-initialSizeCmd otherCmds userView =
+initialCmd userCmd =
     Cmd.batch
-        ([ Task.perform (\vp -> WindowResize ( round vp.viewport.width, round vp.viewport.height )) getViewport
-         , Task.perform getCollageSize (Task.succeed userView) --FIXME: user pattern matching
-         , Task.perform InitTime Time.now
-         ]
-            ++ otherCmds
-        )
-
-
-getCollageSize : Collage userMsg -> Msg userMsg
-getCollageSize userView =
-    case userView of
-        Collage ( w, h ) _ ->
-            CollageSize ( round w, round h )
+        [Task.perform (\vp -> WindowResize ( round vp.viewport.width, round vp.viewport.height )) getViewport, userCmd]
+         
 
 
 {-| The `Msg` type encapsulates all GraphicSVG internal messages.
@@ -988,383 +675,24 @@ type Msg userMsg
     = Graphics userMsg
     | WindowResize ( Int, Int )
     | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
-    | CollageSize ( Int, Int )
-    | InitTime Time.Posix
-    | TickTime Time.Posix
-    | KeyDown Int
-    | KeyUp Int
-
 
 {-| The `HiddenModel` type alias encapsulates the GraphicSVG internal model
 which is not exposed to user code.
 -}
-type alias HiddenModel userMsg =
+type alias HiddenModel =
     { cw : Float
     , ch : Float
     , sw : Float
     , sh : Float
-    , initT : Time.Posix
-    , updateTick : InputHandler userMsg
-    , keys : KeyDict
     }
 
-initHiddenModel : InputHandler userMsg -> HiddenModel userMsg
-initHiddenModel userTick =
+initHiddenModel : HiddenModel
+initHiddenModel =
     { cw = 0
     , ch = 0
     , sw = 0
     , sh = 0
-    , initT = millisToPosix 0
-    , updateTick = userTick
-    , keys = Dict.empty
     }
-
-
-type alias KeyCode =
-    Int
-
-
-type alias KeyDict =
-    Dict.Dict KeyCode ( KeyState, Bool )
-
-
-{-| `GetKeyState` returns a triple where the first argument is of type `Keys -> KeyState`
-so you can ask if a certain key is pressed. The other two are tuples of arrow keys and
-WASD keys, respectively. They're in the form (x,y) which represents the key presses
-of each player. For example, (0,-1) represents the left arrow (or "A") key, and (1,1)
-would mean the up (or "W") and right (or "D") key are being pressed at the same time.
--}
-type alias GetKeyState =
-    ( Keys -> KeyState, ( Float, Float ), ( Float, Float ) )
-
-
-insertKeyDict : KeyDict -> KeyCode -> KeyAction -> KeyDict
-insertKeyDict dict key action =
-    let
-        currState =
-            Dict.get key dict
-    in
-        case currState of
-            Just ( JustDown, False ) ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( JustDown, False )
-
-                        WentUp ->
-                            ( JustDown, True )
-                    )
-                    dict
-
-            Just ( Down, False ) ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( Down, False )
-
-                        WentUp ->
-                            ( JustUp, False )
-                    )
-                    dict
-
-            Just ( Up, False ) ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( JustDown, False )
-
-                        WentUp ->
-                            ( JustUp, False )
-                    )
-                    dict
-
-            Just ( JustUp, False ) ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( JustUp, True )
-
-                        WentUp ->
-                            ( JustUp, False )
-                    )
-                    dict
-
-            Just ( state, True ) ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( state, True )
-
-                        WentUp ->
-                            ( state, True )
-                    )
-                    dict
-
-            Nothing ->
-                Dict.insert key
-                    (case action of
-                        WentDown ->
-                            ( JustDown, False )
-
-                        WentUp ->
-                            ( JustUp, False )
-                    )
-                    dict
-
-
-maintainKeyDict : KeyDict -> KeyDict
-maintainKeyDict dict =
-    Dict.filter filterHelper (Dict.map maintainHelper dict)
-
-
-filterHelper : a -> ( KeyState, b ) -> Bool
-filterHelper key action =
-    case action of
-        ( Up, _ ) ->
-            False
-
-        _ ->
-            True
-
-
-maintainHelper : a -> ( KeyState, Bool ) -> ( KeyState, Bool )
-maintainHelper key action =
-    case action of
-        ( JustUp, False ) ->
-            ( Up, False )
-
-        ( JustUp, True ) ->
-            ( JustDown, False )
-
-        ( Up, False ) ->
-            ( Up, False )
-
-        ( Up, True ) ->
-            ( Up, False )
-
-        ( JustDown, False ) ->
-            ( Down, False )
-
-        ( JustDown, True ) ->
-            ( JustUp, False )
-
-        ( Down, False ) ->
-            ( Down, False )
-
-        ( Down, True ) ->
-            ( Down, False )
-
-
-{-| Includes all the regular keys. Ask for letters and numbers using `Key String`, e.g. `Key "a"` or `Key "3"`.
--}
-type Keys
-    = Key String
-    | Backspace
-    | Tab
-    | Enter
-    | Shift
-    | Ctrl
-    | Alt
-    | Caps
-    | LeftArrow
-    | UpArrow
-    | RightArrow
-    | DownArrow
-    | Delete
-    | Space
-
-
-keyCheckerFunction : Dict.Dict Int ( KeyState, a ) -> Keys -> KeyState
-keyCheckerFunction dict key =
-    let
-        state =
-            Dict.get kc dict
-
-        kc =
-            case key of
-                Key str ->
-                    Char.toCode
-                        (Char.toUpper
-                            (case (String.uncons str) of
-                                Just ( a, bc ) ->
-                                    a
-
-                                Nothing ->
-                                    'z'
-                            )
-                        )
-
-                Backspace ->
-                    8
-
-                Tab ->
-                    9
-
-                Enter ->
-                    13
-
-                Shift ->
-                    16
-
-                Ctrl ->
-                    17
-
-                Alt ->
-                    18
-
-                Caps ->
-                    20
-
-                Space ->
-                    32
-
-                LeftArrow ->
-                    37
-
-                UpArrow ->
-                    38
-
-                RightArrow ->
-                    39
-
-                DownArrow ->
-                    40
-
-                Delete ->
-                    46
-    in
-        case state of
-            Just ( JustDown, _ ) ->
-                JustDown
-
-            Just ( Down, _ ) ->
-                Down
-
-            Just ( JustUp, _ ) ->
-                JustUp
-
-            Just ( Up, _ ) ->
-                Up
-
-            Nothing ->
-                Up
-
-
-arrowKeys checker =
-    ( case ( (checker LeftArrow), (checker RightArrow) ) of
-        ( Down, Up ) ->
-            -1
-
-        ( Down, JustUp ) ->
-            -1
-
-        ( JustDown, Up ) ->
-            -1
-
-        ( JustDown, JustUp ) ->
-            -1
-
-        ( Up, Down ) ->
-            1
-
-        ( JustUp, Down ) ->
-            1
-
-        ( Up, JustDown ) ->
-            1
-
-        ( JustUp, JustDown ) ->
-            1
-
-        _ ->
-            0
-    , case ( (checker DownArrow), (checker UpArrow) ) of
-        ( Down, Up ) ->
-            -1
-
-        ( Down, JustUp ) ->
-            -1
-
-        ( JustDown, Up ) ->
-            -1
-
-        ( JustDown, JustUp ) ->
-            -1
-
-        ( Up, Down ) ->
-            1
-
-        ( JustUp, Down ) ->
-            1
-
-        ( Up, JustDown ) ->
-            1
-
-        ( JustUp, JustDown ) ->
-            1
-
-        _ ->
-            0
-    )
-
-
-wasdKeys checker =
-    ( case ( (checker (Key "a")), (checker (Key "d")) ) of
-        ( Down, Up ) ->
-            -1
-
-        ( Down, JustUp ) ->
-            -1
-
-        ( JustDown, Up ) ->
-            -1
-
-        ( JustDown, JustUp ) ->
-            -1
-
-        ( Up, Down ) ->
-            1
-
-        ( JustUp, Down ) ->
-            1
-
-        ( Up, JustDown ) ->
-            1
-
-        ( JustUp, JustDown ) ->
-            1
-
-        _ ->
-            0
-    , case ( (checker (Key "s")), (checker (Key "w")) ) of
-        ( Down, Up ) ->
-            -1
-
-        ( Down, JustUp ) ->
-            -1
-
-        ( JustDown, Up ) ->
-            -1
-
-        ( JustDown, JustUp ) ->
-            -1
-
-        ( Up, Down ) ->
-            1
-
-        ( JustUp, Down ) ->
-            1
-
-        ( Up, JustDown ) ->
-            1
-
-        ( JustUp, JustDown ) ->
-            1
-
-        _ ->
-            0
-    )
-
 
 {-| Create a line from a point to a point. Use `outlined` to convert to a viewable
 `Shape`.
