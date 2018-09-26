@@ -10,6 +10,7 @@ module GraphicSVG
         , Font
         , collage
         , map
+        , mapCollage
         , App
         , app
         , line
@@ -376,6 +377,10 @@ map f sh =
 
             Group shapes ->
                 Group (List.map (map f) shapes)
+
+mapCollage : (a -> b) -> Collage a -> Collage b
+mapCollage f (Collage (w,h) shapes) =
+    Collage (w,h) (List.map (map f) shapes)
 
 
 {-| The `GraphicSVG` type alias represents the drawable surface of the window.
@@ -1477,8 +1482,8 @@ createSVG id w h trans shape =
                              , y <| String.fromFloat <| -rh / 2
                              , rx <| String.fromFloat r
                              , ry <| String.fromFloat r
-                             , width <| String.fromFloat w
-                             , height <| String.fromFloat h
+                             , width <| String.fromFloat rw
+                             , height <| String.fromFloat rh
                              ]
                                 ++ attrs
                             )
