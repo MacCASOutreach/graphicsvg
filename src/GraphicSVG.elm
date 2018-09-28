@@ -167,6 +167,7 @@ type Shape userMsg
     | TouchStartAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | TouchEndAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | GraphPaper Float Float Color
 
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
@@ -249,6 +250,9 @@ map f sh =
 
         Group shapes ->
             Group (List.map (map f) shapes)
+
+        GraphPaper s th c ->
+            GraphPaper s th c
 
 
 {-| To apply the function over all the shapes in the given `Collage` using the `map` function.
@@ -746,19 +750,22 @@ oval w h =
 -}
 graphPaper : Float -> Shape userMsg
 graphPaper s =
-    graphPaperCustom s 1 (rgb 135 206 250)
-
+    GraphPaper s 1 (RGBA 135 206 250 1)
 
 {-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
 -}
 graphPaperCustom : Float -> Float -> Color -> Shape userMsg
 graphPaperCustom s th c =
+    GraphPaper s th c
+
+createGraph : (Float, Float) -> Float -> Float -> Color -> Shape userMsg
+createGraph (w,h) s th c =
     let
         sxi =
-            round (1500 / s)
+            ceiling (w / s)
 
         syi =
-            round (800 / s)
+            ceiling (w / s)
 
         xlisti =
             List.range -sxi sxi
@@ -767,8 +774,8 @@ graphPaperCustom s th c =
             List.range -syi syi
     in
     group
-        (List.map (createGraphX 1600 s th c << Basics.toFloat) xlisti
-            ++ List.map (createGraphY 3000 s th c << Basics.toFloat) ylisti
+        (List.map (createGraphX h s th c << Basics.toFloat) xlisti
+            ++ List.map (createGraphY w s th c << Basics.toFloat) ylisti
         )
 
 
@@ -1751,6 +1758,10 @@ createSVG id w h trans shape =
                     )
                     shapes
 
+        GraphPaper s th c ->
+            Svg.g []
+                [ createSVG id w h (coalesce trans) <| createGraph (w,h) s th c ]
+
 
 
 --Filling / outlining functions
@@ -1957,6 +1968,9 @@ makeTransparent alpha shape =
 
         TouchMoveAt userMsg sh ->
             TouchMoveAt userMsg (makeTransparent alpha sh)
+
+        GraphPaper s th (RGBA r g b a) ->
+            GraphPaper s th (RGBA r g b (a*alpha))
 
 
 
