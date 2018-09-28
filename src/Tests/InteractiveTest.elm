@@ -1265,7 +1265,7 @@ test34 =
 test35 : Test
 test35 =
     Test
-        "Testing union; click Pass or Fail as appropriate."
+        "Testing subtraction; click Pass or Fail as appropriate."
         "Is the shape a blue circle with a circle \"bite\" taken out of it on the right side?:"
         (\model ->
             group
