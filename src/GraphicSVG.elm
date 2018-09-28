@@ -279,8 +279,8 @@ These assume that `Model` is the name of the user model type alias and
 `MyMsg` is the name of the user message type. Simply substitute the names
 actually used for these labels.
 
-THIS IS DEPRECIATED AND ONLY KEPT FOR COMPATIBILITY WITH THE PREViOUS VERSION;
-Use "Collage userMsg" instead of "GraphicSVG usrMsg", as they are identical except in name.
+THIS IS DEPRECIATED AND ONLY KEPT FOR COMPATIBILITY WITH THE PREVIOUS VERSION;
+Use "Collage userMsg" instead of "GraphicSVG userMsg", as they are identical except in name.
 
 -}
 type alias GraphicSVG userMsg =
@@ -1174,7 +1174,7 @@ cPath w h =
         ]
 
 
-{-| Take a `Collage` width and hieght as well as a list of tuples of depth and `Shape`.
+{-| Take a `Collage` width and height as well as a list of tuples of depth and `Shape`.
 to produce a list of `Shape`'s suitable for display as a group in a `Collage` with
 `Shape`'s with lesser depth larger and in front of `Shape`'s with greater depth.
 -}
