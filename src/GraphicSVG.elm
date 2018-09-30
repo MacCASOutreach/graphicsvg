@@ -5,6 +5,7 @@ module GraphicSVG exposing
     , line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
     , filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
     , group
+    , html
     , curve, Pull(..), curveHelper
     , LineType, solid, dotted, dashed, longdash, dotdash, custom
     , text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
@@ -50,6 +51,10 @@ other applications including keyboard presses and mouse movements.
 
 @docs group
 
+
+# Rendering HTML
+
+@docs html
 
 # Curves
 
@@ -143,6 +148,7 @@ type Stencil
 -}
 type Shape userMsg
     = Inked Color (Maybe ( LineType, Color )) Stencil
+    | ForeignObject Float Float (Html.Html userMsg) 
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
     | ScaleXY Float Float (Shape userMsg)
@@ -178,6 +184,9 @@ map f sh =
     case sh of
         Inked fillClr lt stencil ->
             Inked fillClr lt stencil
+
+        ForeignObject w h htm ->
+            ForeignObject w h (Html.map f htm)
 
         Move v shape ->
             Move v (map f shape)
@@ -1624,6 +1633,13 @@ createSVG id w h trans shape =
                         )
                         [ Svg.text str ]
 
+        ForeignObject fw fh htm ->
+            let
+                ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
+                    coalesce trans
+            in
+                Svg.foreignObject [ width <| String.fromFloat fw, height <| String.fromFloat fh, Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map String.fromFloat [ a, -b, -c, d, tx, -ty ]) ++ ")" ] [ Html.map Graphics htm ]
+
         Move v sh ->
             createSVG id w h (moveT trans v) sh
 
@@ -1762,6 +1778,12 @@ createSVG id w h trans shape =
             Svg.g []
                 [ createSVG id w h (coalesce trans) <| createGraph (w,h) s th c ]
 
+{-| Display HTML inside an SVG foreignObject.
+-}
+html : Float -> Float -> Html.Html userMsg -> Shape userMsg
+html w h htm =
+    ForeignObject w h htm
+
 
 
 --Filling / outlining functions
@@ -1896,6 +1918,9 @@ makeTransparent alpha shape =
 
         Inked (RGBA r g b a) Nothing sh ->
             Inked (RGBA r g b (a * alpha)) Nothing sh
+
+        ForeignObject w h htm ->
+            ForeignObject w h htm
 
         Move s sh ->
             Move s (makeTransparent alpha sh)
