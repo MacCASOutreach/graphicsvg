@@ -562,8 +562,8 @@ convertCoords ( x, y ) gModel =
             else
                 0
     in
-    ( (x - sw / 2 + 0.025 * sw / 2 - 9) / cscale / viewportScale
-    , (y + sh / 2 + yOffset - 0.025 * sw / 2 + 9) / cscale / viewportScale
+    ( (x - sw / 2) / cscale
+    , (y + sh / 2) / cscale
     )
 
 
@@ -1118,12 +1118,12 @@ createCollage : Float -> Float -> List (Shape userMsg) -> Html.Html (Msg userMsg
 createCollage w h shapes =
     let
         percent =
-            String.fromFloat (100 * viewportScale) ++ "%"
+            String.fromFloat 100 ++ "%"
     in
     Svg.svg
         [ width percent
         , height percent
-        , style "position:absolute"
+        , style "position:absolute;top:0px;left:0px;"
         , viewBox
             (String.fromFloat (-w / 2)
                 ++ " "
