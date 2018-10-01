@@ -548,19 +548,6 @@ convertCoords ( x, y ) gModel =
 
             else
                 1
-
-        newW =
-            cw * cscale
-
-        newH =
-            ch * cscale
-
-        yOffset =
-            if scaledInY then
-                10
-
-            else
-                0
     in
     ( (x - sw / 2) / cscale
     , (y + sh / 2) / cscale
@@ -1105,24 +1092,11 @@ collage w h shapes =
     Collage ( w, h ) shapes
 
 
-
--- can shrink viewport to 250 pixels -> no scroll bars
-
-
-viewportScale : Float
-viewportScale =
-    0.975
-
-
 createCollage : Float -> Float -> List (Shape userMsg) -> Html.Html (Msg userMsg)
 createCollage w h shapes =
-    let
-        percent =
-            String.fromFloat 100 ++ "%"
-    in
     Svg.svg
-        [ width percent
-        , height percent
+        [ width "100%"
+        , height "100%"
         , style "position:absolute;top:0px;left:0px;"
         , viewBox
             (String.fromFloat (-w / 2)
@@ -1143,28 +1117,6 @@ createCollage w h shapes =
                     )
                ]
         )
-
-
-myStyle : List (Html.Attribute (Msg userMsg))
-myStyle =
-    List.map (\( a, b ) -> Html.Attributes.style a b)
-        [ ( "width", "100%" )
-        , ( "height", "20px" )
-        , ( "padding", "10px 0" )
-        , ( "font-size", "1.5em" )
-        , ( "text-align", "center" )
-        , ( "background-color", "#2e3842" )
-        , ( "color", "#ffffff" )
-        , ( "border", "1px solid #ffffff" )
-        , ( "-webkit-touch-callout", "none" )
-        , ( "-webkit-user-select", "none" )
-        , ( "-khtml-user-select", "none" )
-        , ( "-moz-user-select", "none" )
-        , ( "-ms-user-select", "none" )
-        , ( "user-select", "none" )
-        , ( "cursor", "default" )
-        , ( "max-width", "600px" )
-        ]
 
 
 cPath : Float -> Float -> Svg.Svg (Msg userMsg)
