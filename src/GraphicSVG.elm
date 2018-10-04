@@ -7,7 +7,7 @@ module GraphicSVG exposing
     , group
     , html
     , curve, Pull(..), curveHelper
-    , LineType, solid, dotted, dashed, longdash, dotdash, custom
+    , LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
     , text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY
     , clip, union, subtract, outside, ghost
@@ -63,7 +63,7 @@ other applications including keyboard presses and mouse movements.
 
 # Line Styles
 
-@docs LineType, solid, dotted, dashed, longdash, dotdash, custom
+@docs LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -153,6 +153,7 @@ type Shape userMsg
     | Rotate Float (Shape userMsg)
     | ScaleXY Float Float (Shape userMsg)
     | Group (List (Shape userMsg))
+    | GroupOutline (Shape userMsg)
     | AlphaMask (Shape userMsg) (Shape userMsg)
     | Clip (Shape userMsg) (Shape userMsg)
     | Everything
@@ -260,6 +261,9 @@ map f sh =
         Group shapes ->
             Group (List.map (map f) shapes)
 
+        GroupOutline cmbndshp ->
+            GroupOutline (map f cmbndshp)
+
         GraphPaper s th c ->
             GraphPaper s th c
 
@@ -306,7 +310,8 @@ type Color
 `LineType` also defines the appearence of `line` and `curve`.
 -}
 type LineType
-    = Solid Float
+    = NoLine
+    | Solid Float
     | Broken (List ( Float, Float )) Float
 
 
@@ -897,7 +902,7 @@ end points and `Pull` points. Helpful while perfecting curves.
 curveHelper : Shape userMsg -> Shape userMsg
 curveHelper shape =
     case shape of
-        Inked clr outline (BezierPath ( a, b ) list) ->
+        Inked _ _ (BezierPath ( a, b ) list) ->
             group [ shape, generateCurveHelper ( a, b ) list ]
 
         Move s sh ->
@@ -1420,6 +1425,8 @@ createSVG id w h trans shape =
                                                 List.map pairToString dashes
                                             )
                                    ]
+                        _ ->
+                            []
             in
             case stencil of
                 Circle r ->
@@ -1614,7 +1621,10 @@ createSVG id w h trans shape =
                 [ Svg.defs []
                     [ Svg.mask
                         [ Svg.Attributes.id ("m" ++ id) ]
-                        [ createSVG (id ++ "m") w h (coalesce trans) region ]
+                        [ createSVG
+                            (id ++ "m") w h
+                            (coalesce trans)
+                            (Group [ Everything, region |> repaint black ]) ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ]
@@ -1726,6 +1736,9 @@ createSVG id w h trans shape =
                     )
                     shapes
 
+        GroupOutline cmbndshp ->
+            createSVG id w h trans cmbndshp
+        
         GraphPaper s th c ->
             Svg.g []
                 [ createSVG id w h (coalesce trans) <| createGraph (w,h) s th c ]
@@ -1756,10 +1769,12 @@ filled color stencil =
 -}
 ghost : Stencil -> Shape userMsg
 ghost stencil =
-    Inked white Nothing stencil
+    Inked blank Nothing stencil
 
 
 {-| Repaint an already-`filled` `Shape`. This is helpful for repainting every `Shape` inside a `group` as well.
+
+Repaints the outline the same color as the body of the shape
 
     group
         [ circle 10
@@ -1773,8 +1788,11 @@ ghost stencil =
 repaint : Color -> Shape userMsg -> Shape userMsg
 repaint color shape =
     case shape of
-        Inked clr outline sh ->
-            Inked color outline sh
+        Inked _ Nothing st ->
+            Inked color Nothing st
+
+        Inked _ (Just ( lt, _ )) st ->
+            Inked color (Just ( lt, color )) st
 
         Move s sh ->
             Move s (repaint color sh)
@@ -1788,11 +1806,14 @@ repaint color shape =
         Group shapes ->
             Group (List.map (repaint color) shapes)
 
+        GroupOutline cmbndshp ->
+            GroupOutline (repaint color cmbndshp)
+
         AlphaMask sh1 sh2 ->
             AlphaMask sh1 (repaint color sh2)
 
         Clip shape1 shape2 ->
-            Clip (repaint color shape1) shape2
+            Clip shape1 (repaint color shape2)
 
         a ->
             a
@@ -1808,14 +1829,29 @@ outlined : LineType -> Color -> Stencil -> Shape userMsg
 outlined style outlineClr stencil =
     let
         lineStyle =
-            ( style, outlineClr )
+            case style of
+                NoLine ->
+                    Nothing
+                _ ->
+                    Just ( style, outlineClr )
     in
-    Inked (rgba 0 0 0 0) (Just lineStyle) stencil
+    Inked (rgba 0 0 0 0) lineStyle stencil
 
 
 {-| Add an outline to an already-filled `Shape`.
-This only works with Shapes based on primary `Stencil`'s,
-not on `Group` or `Shape`'s produced by `clip`, `union`, `subtract`, etc.
+
+When applied to `Group`'s including `Shape`'s that have had `union` applied to them,
+the outline will have half the expected stroke width only outside the `Shape`'s and
+for `Shape`'s with `clip` or `subtract` applied to them, the half width stroke will be
+interior to the composite shapes displayed.
+
+The limitation is that when displaying "clip's" or "subtract's" containing "Group's",
+the outline for the "Group's" won't be visibile at all (less common), nor will the
+outline's for "clip's" or "subtract's" inside "Group's" also won't be visible (more common);
+
+In these cases the workaround is just as before this was made available, to build up
+the outlines desired using combinations of other shapes such as curves, clipped or
+subtracted shapes, convential pre-applied outlines, etc.
 
     circle 10
         |> filled red
@@ -1826,11 +1862,15 @@ addOutline : LineType -> Color -> Shape userMsg -> Shape userMsg
 addOutline style outlineClr shape =
     let
         lineStyle =
-            ( style, outlineClr )
+            case style of
+                NoLine ->
+                    Nothing
+                _ ->
+                    Just ( style, outlineClr )
     in
     case shape of
-        Inked clr outline sh ->
-            Inked clr (Just lineStyle) sh
+        Inked clr _ st ->
+            Inked clr lineStyle st
 
         Move s sh ->
             Move s (addOutline style outlineClr sh)
@@ -1842,8 +1882,61 @@ addOutline style outlineClr shape =
             ScaleXY sx sy (addOutline style outlineClr sh)
 
         Group list ->
-            Group list
+            let innerlist =
+                    List.filterMap
+                        (\shp ->
+                            case shp of
+                                -- remove old outline shape
+                                GroupOutline _ -> Nothing
+                                _ -> Just <| addOutline NoLine black shp)
+                        list
+                len = List.length innerlist
+            in
+            if len <= 1 then
+                case innerlist of
+                    [] -> {- should never happen -} Group []
+                    hd::_ -> addOutline style outlineClr hd
+            else if lineStyle == Nothing then Group innerlist else
+            let outlnshp =
+                    GroupOutline <|
+                        subtract
+                            (Group (List.map (addOutline style outlineClr) innerlist))
+                            (Group innerlist)
+            in
+            Group <| innerlist ++ [ outlnshp ]
+        
+        AlphaMask reg sh ->
+            let ptrn = addOutline NoLine black reg
+                inside = addOutline NoLine black sh
+            in
+            if lineStyle == Nothing then AlphaMask ptrn inside else
+            let ptrnlnd = addOutline style outlineClr reg
+                newshp = addOutline style outlineClr sh
+                ptrnoutln = clip ptrnlnd newshp
+                shpoutln = clip newshp inside
+            in
+            AlphaMask ptrn <|
+            Group
+                [ inside
+                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                ]
 
+        Clip sh1 sh2 ->
+            let ptrn = addOutline NoLine black sh1
+                inside = addOutline NoLine black sh2
+            in
+            if lineStyle == Nothing then Clip ptrn inside else
+            let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
+                newshp = addOutline style outlineClr sh2
+                ptrnoutln = clip ptrnlnd newshp
+                shpoutln = clip newshp inside
+            in
+            Clip ptrn <|
+                Group
+                    [ inside
+                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                    ]
+    
         a ->
             a
 
@@ -1865,11 +1958,11 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) sh ->
-            Inked (RGBA r g b (a * alpha)) (Just ( lineType, RGBA sr sg sb (sa * alpha) )) sh
+        Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) st ->
+            Inked (RGBA r g b (a * alpha)) (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
 
-        Inked (RGBA r g b a) Nothing sh ->
-            Inked (RGBA r g b (a * alpha)) Nothing sh
+        Inked (RGBA r g b a) Nothing st ->
+            Inked (RGBA r g b (a * alpha)) Nothing st
 
         ForeignObject w h htm ->
             ForeignObject w h htm
@@ -1886,6 +1979,9 @@ makeTransparent alpha shape =
         Group list ->
             Group (List.map (makeTransparent alpha) list)
 
+        GroupOutline cmbndshp ->
+            GroupOutline (makeTransparent alpha cmbndshp)
+        
         Link s sh ->
             Link s (makeTransparent alpha sh)
 
@@ -1893,7 +1989,7 @@ makeTransparent alpha shape =
             AlphaMask reg (makeTransparent alpha sh)
 
         Clip reg sh ->
-            Clip (makeTransparent alpha reg) sh
+            Clip reg (makeTransparent alpha sh)
 
         Everything ->
             Everything
@@ -1952,6 +2048,13 @@ makeTransparent alpha shape =
 
 
 --Line styles
+
+
+{-| Define a`LineType` that doesn't exist, doesn't appear.
+-}
+noline : () -> LineType
+noline() =
+    NoLine
 
 
 {-| Define a solid `LineType` with the given width.
@@ -2365,7 +2468,7 @@ hsla h s l a =
 -}
 clip : Shape userMsg -> Shape userMsg -> Shape userMsg
 clip shape1 shape2 =
-    Clip shape1 shape2
+    Clip shape2 shape1
 
 
 {-| Shape union
@@ -2385,14 +2488,14 @@ union shape1 shape2 =
 -}
 subtract : Shape userMsg -> Shape userMsg -> Shape userMsg
 subtract shape1 shape2 =
-    AlphaMask (Group [ Everything, shape1 |> repaint black ]) shape2
+    AlphaMask (shape2) shape1
 
 
 {-| The whole region outside the given `Shape`.
 -}
 outside : Shape userMsg -> Shape userMsg
 outside shape =
-    AlphaMask (Group [ Everything, shape |> repaint black ]) shape
+    AlphaMask (shape) shape
 
 
 
