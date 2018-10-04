@@ -1774,7 +1774,7 @@ ghost stencil =
 
 {-| Repaint an already-`filled` `Shape`. This is helpful for repainting every `Shape` inside a `group` as well.
 
-Repaints the outline the same color as the body of the shape
+Repaints the outline the same color as the body of the shape including the outline, if used.
 
     group
         [ circle 10

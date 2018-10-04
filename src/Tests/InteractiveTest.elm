@@ -1512,10 +1512,7 @@ testfinished =
 
 tests : Tests
 tests =
-    [ test38
-    , test39
-    , test40
-    , test0
+    [ test0
     , test1
     , test2
 
@@ -1555,6 +1552,8 @@ tests =
     , test36
     , test37
     , test38
+    , test39
+    , test40
 
     --    , testn etc.
     ]
