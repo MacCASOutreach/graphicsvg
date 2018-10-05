@@ -758,10 +758,10 @@ createGraph : (Float, Float) -> Float -> Float -> Color -> Shape userMsg
 createGraph (w,h) s th c =
     let
         sxi =
-            ceiling (w / s / 2)
+            ceiling (w / (s * 2))
 
         syi =
-            ceiling (h / s / 2)
+            ceiling (h / (s * 2))
 
         xlisti =
             List.range -sxi sxi
