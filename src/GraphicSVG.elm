@@ -755,7 +755,10 @@ graphPaper s =
 -}
 graphPaperCustom : Float -> Float -> Color -> Shape userMsg
 graphPaperCustom s th c =
-    GraphPaper s th c
+    if th < s then
+        GraphPaper s th c
+    else
+        group []
 
 createGraph : (Float, Float) -> Float -> Float -> Color -> Shape userMsg
 createGraph (w,h) s th c =
