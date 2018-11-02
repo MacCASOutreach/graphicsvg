@@ -746,16 +746,14 @@ oval w h =
 -}
 graphPaper : Float -> Shape userMsg
 graphPaper s =
-    if s >= 2 then
-        GraphPaper s 1 (RGBA 135 206 250 1)
-    else
-        group []
+    GraphPaper s 1 (RGBA 135 206 250 1)
+
 
 {-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
 -}
 graphPaperCustom : Float -> Float -> Color -> Shape userMsg
 graphPaperCustom s th c =
-    if th < s then
+    if s >= 2 then
         GraphPaper s th c
     else
         group []
