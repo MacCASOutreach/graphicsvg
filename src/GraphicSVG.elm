@@ -148,7 +148,7 @@ type Stencil
 -}
 type Shape userMsg
     = Inked Color (Maybe ( LineType, Color )) Stencil
-    | ForeignObject Float Float (Html.Html userMsg) 
+    | ForeignObject Float Float (Html.Html userMsg)
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
     | ScaleXY Float Float (Shape userMsg)
@@ -746,13 +746,19 @@ oval w h =
 -}
 graphPaper : Float -> Shape userMsg
 graphPaper s =
-    GraphPaper s 1 (RGBA 135 206 250 1)
+    if s >= 2 then
+        GraphPaper s 1 (RGBA 135 206 250 1)
+    else
+        group []
 
 {-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
 -}
 graphPaperCustom : Float -> Float -> Color -> Shape userMsg
 graphPaperCustom s th c =
-    GraphPaper s th c
+    if th < s then
+        GraphPaper s th c
+    else
+        group []
 
 createGraph : (Float, Float) -> Float -> Float -> Color -> Shape userMsg
 createGraph (w,h) s th c =
