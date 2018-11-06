@@ -743,12 +743,12 @@ which will be automatically called each time the browser window is refreshed
 of the form `Float -> GetKeyState -> UserMsg` and the other is
 ```
 {
-  init = model
-, view = view
-, update = update
-, subscriptions = subscriptions
-, onUrlRequest = OnUrlRequest
-, onUrlChange = OnUrlChange
+    init = model
+,   view = view
+,   update = update
+,   subscriptions = subscriptions
+,   onUrlRequest = OnUrlRequest
+,   onUrlChange = OnUrlChange
 }
 where init is the model and initial commands, view is a collage and a title,
 update is the usual update function with commands, subscriptions are things

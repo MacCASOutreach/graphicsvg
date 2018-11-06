@@ -19,6 +19,11 @@ they are built upon `GraphicSVG.ellieApp` for compatibility with that platform.
 
 @docs InputHandler, GetKeyState, Keys, KeyState
 
+
+# Barebones ellieApp with keyboard and time
+
+@docs EllieAppWithTick, ellieAppWithTick
+
 -}
 
 import Browser exposing (UrlRequest(..))
@@ -455,29 +460,27 @@ type alias NotificationsApp userModel userMsg =
 graphics. Note that your `view` function needs a `model` parameter now, which in this
 example is the colour of the shape:
 view model =
-collage 500 500
-[ circle 10 |> filled model |> notifyTap Change
-][ circle 10 |> filled model |> notifyTap Change
-]
+    collage 500 500
+        [ circle 10 |> filled model |> notifyTap Change
+        ]
 `notificationsApp` takes a parameter like:
 {
-model = model
-, view = view
-, update = update
+    model = model
+,   view = view
+,   update = update
 }
 so the functions that would be required to make the above `view` function work
 are as follows:
-type Msg
-= Change
+type Msg = Change
 update msg model =
-case msg of
-Change ->
-green
-main =
-notificationsApp
-{ model = red -- causes circle to start red
-, update = update -- function which changes the model
-, view = view
+    case msg of
+        Change ->
+            green
+main = notificationsApp
+{   
+    model = red -- causes circle to start red
+,   update = update -- function which changes the model
+,   view = view
 }
 which will cause the drawn red circle to change to green the first time
 it is mouse clicked or tapped.
@@ -718,7 +721,7 @@ they can be substituted for these names.
 type alias EllieAppWithTick flags userModel userMsg =
     App flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
-{-
+{-|
 A GraphicSVG.ellieApp with automatic time and keyboard presses passed into the update function.
 `ellieAppWithTick` takes two parameters: one is your own type of `InputHandler` message
 which will be automatically called each time the browser window is refreshed
@@ -726,10 +729,10 @@ which will be automatically called each time the browser window is refreshed
 of the form `Float -> GetKeyState -> UserMsg` and the other is
 ```
 {
-  init = model
-, view = view
-, update = update
-, subscriptions = subscriptions
+    init = model
+,   view = view
+,   update = update
+,   subscriptions = subscriptions
 }
 where init is the model and initial commands, view is a collage and a title,
 update is the usual update function with commands, and subscriptions are things
