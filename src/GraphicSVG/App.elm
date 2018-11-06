@@ -20,6 +20,11 @@ and other applications including response to time, keyboard presses, and mouse a
 
 @docs InputHandler, GetKeyState, Keys, KeyState
 
+
+# Barebones app with keyboard and time
+
+@docs AppWithTick, appWithTick
+
 -}
 
 import Browser exposing (UrlRequest(..))
@@ -709,11 +714,28 @@ hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
             ( ( userModel, hiddenModel ), Cmd.none )
 
 
+{-| This type alias is only used as a target for a user `main` type signature to make
+the type signature more clear and concise when `main` calls `gameApp`:
+main : GameApp Model Msg
+main =
+    appWithTick Tick
+        { model = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        , onUrlRequest = OnUrlRequest
+        , onUrlChange = OnUrlChange
+        }
+where `Tick` is the message handler called once per browser window update,
+`Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type; if other names are used,
+they can be substituted for these names.
+-}
 type alias AppWithTick flags userModel userMsg =
     App flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
 
-{-
+{-|
 A GraphicSVG.app with automatic time and keyboard presses passed into the update function.
 `appWithTick` takes two parameters: one is your own type of `InputHandler` message
 which will be automatically called each time the browser window is refreshed

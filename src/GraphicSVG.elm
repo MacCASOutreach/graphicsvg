@@ -38,6 +38,11 @@ other applications including keyboard presses and mouse movements.
 @docs App, app
 
 
+# EllieApp
+
+@docs EllieApp, ellieApp
+
+
 # Stencils
 
 @docs line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
