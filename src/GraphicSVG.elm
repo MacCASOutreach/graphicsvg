@@ -2,6 +2,7 @@ module GraphicSVG exposing
     ( Stencil, Shape, Collage, GraphicSVG
     , collage, mapCollage
     , App, app
+    , EllieApp, ellieApp
     , line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
     , filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
     , group
@@ -363,7 +364,7 @@ type Pull
     , update = \userMsg userModel -> ( userModel, Cmd userMsg )
     , subscriptions = \userModel -> Sub userMsg
     , onUrlRequest = \urlRequest -> userMsg
-    ,onUrlChange = \url -> userMsg
+    , onUrlChange = \url -> userMsg
     }
 
 This matches the Elm architecture and is analogous to `Browser.application`.
@@ -405,7 +406,7 @@ app input =
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
-the type signature more clear and concise when `main` calls `cmdApp`:
+the type signature more clear and concise when `main` calls `app`:
 
     main : App Flags Model Msg
     main =
@@ -502,6 +503,78 @@ hiddenAppView userView ( userModel, _ ) =
             userViewEval.body
     in
     { title = title, body = [ createCollage w h shapes ] }
+
+{-| This type alias is only used as a target for a user `main` type signature to make
+the type signature more clear and concise when `main` calls `ellieApp`:
+
+    main : EllieApp Flags Model Msg
+    main =
+        ellieApp Tick
+            { init = init
+            , update = update
+            , view = view
+            , subscriptions = subscriptions
+            }
+
+where `Tick` is a message handler called once per browser window update,
+`Flags` is the type alias (or type) of the flags input from JavaScript
+`Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type; if other names are used,
+they can just be substituted for these names.
+
+Note that "type alias" could also be an ordinary "type" in all case,
+just that the syntax for producing a new type is not as clean as using a
+type alias for a record.
+
+-}
+type alias EllieApp flags userModel userMsg =
+    Program flags ( userModel, HiddenModel ) (Msg userMsg)
+
+{-| Advanced Function Warning! ellieApp takes one parameter of its own type of the form:
+
+    {
+      init = \flags url key -> (model, cmd)
+    , view = \model -> { title = "Your Title goes here",
+                       , body = view model
+                       }
+    , update = \userMsg userModel -> ( userModel, Cmd userMsg )
+    , subscriptions = \userModel -> Sub userMsg
+    }
+
+This matches the Elm architecture and is analogous to `Browser.document`.
+It is called ellieApp because this version is compatible with the online
+Elm IDE Ellie.
+
+-}
+ellieApp :
+    { init : flags -> ( userModel, Cmd userMsg )
+    , update : userMsg -> userModel -> ( userModel, Cmd userMsg )
+    , view : userModel -> { title : String, body : Collage userMsg }
+    , subscriptions : userModel -> Sub userMsg
+    }
+    -> EllieApp flags userModel userMsg
+ellieApp input =
+    Browser.document
+        { init =
+            \flags ->
+                let
+                    userInit =
+                        Tuple.first <| input.init flags
+
+                    userView =
+                        (input.view userInit).body
+
+                    (Collage ( initW, initH ) _) =
+                        userView
+
+                    userInitCmd =
+                        Tuple.second <| input.init flags
+                in
+                ( ( userInit, { initHiddenModel | cw = initW, ch = initH } ), initialCmd <| Cmd.map Graphics userInitCmd )
+        , update = hiddenAppUpdate input.view input.update
+        , view = hiddenAppView input.view
+        , subscriptions = subs <| input.subscriptions
+        }
 
 
 convertCoords : ( Float, Float ) -> HiddenModel -> ( Float, Float )

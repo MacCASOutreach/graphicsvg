@@ -22,6 +22,7 @@ main =
         { model = init
         , update = update
         , view = view
+        , title = "GameApp Template"
         }
 
 
