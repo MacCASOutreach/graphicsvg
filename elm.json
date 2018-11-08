@@ -3,7 +3,7 @@
     "name": "MacCASOutreach/graphicsvg",
     "summary": "Library for creating SVG graphics",
     "license": "BSD-3-Clause",
-    "version": "4.1.0",
+    "version": "5.0.0",
     "exposed-modules": [
         "GraphicSVG",
         "GraphicSVG.App",
