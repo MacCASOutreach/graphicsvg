@@ -1,5 +1,5 @@
 module GraphicSVG exposing
-    ( Stencil, Shape, Collage, GraphicSVG
+    ( Stencil, Shape, Collage(..), GraphicSVG
     , collage, mapCollage
     , App, app
     , EllieApp, ellieApp
