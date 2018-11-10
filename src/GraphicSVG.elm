@@ -8,8 +8,7 @@ module GraphicSVG exposing
     , group
     , html
     , curve, Pull(..), curveHelper
-    , LineType, solid, dotted, dashed, longdash, dotdash, custom
-    , text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
+    , LineType, solid, dotted, dashed, longdash, dotdash, custom, text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY
     , clip, union, subtract, outside, ghost
     , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
@@ -74,7 +73,7 @@ other applications including keyboard presses and mouse movements.
 
 # Text
 
-@docs text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
+@docs text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
@@ -181,6 +180,7 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
+type FontAlign = AlignLeft | AlignCentred | AlignRight
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
 (Ask if you don't know what this means.)
@@ -334,8 +334,8 @@ type Face
         Bool
         -- selectable
         Font
-        -- centred
-        Bool
+        -- font alignment
+        FontAlign
 
 
 {-| The `Font` type describes the font of a text `Stencil`.
@@ -966,7 +966,7 @@ functions. Note that `|> filled ...` or `|> outlined ...` must go at the _end_ o
 -}
 text : String -> Stencil
 text str =
-    Text (Face 12 False False False False False Serif False) str
+    Text (Face 12 False False False False False Serif AlignLeft) str
 
 
 {-| Apply to a curve or group of curves in order to view their start points,
@@ -1579,7 +1579,7 @@ createSVG id w h trans shape =
                         )
                         []
 
-                Text (Face si bo i u s sel f cen) str ->
+                Text (Face si bo i u s sel f align) str ->
                     let
                         bol =
                             if bo then
@@ -1616,11 +1616,10 @@ createSVG id w h trans shape =
                                 ""
 
                         anchor =
-                            if cen then
-                                "middle"
-
-                            else
-                                "left"
+                            case align of
+                                AlignCentred -> "middle"
+                                AlignLeft -> "start"
+                                AlignRight -> "end"
 
                         font =
                             case f of
@@ -2167,13 +2166,35 @@ selectable stencil =
             a
 
 
+{-| Apply to a `text` `Stencil` to right-align the text.
+-}
+alignRight : Stencil -> Stencil
+alignRight stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignRight) str
+
+        a ->
+            a
+
 {-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
 centered stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face si bo i u s sel f True) str
+            Text (Face si bo i u s sel f AlignCentred) str
+
+        a ->
+            a
+
+{-| Apply to a `text` `Stencil` to left-align the text.
+-}
+alignLeft : Stencil -> Stencil
+alignLeft stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignLeft) str
 
         a ->
             a
