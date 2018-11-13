@@ -1,5 +1,5 @@
 import GraphicSVG exposing (..)
-import GraphicSVG.App exposing (graphicsApp,GraphicsApp)
+import GraphicSVG.EllieApp exposing (graphicsApp,GraphicsApp)
 
 main : GraphicsApp
 main = graphicsApp 

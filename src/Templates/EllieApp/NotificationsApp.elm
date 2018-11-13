@@ -1,5 +1,5 @@
 import GraphicSVG exposing (..)
-import GraphicSVG.App exposing (notificationsApp, NotificationsApp, GetKeyState)
+import GraphicSVG.EllieApp exposing (notificationsApp, NotificationsApp, GetKeyState)
 
 type alias Model = 
     { radius : Float }

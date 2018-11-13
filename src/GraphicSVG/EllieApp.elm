@@ -379,8 +379,6 @@ type HiddenMsg userMsg
     | TickTime Time.Posix
     | KeyDown Int
     | KeyUp Int
-    | URLRequest Browser.UrlRequest
-    | URLChanged Url.Url
 
 
 {-| This type alias is only used as a target for a user `main` type signature
@@ -392,7 +390,7 @@ graphicsApp { view = view }
 Note that `userMsg` can be anything as no messages are used in this type of program.
 -}
 type alias GraphicsApp =
-    App D.Value () (HiddenMsg ())
+    EllieApp () () ()
 
 
 {-| The simplest way to render graphics to the screen. These graphics will be
@@ -416,29 +414,11 @@ graphicsApp :
     -> GraphicsApp
 graphicsApp userApp =
     GraphicSVG.ellieApp
-        { init = \_ -> ( (), Task.perform InitTime Time.now )
-        , update = hiddenGraphicsUpdate
-        , view = \userModel -> { title = "GraphicSVG Graphics App", body = mapCollage UserMsg userApp.view }
+        { init = \_ -> ( (), Cmd.none )
+        , update = \_ _ -> ( (), Cmd.none )
+        , view = \_ -> { title = "GraphicSVG Graphics App", body = userApp.view }
         , subscriptions = \_ -> Sub.none
         }
-
-
-hiddenGraphicsUpdate :
-    HiddenMsg userMsg
-    -> ()
-    -> ( (), Cmd (HiddenMsg userMsg) )
-hiddenGraphicsUpdate msg key =
-    case msg of
-        URLRequest urlreq ->
-            case urlreq of
-                External url ->
-                    ( (), Nav.load url )
-
-                _ ->
-                    ( (), Cmd.none )
-
-        _ ->
-            ( (), Cmd.none )
 
 
 {-| This type alias is only used as a target for a user `main` type signature
@@ -452,7 +432,7 @@ where `Model` is the type alias of the user persistent model, and
 if other names are used, they can be substituted for these names.
 -}
 type alias NotificationsApp userModel userMsg =
-    App D.Value userModel (HiddenMsg userMsg)
+    EllieApp () userModel (HiddenMsg userMsg)
 
 
 {-| Like `graphicsApp`, but you can add interactivity to your graphics by using the
@@ -503,7 +483,7 @@ notificationsApp userApp =
             userApp.view
     in
     GraphicSVG.ellieApp
-        { init = \_ -> ( userInit, Task.perform InitTime Time.now )
+        { init = \_ -> ( userInit, Cmd.none )
         , update = hiddenNotifUpdate userUpdate
         , view = \userModel -> { title = "GraphicSVG Interactive App", body = mapCollage UserMsg <| userView userModel }
         , subscriptions = \_ -> Sub.none
@@ -519,17 +499,6 @@ hiddenNotifUpdate userUpdate msg userModel =
     case msg of
         UserMsg userMsg ->
             ( userUpdate userMsg userModel, Cmd.none )
-
-        URLRequest urlreq ->
-            case urlreq of
-                External url ->
-                    ( userModel, Nav.load url )
-
-                _ ->
-                    ( userModel, Cmd.none )
-
-        URLChanged url ->
-            ( userModel, Cmd.none )
 
         _ ->
             ( userModel, Cmd.none )
@@ -559,7 +528,7 @@ where `Tick` is the message handler called once per browser window update,
 they can be substituted for these names.
 -}
 type alias GameApp userModel userMsg =
-    App D.Value ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
+    EllieApp () ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
 
 {-| Automatically maps time and keyboard presses to your program. This should
@@ -690,17 +659,6 @@ hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
         KeyUp keyCode ->
             ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys keyCode WentUp } ), Cmd.none )
 
-        URLRequest urlreq ->
-            case urlreq of
-                External url ->
-                    ( ( userModel, hiddenModel ), Nav.load url )
-
-                _ ->
-                    ( ( userModel, hiddenModel ), Cmd.none )
-
-        URLChanged url ->
-            ( ( userModel, hiddenModel ), Cmd.none )
-
 {-| This type alias is only used as a target for a user `main` type signature to make
 the type signature more clear and concise when `main` calls `gameApp`:
 ```
@@ -719,7 +677,7 @@ where `Tick` is the message handler called once per browser window update,
 they can be substituted for these names.
 -}
 type alias EllieAppWithTick flags userModel userMsg =
-    App flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
+    EllieApp flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
 {-|
 A GraphicSVG.ellieApp with automatic time and keyboard presses passed into the update function.
@@ -830,6 +788,3 @@ hiddenTickUpdate userUpdate msg ( userModel, hiddenModel ) =
 
         KeyUp keyCode ->
             ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys keyCode WentUp } ), Cmd.none )
-
-        _ ->
-            ( ( userModel, hiddenModel ), Cmd.none )

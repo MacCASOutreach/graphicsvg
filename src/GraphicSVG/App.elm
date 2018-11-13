@@ -393,7 +393,7 @@ graphicsApp { view = view }
 Note that `userMsg` can be anything as no messages are used in this type of program.
 -}
 type alias GraphicsApp =
-    App D.Value () (HiddenMsg ())
+    App () () (HiddenMsg ())
 
 
 {-| The simplest way to render graphics to the screen. These graphics will be
@@ -417,7 +417,7 @@ graphicsApp :
     -> GraphicsApp
 graphicsApp userApp =
     GraphicSVG.app
-        { init = \_ _ _ -> ( (), Task.perform InitTime Time.now )
+        { init = \_ _ _ -> ( (), Cmd.none )
         , update = hiddenGraphicsUpdate
         , view = \userModel -> { title = "GraphicSVG Interactive App", body = mapCollage UserMsg userApp.view }
         , subscriptions = \_ -> Sub.none
@@ -455,7 +455,7 @@ where `Model` is the type alias of the user persistent model, and
 if other names are used, they can be substituted for these names.
 -}
 type alias NotificationsApp userModel userMsg =
-    App D.Value userModel (HiddenMsg userMsg)
+    App () userModel (HiddenMsg userMsg)
 
 
 {-| Like `graphicsApp`, but you can add interactivity to your graphics by using the
@@ -565,7 +565,7 @@ where `Tick` is the message handler called once per browser window update,
 they can be substituted for these names.
 -}
 type alias GameApp userModel userMsg =
-    App D.Value ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
+    App () ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
 
 {-| Automatically maps time and keyboard presses to your program. This should
