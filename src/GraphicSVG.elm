@@ -2109,26 +2109,26 @@ addOutline style outlineClr shape =
             Inked clr _ st ->
                 Inked clr lineStyle st
 
-                Move s sh ->
-                    Move s (addOutline style outlineClr sh)
+            Move s sh ->
+                Move s (addOutline style outlineClr sh)
 
-                Rotate r sh ->
-                    Rotate r (addOutline style outlineClr sh)
+            Rotate r sh ->
+                Rotate r (addOutline style outlineClr sh)
 
-                Scale sx sy sh ->
-                    Scale sx sy (addOutline style outlineClr sh)
+            Scale sx sy sh ->
+                Scale sx sy (addOutline style outlineClr sh)
 
-             Group list ->
-                 let 
-                     innerlist =
-                         List.filterMap
-                             (\shp ->
+            Group list ->
+                let 
+                    innerlist =
+                        List.filterMap
+                            (\shp ->
                                 case shp of
                                     -- remove old outline shape
                                     GroupOutline _ -> Nothing
                                     _ -> Just <| addOutline NoLine black shp
-                             ) list
-                     len = List.length innerlist
+                            ) list
+                    len = List.length innerlist
                  in
                     if len <= 1 then
                         case innerlist of
@@ -2136,47 +2136,47 @@ addOutline style outlineClr shape =
                             hd::_ -> addOutline style outlineClr hd
                     else if lineStyle == Nothing then Group innerlist else
                         let outlnshp =
-                            GroupOutline <|
-                                subtract
-                                    (Group (List.map (addOutline style outlineClr) innerlist))
-                                    (Group innerlist)
+                                GroupOutline <|
+                                    subtract
+                                        (Group (List.map (addOutline style outlineClr) innerlist))
+                                        (Group innerlist)
                         in
                             Group <| innerlist ++ [ outlnshp ]
         
-        AlphaMask reg sh ->
-            let ptrn = addOutline NoLine black reg
-                inside = addOutline NoLine black sh
-            in
-                if lineStyle == Nothing then AlphaMask ptrn inside else
-                    let ptrnlnd = addOutline style outlineClr reg
-                        newshp = addOutline style outlineClr sh
-                        ptrnoutln = clip ptrnlnd newshp
-                        shpoutln = clip newshp inside
-                    in
-                        AlphaMask ptrn <|
-                            Group
-                                [ inside
-                                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                                ]
+            AlphaMask reg sh ->
+                let ptrn = addOutline NoLine black reg
+                    inside = addOutline NoLine black sh
+                in
+                    if lineStyle == Nothing then AlphaMask ptrn inside else
+                        let ptrnlnd = addOutline style outlineClr reg
+                            newshp = addOutline style outlineClr sh
+                            ptrnoutln = clip ptrnlnd newshp
+                            shpoutln = clip newshp inside
+                        in
+                            AlphaMask ptrn <|
+                                Group
+                                    [ inside
+                                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                                    ]
 
-        Clip sh1 sh2 ->
-            let ptrn = addOutline NoLine black sh1
-                inside = addOutline NoLine black sh2
-            in
-                if lineStyle == Nothing then Clip ptrn inside else
-                    let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
-                        newshp = addOutline style outlineClr sh2
-                        ptrnoutln = clip ptrnlnd newshp
-                        shpoutln = clip newshp inside
-                    in
-                        Clip ptrn <|
-                            Group
-                                [ inside
-                                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                                ]
-    
-        a ->
-            a
+            Clip sh1 sh2 ->
+                let ptrn = addOutline NoLine black sh1
+                    inside = addOutline NoLine black sh2
+                in
+                    if lineStyle == Nothing then Clip ptrn inside else
+                        let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
+                            newshp = addOutline style outlineClr sh2
+                            ptrnoutln = clip ptrnlnd newshp
+                            shpoutln = clip newshp inside
+                        in
+                            Clip ptrn <|
+                                Group
+                                    [ inside
+                                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                                    ]
+        
+            a ->
+                a
 
 
 {-| Make a `Shape` transparent by the fraction given. Multiplies on top of other transparencies:
