@@ -1,15 +1,17 @@
 module GraphicSVG exposing
-    ( Stencil, Shape, Collage, GraphicSVG
+    ( Stencil, Shape, Collage(..), GraphicSVG
     , collage, mapCollage
     , App, app
+    , EllieApp, ellieApp
     , line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
     , filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
     , group
     , html
     , curve, Pull(..), curveHelper
     , LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
-    , text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
-    , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY
+    , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
+    , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
+    , Transform, ident, moveT, rotateT, rotateAboutT, scaleT, skewT, transform
     , clip, union, subtract, outside, ghost
     , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
     , makeTransparent, addHyperlink, puppetShow
@@ -37,6 +39,11 @@ other applications including keyboard presses and mouse movements.
 @docs App, app
 
 
+# EllieApp
+
+@docs EllieApp, ellieApp
+
+
 # Stencils
 
 @docs line, polygon, openPolygon, ngon, triangle, rightTriangle, isosceles, sideAngleSide, square, rect, rectangle, roundedRect, circle, oval, wedge
@@ -53,6 +60,8 @@ other applications including keyboard presses and mouse movements.
 
 
 # Rendering HTML
+This feature is still very much experimental. Cross-platform support is
+not guaranteed and weird things can happen.
 
 @docs html
 
@@ -68,12 +77,12 @@ other applications including keyboard presses and mouse movements.
 
 # Text
 
-@docs text, size, bold, italic, underline, strikethrough, centered, selectable, sansserif, serif, fixedwidth, customFont
+@docs text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
 
 
 # Transformations
 
-@docs move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY
+@docs move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
 
 
 # Group Operations
@@ -100,13 +109,21 @@ other applications including keyboard presses and mouse movements.
 
 @docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
+
+# Advanced Transformations
+_Advanced section warning!_ These functions provide a way to interface on a lower 
+level to the transformations normally handled in the background by GraphicSVG.
+Most users should be happy to use the regular functions applied directly to shapes,
+which are provided in the section above this one.
+
+@docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
    for the McMaster University Computing and Software Outreach Program
    and CompSci 1JC3, with input and testing from the rest of the Outreach
    team.
-   Last updated: September 27, 2018
+   Last updated: November 15th, 2018
 -}
 
 import Array
@@ -129,7 +146,6 @@ import Time exposing (..)
 import Tuple
 import Url exposing (Url)
 
-
 {-| A primitive template representing the shape you wish to draw. This must be turned into
 a `Shape` before being drawn to the screen with `collage` (see below).
 -}
@@ -151,7 +167,9 @@ type Shape userMsg
     | ForeignObject Float Float (Html.Html userMsg)
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
-    | ScaleXY Float Float (Shape userMsg)
+    | Scale Float Float (Shape userMsg)
+    | Skew Float Float (Shape userMsg)
+    | Transformed Transform (Shape userMsg)
     | Group (List (Shape userMsg))
     | GroupOutline (Shape userMsg)
     | AlphaMask (Shape userMsg) (Shape userMsg)
@@ -176,6 +194,7 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
+type FontAlign = AlignLeft | AlignCentred | AlignRight
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
 (Ask if you don't know what this means.)
@@ -195,8 +214,14 @@ map f sh =
         Rotate deg shape ->
             Rotate deg (map f shape)
 
-        ScaleXY sx sy shape ->
-            ScaleXY sx sy (map f shape)
+        Scale sx sy shape ->
+            Scale sx sy (map f shape)
+
+        Skew skx sky shape ->
+            Skew skx sky (map f shape)
+
+        Transformed tm shape ->
+            Transformed tm (map f shape)
 
         Link href shape ->
             Link href (map f shape)
@@ -272,8 +297,8 @@ map f sh =
 (Ask if you don't know what this means.)
 -}
 mapCollage : (a -> b) -> Collage a -> Collage b
-mapCollage f (Collage ( w, h ) shapes) =
-    Collage ( w, h ) (List.map (map f) shapes)
+mapCollage f (Collage w h shapes) =
+    Collage w h (List.map (map f) shapes)
 
 
 {-| The `GraphicSVG` type alias represents the drawable surface of the window.
@@ -333,8 +358,8 @@ type Face
         Bool
         -- selectable
         Font
-        -- centred
-        Bool
+        -- font alignment
+        FontAlign
 
 
 {-| The `Font` type describes the font of a text `Stencil`.
@@ -358,7 +383,7 @@ type Pull
     = Pull ( Float, Float ) ( Float, Float )
 
 
-{-| Advanced Function Warning! app takes one parameter of its own type of the form:
+{-| _Advanced Function Warning!_ `app` takes one parameter of its own type of the form:
 
     {
       init = \flags url key -> (model, cmd)
@@ -368,7 +393,7 @@ type Pull
     , update = \userMsg userModel -> ( userModel, Cmd userMsg )
     , subscriptions = \userModel -> Sub userMsg
     , onUrlRequest = \urlRequest -> userMsg
-    ,onUrlChange = \url -> userMsg
+    , onUrlChange = \url -> userMsg
     }
 
 This matches the Elm architecture and is analogous to `Browser.application`.
@@ -394,7 +419,7 @@ app input =
                     userView =
                         (input.view userInit).body
 
-                    (Collage ( initW, initH ) _) =
+                    (Collage initW initH _) =
                         userView
 
                     userInitCmd =
@@ -410,7 +435,7 @@ app input =
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
-the type signature more clear and concise when `main` calls `cmdApp`:
+the type signature more clear and concise when `main` calls `app`:
 
     main : App Flags Model Msg
     main =
@@ -458,7 +483,7 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
         mapUserCmd cmd =
             Cmd.map Graphics cmd
 
-        (Collage ( cw, ch ) _) =
+        (Collage cw ch _) =
             (userView userModel).body
     in
     case msg of
@@ -503,10 +528,82 @@ hiddenAppView userView ( userModel, _ ) =
         title =
             userViewEval.title
 
-        (Collage ( w, h ) shapes) =
+        (Collage w h  shapes) =
             userViewEval.body
     in
     { title = title, body = [ createCollage w h shapes ] }
+
+{-| This type alias is only used as a target for a user `main` type signature to make
+the type signature more clear and concise when `main` calls `ellieApp`:
+
+    main : EllieApp Flags Model Msg
+    main =
+        ellieApp Tick
+            { init = init
+            , update = update
+            , view = view
+            , subscriptions = subscriptions
+            }
+
+where `Tick` is a message handler called once per browser window update,
+`Flags` is the type alias (or type) of the flags input from JavaScript
+`Model` is the type alias of the user persistent model, and
+`Msg` is the name of the user message type; if other names are used,
+they can just be substituted for these names.
+
+Note that "type alias" could also be an ordinary "type" in all case,
+just that the syntax for producing a new type is not as clean as using a
+type alias for a record.
+
+-}
+type alias EllieApp flags userModel userMsg =
+    Program flags ( userModel, HiddenModel ) (Msg userMsg)
+
+{-| _Advanced Function Warning!_ `ellieApp` takes one parameter of its own type of the form:
+
+    {
+      init = \flags url key -> (model, cmd)
+    , view = \model -> { title = "Your Title goes here",
+                       , body = view model
+                       }
+    , update = \userMsg userModel -> ( userModel, Cmd userMsg )
+    , subscriptions = \userModel -> Sub userMsg
+    }
+
+This matches the Elm architecture and is analogous to `Browser.document`.
+It is called ellieApp because this version is compatible with the online
+Elm IDE Ellie.
+
+-}
+ellieApp :
+    { init : flags -> ( userModel, Cmd userMsg )
+    , update : userMsg -> userModel -> ( userModel, Cmd userMsg )
+    , view : userModel -> { title : String, body : Collage userMsg }
+    , subscriptions : userModel -> Sub userMsg
+    }
+    -> EllieApp flags userModel userMsg
+ellieApp input =
+    Browser.document
+        { init =
+            \flags ->
+                let
+                    userInit =
+                        Tuple.first <| input.init flags
+
+                    userView =
+                        (input.view userInit).body
+
+                    (Collage initW initH _) =
+                        userView
+
+                    userInitCmd =
+                        Tuple.second <| input.init flags
+                in
+                ( ( userInit, { initHiddenModel | cw = initW, ch = initH } ), initialCmd <| Cmd.map Graphics userInitCmd )
+        , update = hiddenAppUpdate input.view input.update
+        , view = hiddenAppView input.view
+        , subscriptions = subs <| input.subscriptions
+        }
 
 
 convertCoords : ( Float, Float ) -> HiddenModel -> ( Float, Float )
@@ -893,7 +990,7 @@ functions. Note that `|> filled ...` or `|> outlined ...` must go at the _end_ o
 -}
 text : String -> Stencil
 text str =
-    Text (Face 12 False False False False False Serif False) str
+    Text (Face 12 False False False False False Serif AlignLeft) str
 
 
 {-| Apply to a curve or group of curves in order to view their start points,
@@ -915,8 +1012,8 @@ curveHelper shape =
         Rotate r sh ->
             Rotate r (curveHelper sh)
 
-        ScaleXY sx sy sh ->
-            ScaleXY sx sy (curveHelper sh)
+        Scale sx sy sh ->
+            Scale sx sy (curveHelper sh)
 
         Group list ->
             Group (List.map curveHelper list)
@@ -1007,75 +1104,211 @@ createTopLevelList : ( ( a, b ), ( a, b ) ) -> List ( a, b )
 createTopLevelList ( ( a, b ), ( c, d ) ) =
     [ ( a, b ), ( c, d ) ]
 
-
-type alias Transform =
-    ( ( ( Float, Float )
-        -- normal transformation of whole group
-      , ( Float, Float )
-      , ( Float, Float )
-      )
-    , ( ( Float, Float ), Float, ( Float, Float ) )
-      -- scale/rotate/shift inside groups
-    )
+matrixMult : Transform -> Transform -> Transform
+matrixMult ( ( a , c , e ) , (b , d , f ) ) ( ( a1 , c1 , e1 ) , ( b1 , d1 , f1 ) ) =
+    ( ( a * a1 + c * b1 , a * c1 + c * d1 , e + a * e1 + c * f1 ) 
+    , ( b * a1 + d * b1 , b * c1 + d * d1 , f + b * e1 + d * f1 ) )
 
 
-coalesce :
-    ( ( ( Float, Float ), ( Float, Float ), ( Float, Float ) ), ( ( Float, Float ), Float, ( Float, Float ) ) )
-    -> ( ( ( Float, Float ), ( Float, Float ), ( Float, Float ) ), ( ( number, number ), number, ( number, number ) ) )
-coalesce ( ( ( a, b ), ( c, d ), ( tx, ty ) ), ( ( sx, sy ), rot, ( shx, shy ) ) ) =
-    let
-        sa =
-            sx * a
-
-        sb =
-            sy * b
-
-        sc =
-            sx * c
-
-        sd =
-            sy * d
-
-        rx =
-            cos rot
-
-        ry =
-            sin rot
-    in
-    ( ( ( rx * sa - ry * sb, ry * sa + rx * sb )
-      , ( rx * sc - ry * sd, ry * sc + rx * sd )
-      , ( tx + a * shx + c * shy, ty + b * shx + d * shy )
-      )
-    , ( ( 1, 1 ), 0, ( 0, 0 ) )
-    )
-
-
-ident : ( ( ( number, number ), ( number, number ), ( number, number ) ), ( ( number, number ), number, ( number, number ) ) )
+{-|
+The identity or "starting" matrix. Applying this matrix to a shape is the equivalent 
+of doing no transformations at all. The matrix itself looks like
+```
+ident = ( ( 1 , 0 , 0 ) , ( 0 , 1 , 0 ) )
+```
+or,
+```
+ 1 0 0
+ 0 1 0
+```
+-}
+ident : Transform
 ident =
-    ( ( ( 1, 0 )
-      , ( 0, 1 )
-      , ( 0, 0 )
-      )
-    , ( ( 1, 1 ), 0, ( 0, 0 ) )
+    (  
+        ( 1 , 0 , 0 )
+    ,   ( 0 , 1 , 0 )
     )
 
+{-|
+A matrix representing an SVG transformation matrix of the form:
+```
+( ( a , c , e ) , ( b , d , f ) )
+```
+or
+```
+ a c e
+ b d f
+```
 
-moveT : Transform -> ( Float, Float ) -> Transform
-moveT ( trans, ( s, r, ( tx, ty ) ) ) ( u, v ) =
-    ( trans, ( s, r, ( tx + u, ty + v ) ) )
+The a, c, b and d control transformations such as skew, rotate and scale;
+e and f control translation. 
+
+These matrices are best built up by starting with the identity matrix and
+applying any number of `*T` functions (see below); for example,
+```
+myTransform = 
+    ident 
+        |> scaleT 2 2
+        |> rotateT (degrees 30)
+        |> moveT (0, 50)
+```
+-}
+type alias Transform =
+    ( ( Float, Float, Float )
+    , ( Float, Float, Float )
+    )
+
+{-|
+Apply a move (translation) transformation to a transformation matrix.
+This is designed to be used as part of a pipe:
+```
+ident
+    |> moveT (15,-30.5)
+```
+-}
+moveT : ( Float, Float ) -> Transform -> Transform
+moveT ( u, v ) ( ( a , c , tx ) , ( b , d , ty ) ) =
+    ( ( a , c , tx + a * u + c * v ) 
+    , ( b , d , ty + b * u + d * v ) )
+
+{-|
+Apply a rotation transformation to a transformation matrix. 
+This is designed to be used as part of a pipe:
+```
+ident
+    |> moveT (15,-30.5)
+    |> rotateT (degrees -30)
+```
+-}
+rotateT : Float -> Transform -> Transform
+rotateT rad ( ( a , c , tx ) , ( b , d , ty ) ) =
+    let
+        sinX = sin rad
+        cosX = cos rad     
+    in    
+        ( ( a * cosX + c * sinX , c * cosX - a * sinX , tx ) 
+        , ( b * cosX + d * sinX , d * cosX - b * sinX , ty ) )
+
+{-|
+Apply a scale transformation to a transformation matrix. The first argument
+scales in x and the second argument scales in y. This is designed 
+to be used as part of a pipe:
+```
+ident
+    |> moveT (15,-30.5)
+    |> rotateT (degrees -30)
+    |> scaleT 4 0.4
+```
+-}
+scaleT : Float -> Float -> Transform  -> Transform
+scaleT sx sy ( ( a , c , tx ) , ( b , d , ty ) ) =
+    ( ( a * sx , c * sy , tx ) 
+    , ( b * sx , d * sy , ty ) )
 
 
-rotT : ( a, ( b, number, c ) ) -> number -> ( a, ( b, number, c ) )
-rotT ( trans, ( s, r, t ) ) rad =
-    ( trans, ( s, r + rad, t ) )
+{-|
+Apply a skew transformation to a matrix. The first argument
+skews in x and the second argument skews in y. This is designed 
+to be used as part of a pipe:
+```
+ident
+    |> moveT (15,-30.5)
+    |> rotateT (degrees -30)
+    |> scaleT 4 0.4
+    |> skewT 0.5 1.3
+```
+-}
+skewT : Float -> Float -> Transform  -> Transform
+skewT skx sky ( ( a , c , tx ) , ( b , d , ty ) ) =
+    let
+        tanX = tan -skx
+        tanY = tan -sky 
+    in         
+        ( ( a + c * tanY , c + a * tanX , tx ) 
+        , ( b + d * tanY , d + b * tanX , ty ) )
 
+{-|
+Apply a rotation about a given point to a `Transform` matrix. For example, 
+the following transform will rotate a `Shape` 30 degrees about the point (0,50):
+```
+rotateAbout050 =
+    ident
+        |> rotateAboutT (0, 50) (degrees 30)
+```
+-}
+rotateAboutT : (Float, Float) -> Float -> Transform -> Transform
+rotateAboutT (u, v) rad ( ( a , c , tx ) , ( b , d , ty ) ) =
+    let
+        sinX = sin rad
+        cosX = cos rad     
+    in  
+        ( ( a * cosX + c * sinX , c * cosX - a * sinX , tx + a * u + c * v - v * ( c * cosX - a * sinX ) - u * ( a * cosX + c * sinX ) ) 
+        , ( b * cosX + d * sinX , d * cosX - b * sinX , ty + b * u + d * v - v * ( d * cosX - b * sinX ) - u * ( b * cosX + d * sinX ) ) )
 
-scaleT :
-    ( a, ( ( number, number1 ), b, ( c, d ) ) )
-    -> ( number, number1 )
-    -> ( a, ( ( number, number1 ), b, ( c, d ) ) )
-scaleT ( trans, ( ( ssx, ssy ), r, ( shx, shy ) ) ) ( sx, sy ) =
-    ( trans, ( ( ssx * sx, ssy * sy ), r, ( shx, shy ) ) )
+{-|
+Manually transform a shape using a `Transform` matrix. Matrix multiplication will
+be used to apply the given matrix to any transformations of the current
+shape. This is designed to be used in the usual way in a pipe:
+```
+circle 10
+    |> filled red
+    |> transform moveLeft50
+
+moveLeft50 =
+    ident
+        |> moveT (50,0)
+```
+NOTE: Transformations generated using pipes this way are applied backwards compared 
+to the "regular" `Shape userMsg` transformation functions. For example, `rect0` and 
+`rect1` below are equivalent:
+```
+myTransform = 
+    ident 
+        |> scaleT 2 2
+        |> rotateT (degrees 30)
+        |> moveT (0, 50)
+
+rect0 = 
+    rect 20 10
+        |> filled red
+        |> transform myTransform
+
+rect1 =
+    rect 20 10
+        |> filled red
+        |> move (0, 50)
+        |> rotate (degrees 30)
+        |> scale 2
+```
+On the other hand, single transformations produce a result consistent with the
+`Shape userMsg` transformations. `rect2` is also equivalent to the two above:
+```
+moveRight50 = 
+    ident
+        |> moveT (50,0)
+
+scale2 = 
+    ident
+        |> scaleT 2 2
+
+rotate30 =
+    ident
+        |> rotateT (degrees 30)
+
+rect2 =
+    rect 20 10
+        |> filled red
+        |> transform moveRight50
+        |> transform scale2
+        |> transform rotate30
+```
+However, chaining together transformations in this way is discouraged because
+it is less efficient than the regular `Shape userMsg` transformations in
+the "Transformations" section.
+-}
+transform : Transform -> Shape userMsg -> Shape userMsg
+transform tm sh =
+    Transformed tm sh
 
 
 {-| The Collage type represents the drawable surface of the window which contains
@@ -1084,7 +1317,7 @@ not necessarily in pixels) to which the drawing surface will be scaled,
 and the \`List' of Shapes to be drawn on the drawing surface.
 -}
 type Collage userMsg
-    = Collage ( Float, Float ) (List (Shape userMsg))
+    = Collage Float Float (List (Shape userMsg))
 
 
 {-| Creates a blank canvas on which you can draw. Takes a width, height and a
@@ -1098,7 +1331,7 @@ list of `Shape`s. Use this in your `view` functions in the three types of Apps a
 -}
 collage : Float -> Float -> List (Shape userMsg) -> Collage userMsg
 collage w h shapes =
-    Collage ( w, h ) shapes
+    Collage w h shapes
 
 
 createCollage : Float -> Float -> List (Shape userMsg) -> Html.Html (Msg userMsg)
@@ -1388,8 +1621,7 @@ createSVG id w h trans shape =
     case shape of
         Inked fillClr lt stencil ->
             let
-                ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
-                    coalesce trans
+                ( ( a , c , tx ), ( b , d , ty ) ) = trans
 
                 attrs =
                     transAttrs ++ clrAttrs ++ strokeAttrs
@@ -1508,7 +1740,7 @@ createSVG id w h trans shape =
                         )
                         []
 
-                Text (Face si bo i u s sel f cen) str ->
+                Text (Face si bo i u s sel f align) str ->
                     let
                         bol =
                             if bo then
@@ -1545,11 +1777,10 @@ createSVG id w h trans shape =
                                 ""
 
                         anchor =
-                            if cen then
-                                "middle"
-
-                            else
-                                "left"
+                            case align of
+                                AlignCentred -> "middle"
+                                AlignLeft -> "start"
+                                AlignRight -> "end"
 
                         font =
                             case f of
@@ -1598,27 +1829,32 @@ createSVG id w h trans shape =
 
         ForeignObject fw fh htm ->
             let
-                ( ( ( a, b ), ( c, d ), ( tx, ty ) ), _ ) =
-                    coalesce trans
+                ( ( a , c , tx ) , ( b , d , ty ) ) = trans
             in
                 Svg.foreignObject [ width <| String.fromFloat fw, height <| String.fromFloat fh, Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map String.fromFloat [ a, -b, -c, d, tx, -ty ]) ++ ")" ] [ Html.map Graphics htm ]
 
         Move v sh ->
-            createSVG id w h (moveT trans v) sh
+            createSVG id w h (moveT v trans) sh
 
         Everything ->
             createSVG id w h ident (rect w h |> filled white)
 
         Rotate deg sh ->
-            createSVG id w h (rotT trans deg) sh
+            createSVG id w h (rotateT deg trans) sh
 
-        ScaleXY sx sy sh ->
-            createSVG id w h (scaleT trans ( sx, sy )) sh
+        Scale sx sy sh ->
+            createSVG id w h (scaleT sx sy trans) sh
+
+        Skew sx sy sh ->
+            createSVG id w h (skewT sx sy trans) sh
+
+        Transformed tm sh ->
+            createSVG id w h (matrixMult trans tm) sh
 
         Link href sh ->
             Svg.a
                 [ xlinkHref href, target "_blank" ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         AlphaMask region sh ->
             Svg.g []
@@ -1627,12 +1863,12 @@ createSVG id w h trans shape =
                         [ Svg.Attributes.id ("m" ++ id) ]
                         [ createSVG
                             (id ++ "m") w h
-                            (coalesce trans)
+                            trans
                             (Group [ Everything, region |> repaint black ]) ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ]
-                    [ createSVG (id ++ "mm") w h (coalesce trans) sh ]
+                    [ createSVG (id ++ "mm") w h trans sh ]
                 ]
 
         Clip region sh ->
@@ -1640,92 +1876,92 @@ createSVG id w h trans shape =
                 [ Svg.defs []
                     [ Svg.clipPath
                         [ Svg.Attributes.id ("c" ++ id) ]
-                        [ createSVG (id ++ "m") w h (coalesce trans) region ]
+                        [ createSVG (id ++ "m") w h trans region ]
                     ]
                 , Svg.g
                     [ clipPath ("url(#c" ++ id ++ ")") ]
-                    [ createSVG (id ++ "cc") w h (coalesce trans) sh ]
+                    [ createSVG (id ++ "cc") w h trans sh ]
                 ]
 
         Tap msg sh ->
             Svg.g
                 [ Html.Events.onClick (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TapAt msg sh ->
             Svg.g
                 [ onTapAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         EnterShape msg sh ->
             Svg.g
                 [ Html.Events.onMouseEnter (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         EnterAt msg sh ->
             Svg.g
                 [ onEnterAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         Exit msg sh ->
             Svg.g
                 [ Html.Events.onMouseLeave (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         ExitAt msg sh ->
             Svg.g
                 [ onLeaveAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         MouseDown msg sh ->
             Svg.g
                 [ Html.Events.onMouseDown (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         MouseDownAt msg sh ->
             Svg.g
                 [ onMouseDownAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         MouseUp msg sh ->
             Svg.g
                 [ Html.Events.onMouseUp (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         MouseUpAt msg sh ->
             Svg.g
                 [ onMouseUpAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         MoveOverAt msg sh ->
             Svg.g
                 [ onMoveAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TouchStart msg sh ->
             Svg.g
                 [ onTouchStart (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TouchEnd msg sh ->
             Svg.g
                 [ onTouchEnd (Graphics msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TouchStartAt msg sh ->
             Svg.g
                 [ onTouchStartAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TouchEndAt msg sh ->
             Svg.g
                 [ onTouchStartAt (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         TouchMoveAt msg sh ->
             Svg.g
                 [ onTouchMove (ReturnPosition msg) ]
-                [ createSVG id w h (coalesce trans) sh ]
+                [ createSVG id w h trans sh ]
 
         Group shapes ->
             Svg.g [] <|
@@ -1734,9 +1970,7 @@ createSVG id w h trans shape =
                         createSVG
                             (id ++ "g" ++ String.fromInt n)
                             w
-                            h
-                        <|
-                            coalesce trans
+                            h <| trans
                     )
                     shapes
 
@@ -1745,7 +1979,7 @@ createSVG id w h trans shape =
         
         GraphPaper s th c ->
             Svg.g []
-                [ createSVG id w h (coalesce trans) <| createGraph (w,h) s th c ]
+                [ createSVG id w h trans <| createGraph (w,h) s th c ]
 
 {-| Display HTML inside an SVG foreignObject.
 -}
@@ -1804,8 +2038,8 @@ repaint color shape =
         Rotate r sh ->
             Rotate r (repaint color sh)
 
-        ScaleXY sx sy sh ->
-            ScaleXY sx sy (repaint color sh)
+        Scale sx sy sh ->
+            Scale sx sy (repaint color sh)
 
         Group shapes ->
             Group (List.map (repaint color) shapes)
@@ -1821,7 +2055,6 @@ repaint color shape =
 
         a ->
             a
-
 
 {-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`.
 
@@ -1839,7 +2072,7 @@ outlined style outlineClr stencil =
                 _ ->
                     Just ( style, outlineClr )
     in
-    Inked (rgba 0 0 0 0) lineStyle stencil
+        Inked (rgba 0 0 0 0) lineStyle stencil
 
 
 {-| Add an outline to an already-filled `Shape`.
@@ -1872,74 +2105,75 @@ addOutline style outlineClr shape =
                 _ ->
                     Just ( style, outlineClr )
     in
-    case shape of
-        Inked clr _ st ->
-            Inked clr lineStyle st
+        case shape of
+            Inked clr _ st ->
+                Inked clr lineStyle st
 
-        Move s sh ->
-            Move s (addOutline style outlineClr sh)
+                Move s sh ->
+                    Move s (addOutline style outlineClr sh)
 
-        Rotate r sh ->
-            Rotate r (addOutline style outlineClr sh)
+                Rotate r sh ->
+                    Rotate r (addOutline style outlineClr sh)
 
-        ScaleXY sx sy sh ->
-            ScaleXY sx sy (addOutline style outlineClr sh)
+                Scale sx sy sh ->
+                    Scale sx sy (addOutline style outlineClr sh)
 
-        Group list ->
-            let innerlist =
-                    List.filterMap
-                        (\shp ->
-                            case shp of
-                                -- remove old outline shape
-                                GroupOutline _ -> Nothing
-                                _ -> Just <| addOutline NoLine black shp)
-                        list
-                len = List.length innerlist
-            in
-            if len <= 1 then
-                case innerlist of
-                    [] -> {- should never happen -} Group []
-                    hd::_ -> addOutline style outlineClr hd
-            else if lineStyle == Nothing then Group innerlist else
-            let outlnshp =
-                    GroupOutline <|
-                        subtract
-                            (Group (List.map (addOutline style outlineClr) innerlist))
-                            (Group innerlist)
-            in
-            Group <| innerlist ++ [ outlnshp ]
+             Group list ->
+                 let 
+                     innerlist =
+                         List.filterMap
+                             (\shp ->
+                                case shp of
+                                    -- remove old outline shape
+                                    GroupOutline _ -> Nothing
+                                    _ -> Just <| addOutline NoLine black shp
+                             ) list
+                     len = List.length innerlist
+                 in
+                    if len <= 1 then
+                        case innerlist of
+                            [] -> {- should never happen -} Group []
+                            hd::_ -> addOutline style outlineClr hd
+                    else if lineStyle == Nothing then Group innerlist else
+                        let outlnshp =
+                            GroupOutline <|
+                                subtract
+                                    (Group (List.map (addOutline style outlineClr) innerlist))
+                                    (Group innerlist)
+                        in
+                            Group <| innerlist ++ [ outlnshp ]
         
         AlphaMask reg sh ->
             let ptrn = addOutline NoLine black reg
                 inside = addOutline NoLine black sh
             in
-            if lineStyle == Nothing then AlphaMask ptrn inside else
-            let ptrnlnd = addOutline style outlineClr reg
-                newshp = addOutline style outlineClr sh
-                ptrnoutln = clip ptrnlnd newshp
-                shpoutln = clip newshp inside
-            in
-            AlphaMask ptrn <|
-            Group
-                [ inside
-                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                ]
+                if lineStyle == Nothing then AlphaMask ptrn inside else
+                    let ptrnlnd = addOutline style outlineClr reg
+                        newshp = addOutline style outlineClr sh
+                        ptrnoutln = clip ptrnlnd newshp
+                        shpoutln = clip newshp inside
+                    in
+                        AlphaMask ptrn <|
+                            Group
+                                [ inside
+                                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                                ]
 
         Clip sh1 sh2 ->
             let ptrn = addOutline NoLine black sh1
                 inside = addOutline NoLine black sh2
             in
-            if lineStyle == Nothing then Clip ptrn inside else
-            let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
-                newshp = addOutline style outlineClr sh2
-                ptrnoutln = clip ptrnlnd newshp
-                shpoutln = clip newshp inside
-            in
-            Clip ptrn <|
-                Group
-                    [ inside
-                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                    ]
+                if lineStyle == Nothing then Clip ptrn inside else
+                    let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
+                        newshp = addOutline style outlineClr sh2
+                        ptrnoutln = clip ptrnlnd newshp
+                        shpoutln = clip newshp inside
+                    in
+                        Clip ptrn <|
+                            Group
+                                [ inside
+                                , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                                ]
     
         a ->
             a
@@ -1977,8 +2211,14 @@ makeTransparent alpha shape =
         Rotate r sh ->
             Rotate r (makeTransparent alpha sh)
 
-        ScaleXY sx sy sh ->
-            ScaleXY sx sy (makeTransparent alpha sh)
+        Scale sx sy sh ->
+            Scale sx sy (makeTransparent alpha sh)
+
+        Skew skx sky sh ->
+            Skew skx sky (makeTransparent alpha sh)
+
+        Transformed tm sh ->
+            Transformed tm (makeTransparent alpha sh)
 
         Group list ->
             Group (List.map (makeTransparent alpha) list)
@@ -2192,13 +2432,35 @@ selectable stencil =
             a
 
 
+{-| Apply to a `text` `Stencil` to right-align the text.
+-}
+alignRight : Stencil -> Stencil
+alignRight stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignRight) str
+
+        a ->
+            a
+
 {-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
 centered stencil =
     case stencil of
         Text (Face si bo i u s sel f c) str ->
-            Text (Face si bo i u s sel f True) str
+            Text (Face si bo i u s sel f AlignCentred) str
+
+        a ->
+            a
+
+{-| Apply to a `text` `Stencil` to left-align the text.
+-}
+alignLeft : Stencil -> Stencil
+alignLeft stencil =
+    case stencil of
+        Text (Face si bo i u s sel f c) str ->
+            Text (Face si bo i u s sel f AlignLeft) str
 
         a ->
             a
@@ -2286,35 +2548,49 @@ move disp shape =
 -}
 scale : Float -> Shape userMsg -> Shape userMsg
 scale s shape =
-    ScaleXY s s shape
+    Scale s s shape
 
 
 {-| Scale a `Shape` in the x-axis by a given factor.
 -}
 scaleX : Float -> Shape userMsg -> Shape userMsg
 scaleX s shape =
-    ScaleXY s 1 shape
+    Scale s 1 shape
 
 
 {-| Scale a `Shape` in the y-axis by a given factor.
 -}
 scaleY : Float -> Shape userMsg -> Shape userMsg
 scaleY s shape =
-    ScaleXY 1 s shape
+    Scale 1 s shape
 
 
 {-| Flip a `Shape` along the x-axis.
 -}
 mirrorX : Shape userMsg -> Shape userMsg
 mirrorX shape =
-    ScaleXY -1 1 shape
+    Scale -1 1 shape
 
 
 {-| Flip a `Shape` along the y-axis.
 -}
 mirrorY : Shape userMsg -> Shape userMsg
 mirrorY shape =
-    ScaleXY 1 -1 shape
+    Scale 1 -1 shape
+
+
+{-| Skew a `Shape` along the x-axis.
+-}
+skewX : Float -> Shape userMsg -> Shape userMsg
+skewX skx shape =
+    Skew skx 0 shape
+
+
+{-| Skew a `Shape` along the y-axis.
+-}
+skewY : Float -> Shape userMsg -> Shape userMsg
+skewY sky shape =
+    Skew 0 sky shape
 
 
 {-| Combine any number of `Shape` types into one `Shape` that can be
