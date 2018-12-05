@@ -11,12 +11,12 @@ module GraphicSVG exposing
     , LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
     , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
-    , Transform, ident, moveT, rotateT, rotateAboutT, scaleT, skewT, transform
     , clip, union, subtract, outside, ghost
     , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+    , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
     )
 
 {-| A library for creating SVG graphics in a way that is compatible with Elm's
@@ -60,10 +60,12 @@ other applications including keyboard presses and mouse movements.
 
 
 # Rendering HTML
+
 This feature is still very much experimental. Cross-platform support is
 not guaranteed and weird things can happen.
 
 @docs html
+
 
 # Curves
 
@@ -111,12 +113,14 @@ not guaranteed and weird things can happen.
 
 
 # Advanced Transformations
-_Advanced section warning!_ These functions provide a way to interface on a lower 
+
+_Advanced section warning!_ These functions provide a way to interface on a lower
 level to the transformations normally handled in the background by GraphicSVG.
 Most users should be happy to use the regular functions applied directly to shapes,
 which are provided in the section above this one.
 
 @docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
@@ -145,6 +149,7 @@ import Task
 import Time exposing (..)
 import Tuple
 import Url exposing (Url)
+
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
 a `Shape` before being drawn to the screen with `collage` (see below).
@@ -175,6 +180,7 @@ type Shape userMsg
     | AlphaMask (Shape userMsg) (Shape userMsg)
     | Clip (Shape userMsg) (Shape userMsg)
     | Everything
+    | Notathing
     | Link String (Shape userMsg)
     | Tap userMsg (Shape userMsg)
     | TapAt (( Float, Float ) -> userMsg) (Shape userMsg)
@@ -194,7 +200,12 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
-type FontAlign = AlignLeft | AlignCentred | AlignRight
+
+type FontAlign
+    = AlignLeft
+    | AlignCentred
+    | AlignRight
+
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
 (Ask if you don't know what this means.)
@@ -234,6 +245,9 @@ map f sh =
 
         Everything ->
             Everything
+
+        Notathing ->
+            Notathing
 
         Tap msg shape ->
             Tap (f msg) (map f shape)
@@ -528,10 +542,11 @@ hiddenAppView userView ( userModel, _ ) =
         title =
             userViewEval.title
 
-        (Collage w h  shapes) =
+        (Collage w h shapes) =
             userViewEval.body
     in
     { title = title, body = [ createCollage w h shapes ] }
+
 
 {-| This type alias is only used as a target for a user `main` type signature to make
 the type signature more clear and concise when `main` calls `ellieApp`:
@@ -558,6 +573,7 @@ type alias for a record.
 -}
 type alias EllieApp flags userModel userMsg =
     Program flags ( userModel, HiddenModel ) (Msg userMsg)
+
 
 {-| _Advanced Function Warning!_ `ellieApp` takes one parameter of its own type of the form:
 
@@ -855,13 +871,11 @@ graphPaper s =
 -}
 graphPaperCustom : Float -> Float -> Color -> Shape userMsg
 graphPaperCustom s th c =
-    if s >= 2 then
-        GraphPaper s th c
-    else
-        group []
+    GraphPaper s th c
 
-createGraph : (Float, Float) -> Float -> Float -> Color -> Shape userMsg
-createGraph (w,h) s th c =
+
+createGraph : ( Float, Float ) -> Float -> Float -> Color -> Shape userMsg
+createGraph ( w, h ) s th c =
     let
         sxi =
             ceiling (w / (s * 2))
@@ -1015,11 +1029,90 @@ curveHelper shape =
         Scale sx sy sh ->
             Scale sx sy (curveHelper sh)
 
+        Skew skx sky sh ->
+            Skew skx sky (curveHelper sh)
+
+        Transformed tm sh ->
+            Transformed tm (curveHelper sh)
+
         Group list ->
             Group (List.map curveHelper list)
 
-        a ->
-            a
+        GroupOutline cmbndshp ->
+            GroupOutline (curveHelper cmbndshp)
+
+        Link s sh ->
+            Link s (curveHelper sh)
+
+        AlphaMask reg sh ->
+            AlphaMask reg (curveHelper sh)
+
+        Clip reg sh ->
+            Clip reg (curveHelper sh)
+
+        Tap userMsg sh ->
+            Tap userMsg (curveHelper sh)
+
+        TapAt userMsg sh ->
+            TapAt userMsg (curveHelper sh)
+
+        EnterShape userMsg sh ->
+            EnterShape userMsg (curveHelper sh)
+
+        EnterAt userMsg sh ->
+            EnterAt userMsg (curveHelper sh)
+
+        Exit userMsg sh ->
+            Exit userMsg (curveHelper sh)
+
+        ExitAt userMsg sh ->
+            ExitAt userMsg (curveHelper sh)
+
+        MouseDown userMsg sh ->
+            MouseDown userMsg (curveHelper sh)
+
+        MouseDownAt userMsg sh ->
+            MouseDownAt userMsg (curveHelper sh)
+
+        MouseUp userMsg sh ->
+            MouseUp userMsg (curveHelper sh)
+
+        MouseUpAt userMsg sh ->
+            MouseUpAt userMsg (curveHelper sh)
+
+        MoveOverAt userMsg sh ->
+            MoveOverAt userMsg (curveHelper sh)
+
+        TouchStart userMsg sh ->
+            TouchStart userMsg (curveHelper sh)
+
+        TouchEnd userMsg sh ->
+            TouchEnd userMsg (curveHelper sh)
+
+        TouchStartAt userMsg sh ->
+            TouchStartAt userMsg (curveHelper sh)
+
+        TouchEndAt userMsg sh ->
+            TouchEndAt userMsg (curveHelper sh)
+
+        TouchMoveAt userMsg sh ->
+            TouchMoveAt userMsg (curveHelper sh)
+
+        -- no changes for the rest...
+        Inked clr ln sh ->
+            Inked clr ln sh
+
+        ForeignObject w h htm ->
+            ForeignObject w h htm
+
+        Everything ->
+            Everything
+
+        Notathing ->
+            Notathing
+
+        GraphPaper s th clr ->
+            GraphPaper s th clr
 
 
 generateCurveHelper :
@@ -1104,112 +1197,131 @@ createTopLevelList : ( ( a, b ), ( a, b ) ) -> List ( a, b )
 createTopLevelList ( ( a, b ), ( c, d ) ) =
     [ ( a, b ), ( c, d ) ]
 
+
 matrixMult : Transform -> Transform -> Transform
-matrixMult ( ( a , c , e ) , (b , d , f ) ) ( ( a1 , c1 , e1 ) , ( b1 , d1 , f1 ) ) =
-    ( ( a * a1 + c * b1 , a * c1 + c * d1 , e + a * e1 + c * f1 ) 
-    , ( b * a1 + d * b1 , b * c1 + d * d1 , f + b * e1 + d * f1 ) )
+matrixMult ( ( a, c, e ), ( b, d, f ) ) ( ( a1, c1, e1 ), ( b1, d1, f1 ) ) =
+    ( ( a * a1 + c * b1, a * c1 + c * d1, e + a * e1 + c * f1 )
+    , ( b * a1 + d * b1, b * c1 + d * d1, f + b * e1 + d * f1 )
+    )
 
 
-{-|
-The identity or "starting" matrix. Applying this matrix to a shape is the equivalent 
+{-| The identity or "starting" matrix. Applying this matrix to a shape is the equivalent
 of doing no transformations at all. The matrix itself looks like
+
 ```
 ident = ( ( 1 , 0 , 0 ) , ( 0 , 1 , 0 ) )
 ```
+
 or,
+
 ```
  1 0 0
  0 1 0
 ```
+
 -}
 ident : Transform
 ident =
-    (  
-        ( 1 , 0 , 0 )
-    ,   ( 0 , 1 , 0 )
+    ( ( 1, 0, 0 )
+    , ( 0, 1, 0 )
     )
 
-{-|
-A matrix representing an SVG transformation matrix of the form:
+
+{-| A matrix representing an SVG transformation matrix of the form:
+
 ```
 ( ( a , c , e ) , ( b , d , f ) )
 ```
+
 or
+
 ```
  a c e
  b d f
 ```
 
 The a, c, b and d control transformations such as skew, rotate and scale;
-e and f control translation. 
+e and f control translation.
 
 These matrices are best built up by starting with the identity matrix and
 applying any number of `*T` functions (see below); for example,
+
 ```
-myTransform = 
-    ident 
+myTransform =
+    ident
         |> scaleT 2 2
         |> rotateT (degrees 30)
         |> moveT (0, 50)
 ```
+
 -}
 type alias Transform =
-    ( ( Float, Float, Float )
-    , ( Float, Float, Float )
-    )
+    ( ( Float, Float, Float ), ( Float, Float, Float ) )
 
-{-|
-Apply a move (translation) transformation to a transformation matrix.
+
+{-| Apply a move (translation) transformation to a transformation matrix.
 This is designed to be used as part of a pipe:
+
 ```
 ident
     |> moveT (15,-30.5)
 ```
+
 -}
 moveT : ( Float, Float ) -> Transform -> Transform
-moveT ( u, v ) ( ( a , c , tx ) , ( b , d , ty ) ) =
-    ( ( a , c , tx + a * u + c * v ) 
-    , ( b , d , ty + b * u + d * v ) )
+moveT ( u, v ) ( ( a, c, tx ), ( b, d, ty ) ) =
+    ( ( a, c, tx + a * u + c * v )
+    , ( b, d, ty + b * u + d * v )
+    )
 
-{-|
-Apply a rotation transformation to a transformation matrix. 
+
+{-| Apply a rotation transformation to a transformation matrix.
 This is designed to be used as part of a pipe:
+
 ```
 ident
     |> moveT (15,-30.5)
     |> rotateT (degrees -30)
 ```
+
 -}
 rotateT : Float -> Transform -> Transform
-rotateT rad ( ( a , c , tx ) , ( b , d , ty ) ) =
+rotateT rad ( ( a, c, tx ), ( b, d, ty ) ) =
     let
-        sinX = sin rad
-        cosX = cos rad     
-    in    
-        ( ( a * cosX + c * sinX , c * cosX - a * sinX , tx ) 
-        , ( b * cosX + d * sinX , d * cosX - b * sinX , ty ) )
+        sinX =
+            sin rad
 
-{-|
-Apply a scale transformation to a transformation matrix. The first argument
-scales in x and the second argument scales in y. This is designed 
+        cosX =
+            cos rad
+    in
+    ( ( a * cosX + c * sinX, c * cosX - a * sinX, tx )
+    , ( b * cosX + d * sinX, d * cosX - b * sinX, ty )
+    )
+
+
+{-| Apply a scale transformation to a transformation matrix. The first argument
+scales in x and the second argument scales in y. This is designed
 to be used as part of a pipe:
+
 ```
 ident
     |> moveT (15,-30.5)
     |> rotateT (degrees -30)
     |> scaleT 4 0.4
 ```
+
 -}
-scaleT : Float -> Float -> Transform  -> Transform
-scaleT sx sy ( ( a , c , tx ) , ( b , d , ty ) ) =
-    ( ( a * sx , c * sy , tx ) 
-    , ( b * sx , d * sy , ty ) )
+scaleT : Float -> Float -> Transform -> Transform
+scaleT sx sy ( ( a, c, tx ), ( b, d, ty ) ) =
+    ( ( a * sx, c * sy, tx )
+    , ( b * sx, d * sy, ty )
+    )
 
 
-{-|
-Apply a skew transformation to a matrix. The first argument
-skews in x and the second argument skews in y. This is designed 
+{-| Apply a skew transformation to a matrix. The first argument
+skews in x and the second argument skews in y. This is designed
 to be used as part of a pipe:
+
 ```
 ident
     |> moveT (15,-30.5)
@@ -1217,38 +1329,50 @@ ident
     |> scaleT 4 0.4
     |> skewT 0.5 1.3
 ```
--}
-skewT : Float -> Float -> Transform  -> Transform
-skewT skx sky ( ( a , c , tx ) , ( b , d , ty ) ) =
-    let
-        tanX = tan -skx
-        tanY = tan -sky 
-    in         
-        ( ( a + c * tanY , c + a * tanX , tx ) 
-        , ( b + d * tanY , d + b * tanX , ty ) )
 
-{-|
-Apply a rotation about a given point to a `Transform` matrix. For example, 
+-}
+skewT : Float -> Float -> Transform -> Transform
+skewT skx sky ( ( a, c, tx ), ( b, d, ty ) ) =
+    let
+        tanX =
+            tan -skx
+
+        tanY =
+            tan -sky
+    in
+    ( ( a + c * tanY, c + a * tanX, tx )
+    , ( b + d * tanY, d + b * tanX, ty )
+    )
+
+
+{-| Apply a rotation about a given point to a `Transform` matrix. For example,
 the following transform will rotate a `Shape` 30 degrees about the point (0,50):
+
 ```
 rotateAbout050 =
     ident
         |> rotateAboutT (0, 50) (degrees 30)
 ```
--}
-rotateAboutT : (Float, Float) -> Float -> Transform -> Transform
-rotateAboutT (u, v) rad ( ( a , c , tx ) , ( b , d , ty ) ) =
-    let
-        sinX = sin rad
-        cosX = cos rad     
-    in  
-        ( ( a * cosX + c * sinX , c * cosX - a * sinX , tx + a * u + c * v - v * ( c * cosX - a * sinX ) - u * ( a * cosX + c * sinX ) ) 
-        , ( b * cosX + d * sinX , d * cosX - b * sinX , ty + b * u + d * v - v * ( d * cosX - b * sinX ) - u * ( b * cosX + d * sinX ) ) )
 
-{-|
-Manually transform a shape using a `Transform` matrix. Matrix multiplication will
+-}
+rotateAboutT : ( Float, Float ) -> Float -> Transform -> Transform
+rotateAboutT ( u, v ) rad ( ( a, c, tx ), ( b, d, ty ) ) =
+    let
+        sinX =
+            sin rad
+
+        cosX =
+            cos rad
+    in
+    ( ( a * cosX + c * sinX, c * cosX - a * sinX, tx + a * u + c * v - v * (c * cosX - a * sinX) - u * (a * cosX + c * sinX) )
+    , ( b * cosX + d * sinX, d * cosX - b * sinX, ty + b * u + d * v - v * (d * cosX - b * sinX) - u * (b * cosX + d * sinX) )
+    )
+
+
+{-| Manually transform a shape using a `Transform` matrix. Matrix multiplication will
 be used to apply the given matrix to any transformations of the current
 shape. This is designed to be used in the usual way in a pipe:
+
 ```
 circle 10
     |> filled red
@@ -1258,17 +1382,19 @@ moveLeft50 =
     ident
         |> moveT (50,0)
 ```
-NOTE: Transformations generated using pipes this way are applied backwards compared 
-to the "regular" `Shape userMsg` transformation functions. For example, `rect0` and 
+
+NOTE: Transformations generated using pipes this way are applied backwards compared
+to the "regular" `Shape userMsg` transformation functions. For example, `rect0` and
 `rect1` below are equivalent:
+
 ```
-myTransform = 
-    ident 
+myTransform =
+    ident
         |> scaleT 2 2
         |> rotateT (degrees 30)
         |> moveT (0, 50)
 
-rect0 = 
+rect0 =
     rect 20 10
         |> filled red
         |> transform myTransform
@@ -1280,14 +1406,16 @@ rect1 =
         |> rotate (degrees 30)
         |> scale 2
 ```
+
 On the other hand, single transformations produce a result consistent with the
 `Shape userMsg` transformations. `rect2` is also equivalent to the two above:
+
 ```
-moveRight50 = 
+moveRight50 =
     ident
         |> moveT (50,0)
 
-scale2 = 
+scale2 =
     ident
         |> scaleT 2 2
 
@@ -1302,9 +1430,11 @@ rect2 =
         |> transform scale2
         |> transform rotate30
 ```
+
 However, chaining together transformations in this way is discouraged because
 it is less efficient than the regular `Shape userMsg` transformations in
 the "Transformations" section.
+
 -}
 transform : Transform -> Shape userMsg -> Shape userMsg
 transform tm sh =
@@ -1402,7 +1532,9 @@ extractShape fl ( z, shape ) =
 
 
 flippedComparison : ( comparable, a ) -> ( comparable, b ) -> Order
-flippedComparison ( f, _ ) ( s, _ ) = compare s f
+flippedComparison ( f, _ ) ( s, _ ) =
+    compare s f
+
 
 
 --Notification functions
@@ -1618,10 +1750,12 @@ touchDecoder =
 
 createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
 createSVG id w h trans shape =
+    --    (if String.right 1 id == "c" then Debug.log ("clip " ++ id) else identity) <|
     case shape of
         Inked fillClr lt stencil ->
             let
-                ( ( a , c , tx ), ( b , d , ty ) ) = trans
+                ( ( a, c, tx ), ( b, d, ty ) ) =
+                    trans
 
                 attrs =
                     transAttrs ++ clrAttrs ++ strokeAttrs
@@ -1661,6 +1795,7 @@ createSVG id w h trans shape =
                                                 List.map pairToString dashes
                                             )
                                    ]
+
                         _ ->
                             []
             in
@@ -1778,9 +1913,14 @@ createSVG id w h trans shape =
 
                         anchor =
                             case align of
-                                AlignCentred -> "middle"
-                                AlignLeft -> "start"
-                                AlignRight -> "end"
+                                AlignCentred ->
+                                    "middle"
+
+                                AlignLeft ->
+                                    "start"
+
+                                AlignRight ->
+                                    "end"
 
                         font =
                             case f of
@@ -1829,15 +1969,26 @@ createSVG id w h trans shape =
 
         ForeignObject fw fh htm ->
             let
-                ( ( a , c , tx ) , ( b , d , ty ) ) = trans
+                ( ( a, c, tx ), ( b, d, ty ) ) =
+                    trans
             in
-                Svg.foreignObject [ width <| String.fromFloat fw, height <| String.fromFloat fh, Svg.Attributes.transform <| "matrix(" ++ (String.concat <| List.intersperse "," <| List.map String.fromFloat [ a, -b, -c, d, tx, -ty ]) ++ ")" ] [ Html.map Graphics htm ]
+            Svg.foreignObject
+                [ width <| String.fromFloat fw, height
+                    <| String.fromFloat fh, Svg.Attributes.transform
+                    <| "matrix(" ++ (String.concat <| List.intersperse ","
+                                        <| List.map
+                                            String.fromFloat
+                                            [ a, -b, -c, d, tx, -ty ]) ++ ")"
+                ] [ Html.map Graphics htm ]
 
         Move v sh ->
             createSVG id w h (moveT v trans) sh
 
         Everything ->
             createSVG id w h ident (rect w h |> filled white)
+
+        Notathing ->
+            createSVG id w h ident (rect w h |> filled black)
 
         Rotate deg sh ->
             createSVG id w h (rotateT deg trans) sh
@@ -1862,9 +2013,12 @@ createSVG id w h trans shape =
                     [ Svg.mask
                         [ Svg.Attributes.id ("m" ++ id) ]
                         [ createSVG
-                            (id ++ "m") w h
+                            (id ++ "m")
+                            w
+                            h
                             trans
-                            (Group [ Everything, region |> repaint black ]) ]
+                            (Group [ Everything, region |> repaint black ])
+                        ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ]
@@ -1874,12 +2028,18 @@ createSVG id w h trans shape =
         Clip region sh ->
             Svg.g []
                 [ Svg.defs []
-                    [ Svg.clipPath
+                    [ Svg.mask
                         [ Svg.Attributes.id ("c" ++ id) ]
-                        [ createSVG (id ++ "m") w h trans region ]
+                        [ createSVG
+                            (id ++ "c")
+                            w
+                            h
+                            trans
+                            (Group [ Notathing, region |> repaint white ])
+                        ]
                     ]
                 , Svg.g
-                    [ clipPath ("url(#c" ++ id ++ ")") ]
+                    [ Svg.Attributes.mask ("url(#c" ++ id ++ ")") ]
                     [ createSVG (id ++ "cc") w h trans sh ]
                 ]
 
@@ -1970,16 +2130,25 @@ createSVG id w h trans shape =
                         createSVG
                             (id ++ "g" ++ String.fromInt n)
                             w
-                            h <| trans
+                            h
+                        <|
+                            trans
                     )
                     shapes
 
         GroupOutline cmbndshp ->
             createSVG id w h trans cmbndshp
-        
+
         GraphPaper s th c ->
             Svg.g []
-                [ createSVG id w h trans <| createGraph (w,h) s th c ]
+                [ createSVG id w h trans <|
+                    if th <= 0 || s < 2 * th then
+                        Group []
+
+                    else
+                        createGraph ( w, h ) s th c
+                ]
+
 
 {-| Display HTML inside an SVG foreignObject.
 -}
@@ -2041,20 +2210,88 @@ repaint color shape =
         Scale sx sy sh ->
             Scale sx sy (repaint color sh)
 
+        Skew skx sky sh ->
+            Skew skx sky (repaint color sh)
+
+        Transformed tm sh ->
+            Transformed tm (repaint color sh)
+
         Group shapes ->
             Group (List.map (repaint color) shapes)
 
         GroupOutline cmbndshp ->
             GroupOutline (repaint color cmbndshp)
 
-        AlphaMask sh1 sh2 ->
-            AlphaMask sh1 (repaint color sh2)
+        Link s sh ->
+            Link s (repaint color sh)
 
-        Clip shape1 shape2 ->
-            Clip shape1 (repaint color shape2)
+        AlphaMask reg sh ->
+            AlphaMask reg (repaint color sh)
 
-        a ->
-            a
+        Clip reg sh ->
+            Clip reg (repaint color sh)
+
+        Tap userMsg sh ->
+            Tap userMsg (repaint color sh)
+
+        TapAt userMsg sh ->
+            TapAt userMsg (repaint color sh)
+
+        EnterShape userMsg sh ->
+            EnterShape userMsg (repaint color sh)
+
+        EnterAt userMsg sh ->
+            EnterAt userMsg (repaint color sh)
+
+        Exit userMsg sh ->
+            Exit userMsg (repaint color sh)
+
+        ExitAt userMsg sh ->
+            ExitAt userMsg (repaint color sh)
+
+        MouseDown userMsg sh ->
+            MouseDown userMsg (repaint color sh)
+
+        MouseDownAt userMsg sh ->
+            MouseDownAt userMsg (repaint color sh)
+
+        MouseUp userMsg sh ->
+            MouseUp userMsg (repaint color sh)
+
+        MouseUpAt userMsg sh ->
+            MouseUpAt userMsg (repaint color sh)
+
+        MoveOverAt userMsg sh ->
+            MoveOverAt userMsg (repaint color sh)
+
+        TouchStart userMsg sh ->
+            TouchStart userMsg (repaint color sh)
+
+        TouchEnd userMsg sh ->
+            TouchEnd userMsg (repaint color sh)
+
+        TouchStartAt userMsg sh ->
+            TouchStartAt userMsg (repaint color sh)
+
+        TouchEndAt userMsg sh ->
+            TouchEndAt userMsg (repaint color sh)
+
+        TouchMoveAt userMsg sh ->
+            TouchMoveAt userMsg (repaint color sh)
+
+        -- no changes for the rest...
+        ForeignObject w h htm ->
+            ForeignObject w h htm
+
+        Everything ->
+            Everything
+
+        Notathing ->
+            Notathing
+
+        GraphPaper s th _ ->
+            GraphPaper s th color
+
 
 {-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`.
 
@@ -2069,10 +2306,11 @@ outlined style outlineClr stencil =
             case style of
                 NoLine ->
                     Nothing
+
                 _ ->
                     Just ( style, outlineClr )
     in
-        Inked (rgba 0 0 0 0) lineStyle stencil
+    Inked (rgba 0 0 0 0) lineStyle stencil
 
 
 {-| Add an outline to an already-filled `Shape`.
@@ -2084,7 +2322,9 @@ interior to the composite shapes displayed.
 
 The limitation is that when displaying "clip's" or "subtract's" containing "Group's",
 the outline for the "Group's" won't be visibile at all (less common), nor will the
-outline's for "clip's" or "subtract's" inside "Group's" also won't be visible (more common);
+outline's for "clip's" or "subtract's" inside "Group's" be visible (more common);
+also, the outline for the clipping or subtraction pattern may not be as expected when
+the pattern is a "Group" as it won't appear at all in a "clip".
 
 In these cases the workaround is just as before this was made available, to build up
 the outlines desired using combinations of other shapes such as curves, clipped or
@@ -2102,81 +2342,202 @@ addOutline style outlineClr shape =
             case style of
                 NoLine ->
                     Nothing
+
                 _ ->
                     Just ( style, outlineClr )
     in
-        case shape of
-            Inked clr _ st ->
-                Inked clr lineStyle st
+    case shape of
+        Inked clr _ st ->
+            Inked clr lineStyle st
 
-            Move s sh ->
-                Move s (addOutline style outlineClr sh)
+        Move s sh ->
+            Move s (addOutline style outlineClr sh)
 
-            Rotate r sh ->
-                Rotate r (addOutline style outlineClr sh)
+        Rotate r sh ->
+            Rotate r (addOutline style outlineClr sh)
 
-            Scale sx sy sh ->
-                Scale sx sy (addOutline style outlineClr sh)
+        Scale sx sy sh ->
+            Scale sx sy (addOutline style outlineClr sh)
 
-            Group list ->
-                let 
-                    innerlist =
-                        List.filterMap
-                            (\shp ->
-                                case shp of
-                                    -- remove old outline shape
-                                    GroupOutline _ -> Nothing
-                                    _ -> Just <| addOutline NoLine black shp
-                            ) list
-                    len = List.length innerlist
-                 in
-                    if len <= 1 then
-                        case innerlist of
-                            [] -> {- should never happen -} Group []
-                            hd::_ -> addOutline style outlineClr hd
-                    else if lineStyle == Nothing then Group innerlist else
-                        let outlnshp =
+        Skew skx sky sh ->
+            Skew skx sky (addOutline style outlineClr sh)
+
+        Transformed tm sh ->
+            Transformed tm (addOutline style outlineClr sh)
+
+        Group list ->
+            let
+                innerlist =
+                    List.filterMap
+                        (\shp ->
+                            case shp of
+                                -- remove old outline shape
+                                GroupOutline _ ->
+                                    Nothing
+
+                                _ ->
+                                    Just <| addOutline NoLine black shp
+                        )
+                        list
+            in
+            case innerlist of
+                [] ->
+                    {- should never happen -}
+                    Group []
+
+                hd :: [] ->
+                    addOutline style outlineClr hd
+
+                _ ->
+                    if lineStyle == Nothing then
+                        Group innerlist
+
+                    else
+                        let
+                            outlnshp =
                                 GroupOutline <|
                                     subtract
-                                        (Group (List.map (addOutline style outlineClr) innerlist))
+                                        (Group
+                                            (List.map
+                                                (addOutline style outlineClr)
+                                                innerlist
+                                            )
+                                        )
                                         (Group innerlist)
                         in
-                            Group <| innerlist ++ [ outlnshp ]
-        
-            AlphaMask reg sh ->
-                let ptrn = addOutline NoLine black reg
-                    inside = addOutline NoLine black sh
-                in
-                    if lineStyle == Nothing then AlphaMask ptrn inside else
-                        let ptrnlnd = addOutline style outlineClr reg
-                            newshp = addOutline style outlineClr sh
-                            ptrnoutln = clip ptrnlnd newshp
-                            shpoutln = clip newshp inside
-                        in
-                            AlphaMask ptrn <|
-                                Group
-                                    [ inside
-                                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                                    ]
+                        Group <| innerlist ++ [ outlnshp ]
 
-            Clip sh1 sh2 ->
-                let ptrn = addOutline NoLine black sh1
-                    inside = addOutline NoLine black sh2
+        -- don't add an outline to one that's already been added but it should
+        -- never get here as GroupOutline should always be inside a Group which
+        -- will already have processed it, whether to change or remove it...
+        GroupOutline cmbndshp ->
+            GroupOutline cmbndshp
+
+        AlphaMask reg sh ->
+            let
+                ptrn =
+                    addOutline NoLine black reg
+
+                inside =
+                    addOutline NoLine black sh
+            in
+            if lineStyle == Nothing then
+                AlphaMask ptrn inside
+
+            else
+                let
+                    ptrnlnd =
+                        addOutline style outlineClr reg
+
+                    newshp =
+                        addOutline style outlineClr sh
+
+                    ptrnoutln =
+                        clip ptrnlnd inside
+
+                    shpoutln =
+                        clip newshp inside
                 in
-                    if lineStyle == Nothing then Clip ptrn inside else
-                        let ptrnlnd = addOutline style outlineClr (sh1 |> repaint blank)
-                            newshp = addOutline style outlineClr sh2
-                            ptrnoutln = clip ptrnlnd newshp
-                            shpoutln = clip newshp inside
-                        in
-                            Clip ptrn <|
-                                Group
-                                    [ inside
-                                    , GroupOutline <| Group [ shpoutln, ptrnoutln ]
-                                    ]
-        
-            a ->
-                a
+                AlphaMask ptrn <|
+                    Group
+                        [ inside
+                        , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                        ]
+
+        Clip reg sh ->
+            let
+                ptrn =
+                    addOutline NoLine black reg
+
+                inside =
+                    addOutline NoLine black sh
+            in
+            if lineStyle == Nothing then
+                Clip ptrn inside
+
+            else
+                let
+                    ptrnlnd =
+                        addOutline style outlineClr (reg |> repaint blank)
+
+                    newshp =
+                        addOutline style outlineClr sh
+
+                    ptrnoutln =
+                        clip ptrnlnd inside
+
+                    shpoutln =
+                        clip newshp inside
+                in
+                Clip ptrn <|
+                    Group
+                        [ inside
+                        , GroupOutline <| Group [ shpoutln, ptrnoutln ]
+                        ]
+
+        Link s sh ->
+            Link s (addOutline style outlineClr sh)
+
+        Tap userMsg sh ->
+            Tap userMsg (addOutline style outlineClr sh)
+
+        TapAt userMsg sh ->
+            TapAt userMsg (addOutline style outlineClr sh)
+
+        EnterShape userMsg sh ->
+            EnterShape userMsg (addOutline style outlineClr sh)
+
+        EnterAt userMsg sh ->
+            EnterAt userMsg (addOutline style outlineClr sh)
+
+        Exit userMsg sh ->
+            Exit userMsg (addOutline style outlineClr sh)
+
+        ExitAt userMsg sh ->
+            ExitAt userMsg (addOutline style outlineClr sh)
+
+        MouseDown userMsg sh ->
+            MouseDown userMsg (addOutline style outlineClr sh)
+
+        MouseDownAt userMsg sh ->
+            MouseDownAt userMsg (addOutline style outlineClr sh)
+
+        MouseUp userMsg sh ->
+            MouseUp userMsg (addOutline style outlineClr sh)
+
+        MouseUpAt userMsg sh ->
+            MouseUpAt userMsg (addOutline style outlineClr sh)
+
+        MoveOverAt userMsg sh ->
+            MoveOverAt userMsg (addOutline style outlineClr sh)
+
+        TouchStart userMsg sh ->
+            TouchStart userMsg (addOutline style outlineClr sh)
+
+        TouchEnd userMsg sh ->
+            TouchEnd userMsg (addOutline style outlineClr sh)
+
+        TouchStartAt userMsg sh ->
+            TouchStartAt userMsg (addOutline style outlineClr sh)
+
+        TouchEndAt userMsg sh ->
+            TouchEndAt userMsg (addOutline style outlineClr sh)
+
+        TouchMoveAt userMsg sh ->
+            TouchMoveAt userMsg (addOutline style outlineClr sh)
+
+        -- no changes for the rest...
+        ForeignObject w h htm ->
+            ForeignObject w h htm
+
+        Everything ->
+            Everything
+
+        Notathing ->
+            Notathing
+
+        GraphPaper s th clr ->
+            GraphPaper s th clr
 
 
 {-| Make a `Shape` transparent by the fraction given. Multiplies on top of other transparencies:
@@ -2225,7 +2586,7 @@ makeTransparent alpha shape =
 
         GroupOutline cmbndshp ->
             GroupOutline (makeTransparent alpha cmbndshp)
-        
+
         Link s sh ->
             Link s (makeTransparent alpha sh)
 
@@ -2237,6 +2598,9 @@ makeTransparent alpha shape =
 
         Everything ->
             Everything
+
+        Notathing ->
+            Notathing
 
         Tap userMsg sh ->
             Tap userMsg (makeTransparent alpha sh)
@@ -2287,7 +2651,7 @@ makeTransparent alpha shape =
             TouchMoveAt userMsg (makeTransparent alpha sh)
 
         GraphPaper s th (RGBA r g b a) ->
-            GraphPaper s th (RGBA r g b (a*alpha))
+            GraphPaper s th (RGBA r g b (a * alpha))
 
 
 
@@ -2297,7 +2661,7 @@ makeTransparent alpha shape =
 {-| Define a`LineType` that doesn't exist, doesn't appear.
 -}
 noline : () -> LineType
-noline() =
+noline () =
     NoLine
 
 
@@ -2443,6 +2807,7 @@ alignRight stencil =
         a ->
             a
 
+
 {-| Apply to a `text` `Stencil` to centre the text.
 -}
 centered : Stencil -> Stencil
@@ -2453,6 +2818,7 @@ centered stencil =
 
         a ->
             a
+
 
 {-| Apply to a `text` `Stencil` to left-align the text.
 -}
@@ -2768,14 +3134,14 @@ union shape1 shape2 =
 -}
 subtract : Shape userMsg -> Shape userMsg -> Shape userMsg
 subtract shape1 shape2 =
-    AlphaMask (shape2) shape1
+    AlphaMask shape2 shape1
 
 
 {-| The whole region outside the given `Shape`.
 -}
 outside : Shape userMsg -> Shape userMsg
 outside shape =
-    AlphaMask (shape) shape
+    AlphaMask shape shape
 
 
 
