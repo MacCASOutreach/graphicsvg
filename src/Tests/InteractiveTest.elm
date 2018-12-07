@@ -1,12 +1,14 @@
 module Main exposing (main)
 
 import Array
+import Bitwise
 import Browser.Events exposing (onKeyPress)
 import GraphicSVG exposing (..)
 import GraphicSVG.App exposing (GameApp, GetKeyState, KeyState(..), Keys(..), gameApp)
+import Html exposing (button)
+import Html.Attributes exposing (style)
 import Json.Decode as D
 import Time
-import Bitwise
 
 
 
@@ -114,7 +116,7 @@ test3 =
     Test
         "Testing keyboard input of wasd and arrow keys; click the Fail box any time to give up."
         "Move the green dot around the box with the wasd and arrow keys, then click the box to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 90 90 |> filled grey |> addOutline (solid 0.5) black
@@ -138,7 +140,7 @@ test4 =
     Test
         "Testing getting the coordinates of the clicked or tapped position; click Fail to give up."
         "Click the little green dot in the grey box as accurately as possible to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -167,7 +169,7 @@ test5 =
     Test
         "Testing mouse entering a shape; click Fail to give up."
         "Sweep the mouse slowly across the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -196,7 +198,7 @@ test6 =
     Test
         "Testing mouse entering a shape with position; click Fail to give up."
         "Sweep the mouse slowly from left to right across the green line to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -235,7 +237,7 @@ test7 =
     Test
         "Testing mouse entering a shape with position; click Fail to give up."
         "Sweep the mouse slowly from top to bottom across the green line to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -274,7 +276,7 @@ test8 =
     Test
         "Testing mouse leaving a shape; click Fail to give up."
         "Sweep the mouse slowly across the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -303,7 +305,7 @@ test9 =
     Test
         "Testing mouse leaving a shape with position; click Fail to give up."
         "Sweep the mouse slowly left to right across the green line to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -342,7 +344,7 @@ test10 =
     Test
         "Testing mouse leaving a shape with position; click Fail to give up."
         "Sweep the mouse slowly top to bottom across the green line to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -381,7 +383,7 @@ test11 =
     Test
         "Testing getting the positon of the mouse moved over a shape; click Fail to give up."
         "Move the mouse over the green dot in the grey box as accurately as possible to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -410,7 +412,7 @@ test12 =
     Test
         "Testing holding the mouse button down over a shape; click Fail to give up."
         "Hold the mouse button down over the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -439,7 +441,7 @@ test13 =
     Test
         "Testing holding the mouse button down over a shape with position; click Fail to give up."
         "Hold the mouse button down over the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -468,7 +470,7 @@ test14 =
     Test
         "Testing releasing the mouse button over a shape; click Fail to give up."
         "Release the mouse button over the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -497,7 +499,7 @@ test15 =
     Test
         "Testing releasing the mouse button over a shape with position; click Fail to give up."
         "Release the mouse button over the green dot to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -526,7 +528,7 @@ test16 =
     Test
         "Testing touching a shape; click Fail to give up."
         "Touch the green dot at the center of the grey square to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -554,7 +556,7 @@ test17 =
     Test
         "Testing touching a shape with position; click Fail to give up."
         "Touch the green dot at the center of the grey square to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -582,7 +584,7 @@ test18 =
     Test
         "Testing touching and lifting from a shape; click Fail to give up."
         "Touch then lift from the green dot at the center of the grey square to pass:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -610,7 +612,7 @@ test19 =
     Test
         "Testing touching and lifting from a shape with position; click Fail to give up."
         "Touch then lift from the green dot at the center of the grey square to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -647,7 +649,7 @@ test20 =
     Test
         "Testing touch moving over a shape with position; click Fail to give up."
         "Touch and move your finger over the dot at the center of the grey square to pass:"
-        (\model ->
+        (\_ ->
             let
                 mapf msg =
                     case msg of
@@ -685,7 +687,7 @@ test21 =
     Test
         "Testing open and closed polygons; click Pass or Fail as appropriate."
         "Do you see a \"C\" shaped open polygon on the left, closed polygon on the right below?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -723,7 +725,7 @@ test22 =
     Test
         "Testing equilateral, right, isoseles and SAS triangles; click Pass or Fail as appropriate."
         "Do you see the above triangles clockwise from top left below?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -823,7 +825,7 @@ test24 =
     Test
         "Testing Bezier curves and curve helper; click Pass or Fail as appropriate."
         "Do you see a purple rounded rectangle (different than the pink true one) below with Pull points?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -917,7 +919,7 @@ test26 =
     Test
         "Testing some Text attributes not yet tested; click Pass or Fail as appropriate."
         "Do you see \"Abcdef\" in italic font with a strikethrough below?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -955,7 +957,7 @@ test27 =
     Test
         "Testing selectable Text; click Pass or Fail as appropriate."
         "Select the below text (drag across it), copy to clipboard, and paste into address of browser?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -992,7 +994,7 @@ test28 =
     Test
         "Testing hyperlinks added to a Shape, a Text in this case; click Pass or Fail as appropriate."
         "When the below text is double clicked, does your default browser open to the indicated web page?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -1112,13 +1114,13 @@ test30 =
 test31 : Test
 test31 =
     Test
-        "Testing graphpaper (on top); click Pass or Fail as appropriate."
-        "Is the whole Collage area covered with graph paper that changes size over 3 steps?:"
+        "Testing graphpaper, with fail of zero spacing; click Pass or Fail as appropriate."
+        "Does the background graph paper changes size over 3 steps, disappearing on the 4th step?:"
         (\model ->
             group
                 [ let
                     r =
-                        1 + modBy 3 model.time |> toFloat
+                        modBy 4 model.time |> toFloat
                   in
                   graphPaperCustom (10 * r) 1 lightPurple
                 , group
@@ -1149,6 +1151,41 @@ test31 =
 
 test32 : Test
 test32 =
+    Test
+        "Testing inserting Html in the page; click on the Html button or Fail as appropriate."
+        "Testing response of Html button:"
+        (\_ ->
+            group
+                [ html 40
+                    15
+                    (button
+                        [ style "border" "1px solid Black"
+                        , style "width" "45px"
+                        , style "height" "15px"
+                        , style "font-size" "x-small"
+                        , style "color" "DarkGreen"
+                        ]
+                        [ Html.text "Pass!!!" ]
+                    )
+                    |> move ( 155, 212.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                ]
+        )
+        ( 0, 0 )
+
+
+test33 : Test
+test33 =
     Test
         "Testing repaint; click Pass or Fail as appropriate."
         "Does the circle colour change blue to purple and back every second?:"
@@ -1192,12 +1229,12 @@ test32 =
         ( 0, 0 )
 
 
-test33 : Test
-test33 =
+test34 : Test
+test34 =
     Test
         "Testing clip; click Pass or Fail as appropriate."
         "Is the blue circle clipped to only its right half?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -1219,20 +1256,20 @@ test33 =
                     ]
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
-                , circle 50
-                    |> filled blue
-                    |> clip (rect 100 100 |> filled purple |> move ( 50, 0 ))
+                , clip
+                    (circle 50 |> filled blue)
+                    (rect 100 100 |> filled purple |> move ( 50, 0 ))
                 ]
         )
         ( 0, 0 )
 
 
-test34 : Test
-test34 =
+test35 : Test
+test35 =
     Test
         "Testing union; click Pass or Fail as appropriate."
         "Is the shape a blue circle jointed on the right side by a purple (underlying) circle?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -1262,12 +1299,12 @@ test34 =
         ( 0, 0 )
 
 
-test35 : Test
-test35 =
+test36 : Test
+test36 =
     Test
         "Testing subtraction; click Pass or Fail as appropriate."
         "Is the shape a blue circle with a circle \"bite\" taken out of it on the right side?:"
-        (\model ->
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -1289,16 +1326,16 @@ test35 =
                     ]
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
-                , circle 50
-                    |> filled blue
-                    |> subtract (circle 50 |> filled purple |> move ( 50, 0 ))
+                , subtract
+                    (circle 50 |> filled blue)
+                    (circle 50 |> filled purple |> move ( 50, 0 ))
                 ]
         )
         ( 0, 0 )
 
 
-test36 : Test
-test36 =
+test37 : Test
+test37 =
     Test
         "Testing outside; click Pass or Fail as appropriate."
         "Does the blue circle disappear every second, reappear the next?:"
@@ -1342,12 +1379,12 @@ test36 =
         ( 0, 0 )
 
 
-test37 : Test
-test37 =
+test38 : Test
+test38 =
     Test
         "Testing ghost; click Pass or Fail as appropriate."
-        "Is there a white circle inside the red outline?:"
-        (\model ->
+        "Can you see the pink circle through the hole inside the red outline?:"
+        (\_ ->
             group
                 [ group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
@@ -1369,7 +1406,581 @@ test37 =
                     ]
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
+                , circle 40 |> filled pink
                 , circle 50 |> ghost |> addOutline (solid 1) red
+                ]
+        )
+        ( 0, 0 )
+
+
+test39 : Test
+test39 =
+    Test
+        "Testing adding outlines to groups; click Pass or Fail as appropriate."
+        "Can you see a purple outline around the group of joined and separate shapes?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , group
+                    [ roundedRect 100 100 30 |> filled green
+                    , wedge 50 0.5 |> filled red |> rotate (turns 0.25) |> move ( 0, 50 )
+                    , isosceles 50 100 |> filled blue |> rotate (turns 0.5) |> move ( 0, -50 )
+                    , circle 50 |> filled orange |> move ( -150, 0 )
+                    ]
+                    |> addOutline (solid 5) darkPurple
+                ]
+        )
+        ( 0, 0 )
+
+
+test40 : Test
+test40 =
+    Test
+        "Testing adding outlines to clips; click Pass or Fail as appropriate."
+        "Can you see a purple outline around the orange circle clipped to the right side (interior lines)?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , clip
+                    (circle 50 |> filled orange)
+                    (rect 100 100 |> filled red |> move ( 50, 0 ))
+                    |> addOutline (solid 5) purple
+                ]
+        )
+        ( 0, 0 )
+
+
+test41 : Test
+test41 =
+    Test
+        "Testing adding outlines to subtracts; click Pass or Fail as appropriate."
+        "Can you see a purple outline around the orange circle with a bite out on the right (interior lines)?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , subtract
+                    (circle 50 |> filled orange)
+                    (circle 50 |> filled red |> move ( 50, 0 ))
+                    |> addOutline (solid 5) darkPurple
+                ]
+        )
+        ( 0, 0 )
+
+
+test42 : Test
+test42 =
+    Test
+        "Testing adding a subtract (left) and a clip (right) to a group; click Pass or Fail as appropriate."
+        "Notice that the occluding orange half circles left and right aren't outlined:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , group
+                    [ roundedRect 100 100 30 |> filled green
+                    , wedge 50 0.5 |> filled red |> rotate (turns 0.25) |> move ( 0, 50 )
+                    , isosceles 50 100 |> filled blue |> rotate (turns 0.5) |> move ( 0, -50 )
+                    , circle 50 |> filled orange |> move ( -150, 0 )
+                    , circle 25 |> filled blue |> move ( -150, 0 )
+                    , subtract
+                        (circle 50 |> filled orange)
+                        (rect 100 100 |> filled red |> move ( 50, 0 ))
+                        |> move ( -25, 0 )
+                    , clip
+                        (circle 50 |> filled orange)
+                        (rect 100 100 |> filled red |> move ( 50, 0 ))
+                        |> move ( 25, 0 )
+                    ]
+                    |> addOutline (solid 5) darkPurple
+                ]
+        )
+        ( 0, 0 )
+
+
+test43 : Test
+test43 =
+    Test
+        "Testing adding outlines to clip groups using groups; click Pass or Fail as appropriate."
+        "Can you see there are no outlines because both the shape and pattern are groups?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , addOutline (solid 5) purple <|
+                    clip
+                        (group
+                            [ rect 150 110 |> filled red
+                            , circle 50 |> filled orange
+                            , clip
+                                (circle 50 |> filled yellow |> move ( -25, 0 ))
+                                (rect 100 100 |> filled green |> move ( -75, 0 ))
+                            , subtract
+                                (circle 50 |> filled yellow |> move ( 25, 0 ))
+                                (rect 100 100 |> filled green |> move ( -25, 0 ))
+                            ]
+                        )
+                        (group
+                            [ rect 200 100 |> filled red |> move ( 0, 50 )
+                            , clip
+                                (circle 25 |> filled red |> move ( -25, -35 ))
+                                (rect 50 50 |> filled green |> move ( -25, -60 ))
+                            , subtract
+                                (circle 25 |> filled red |> move ( 25, -35 ))
+                                (rect 50 50 |> filled green |> move ( 25, -10 ))
+                            ]
+                        )
+                ]
+        )
+        ( 0, 0 )
+
+
+test44 : Test
+test44 =
+    Test
+        "Testing adding outlines to subtract groups as groups; click Pass or Fail as appropriate."
+        "Can you see that only part of the subtract pattern is outlinee due to grouping losing exterior lines?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Pass!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , addOutline (solid 5) purple <|
+                    subtract
+                        (group
+                            [ rect 150 110 |> filled red
+                            , circle 50 |> filled orange
+                            , clip
+                                (circle 50 |> filled yellow |> move ( -25, 0 ))
+                                (rect 100 100 |> filled green |> move ( -75, 0 ))
+                            , subtract
+                                (circle 50 |> filled yellow |> move ( 25, 0 ))
+                                (rect 100 100 |> filled green |> move ( -25, 0 ))
+                            ]
+                        )
+                        (group
+                            [ rect 200 100 |> filled red |> move ( 0, 50 )
+                            , rect 100 10 |> filled red |> move ( 0, -15 )
+                            , clip
+                                (circle 25 |> filled red |> move ( -25, -35 ))
+                                (rect 50 50 |> filled green |> move ( -25, -60 ))
+                            , subtract
+                                (circle 25 |> filled red |> move ( 25, -35 ))
+                                (rect 50 50 |> filled green |> move ( 25, -10 ))
+                            ]
+                        )
+                ]
+        )
+        ( 0, 0 )
+
+
+test45 : Test
+test45 =
+    Test
+        "Testing Bezier curves and curve helper after notification; click curve to Pass or Fail as appropriate."
+        "Do you see a purple rounded rectangle (different than the pink true one) below with Pull points?:"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , group
+                    [ curve ( -100, 0 )
+                        [ Pull ( -100, -100 ) ( 0, -100 )
+                        , Pull ( 100, -100 ) ( 100, 0 )
+                        , Pull ( 100, 100 ) ( 0, 100 )
+                        , Pull ( -100, 100 ) ( -100, 0 )
+                        ]
+                        |> outlined (solid 1) darkPurple
+                        |> notifyTap (Notify ( 0, 0 ))
+                        |> curveHelper
+                    , roundedRect 200 200 100
+                        |> outlined (solid 1) pink
+                    ]
+                ]
+        )
+        ( 0, 0 )
+
+
+test46 : Test
+test46 =
+    Test
+        "Testing repaint after notification; click the circle to Pass or Fail as appropriate."
+        "Does the circle colour change blue to purple and back every second?:"
+        (\model ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , let
+                    r =
+                        modBy 2 model.time |> toFloat
+                  in
+                  circle 50
+                    |> outlined (solid 1) black
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> repaint
+                        (if r == 0 then
+                            blue
+
+                         else
+                            purple
+                        )
+                ]
+        )
+        ( 0, 0 )
+
+
+test47 : Test
+test47 =
+    Test
+        "Tests adding outlines to shapes after notification; click Pass or Fail as appropriate."
+        "Do you see black outlines on the pass/fail buttons?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                ]
+        )
+        ( 0, 0 )
+
+
+test48 : Test
+test48 =
+    Test
+        "Tests ability to \"click-through\" transparent circle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , circle 50|> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test49 : Test
+test49 =
+    Test
+        "Tests ability to \"click-through\" transparent rectangle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , rect 100 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test50 : Test
+test50 =
+    Test
+        "Tests ability to \"click-through\" transparent rounded rectangle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , roundedRect 100 80 30 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test51 : Test
+test51 =
+    Test
+        "Tests ability to \"click-through\" transparent oval; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , oval 100 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test52 : Test
+test52 =
+    Test
+        "Tests ability to \"click-through\" transparent triangular polygon; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , triangle 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test53 : Test
+test53 =
+    Test
+        "Tests ability to \"click-through\" transparent open polyline; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , openPolygon [ ( 50, 40 ), ( -50, 40 ), ( -50, -40 ), ( 50, -40 ) ]
+                    |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test54 : Test
+test54 =
+    Test
+        "Tests ability to \"click-through\" transparent Bezier curve; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , curve ( 50, 0 )
+                    [ Pull ( 50, 40 ) ( 0, 40 )
+                    , Pull ( -50, 40 ) ( -50, 0 )
+                    , Pull ( -50, -40 ) ( 0, -40 )
+                    , Pull ( 50, -40 ) ( 50, 0 )
+                    ] |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test55 : Test
+test55 =
+    Test
+        "Tests ability to \"click-through\" transparent text; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> move ( 0, 30 ) |> notifyTap (Notify ( 0, 0 ))
+                , text "Boo!!!" |> size 100 |> centered |> outlined (solid 1) black
                 ]
         )
         ( 0, 0 )
@@ -1381,20 +1992,43 @@ testfinished =
         "Completed all tests; nothing more to do but enjoy the puppetShow."
         "Take a note of the passed and failed tests for debugging; refresh the page to restart."
         (\model ->
-            group (
-                let vec = 200
-                    v0 = vec * (cos (turns <| toFloat model.tick / 128))
-                    v1 = vec * (cos (turns <| 0.25 + toFloat model.tick / 128))
-                    v2 = vec * (cos (turns <| 0.5 + toFloat model.tick / 128))
-                in
-                puppetShow 500 500
-                  [ ( 200 + v0, circle 50 |> filled red |> addOutline (solid 0.5) black
-                                    |> move (fromPolar (v0, (degrees 45))))
-                  , ( 200 + v1, square 100 |> filled green |> addOutline (solid 0.5) black
-                                    |> move (fromPolar (v1, (degrees -45))))
-                  , ( 200 + v2, triangle 50 |> filled blue |> addOutline (solid 0.5) black
-                                    |> move (fromPolar (v2, (degrees 135))))
-                  ] ) )
+            group
+                (let
+                    vec =
+                        200
+
+                    v0 =
+                        vec * cos (turns <| toFloat model.tick / 128)
+
+                    v1 =
+                        vec * cos (turns <| 0.25 + toFloat model.tick / 128)
+
+                    v2 =
+                        vec * cos (turns <| 0.5 + toFloat model.tick / 128)
+                 in
+                 puppetShow 500
+                    500
+                    [ ( 200 + v0
+                      , circle 50
+                            |> filled red
+                            |> addOutline (solid 0.5) black
+                            |> move (fromPolar ( v0, degrees 45 ))
+                      )
+                    , ( 200 + v1
+                      , square 100
+                            |> filled green
+                            |> addOutline (solid 0.5) black
+                            |> move (fromPolar ( v1, degrees -45 ))
+                      )
+                    , ( 200 + v2
+                      , triangle 50
+                            |> filled blue
+                            |> addOutline (solid 0.5) black
+                            |> move (fromPolar ( v2, degrees 135 ))
+                      )
+                    ]
+                )
+        )
         ( 0, 0 )
 
 
@@ -1439,6 +2073,24 @@ tests =
     , test35
     , test36
     , test37
+    , test38
+    , test39
+    , test40
+    , test41
+    , test42
+    , test43
+    , test44
+    , test45
+    , test46
+    , test47
+    , test48
+    , test49
+    , test50
+    , test51
+    , test52
+    , test53
+    , test54
+    , test55
 
     --    , testn etc.
     ]
