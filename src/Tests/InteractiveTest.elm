@@ -1796,18 +1796,6 @@ test48 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -1832,18 +1820,6 @@ test49 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -1868,18 +1844,6 @@ test50 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -1904,18 +1868,6 @@ test51 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -1940,18 +1892,6 @@ test52 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -1976,18 +1916,6 @@ test53 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -2013,18 +1941,6 @@ test54 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -2054,18 +1970,6 @@ test55 =
         (\_ ->
             group
                 [ group
-                    [ rect 40 15 |> filled grey
-                    , text "Pass!!!"
-                        |> size 10
-                        |> bold
-                        |> centered
-                        |> filled darkGreen
-                        |> move ( 0, -3 )
-                    ]
-                    |> move ( 175, 202.5 )
-                    |> notifyTap (Notify ( 0, 0 ))
-                    |> addOutline (solid 1) black
-                , group
                     [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
                     , text "Failed!!!"
                         |> size 10
@@ -2187,7 +2091,7 @@ tests =
     , test53
     , test54
     , test55
-    
+
     --    , testn etc.
     ]
 
