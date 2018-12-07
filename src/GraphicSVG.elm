@@ -777,7 +777,10 @@ openPolygon ptList =
 -}
 ngon : Int -> Float -> Stencil
 ngon n r =
-    Polygon <| List.map (ptOnCircle r (Basics.toFloat n) << Basics.toFloat) (List.range 0 n)
+    Polygon <|
+        List.map
+            (ptOnCircle r (Basics.toFloat n) << Basics.toFloat)
+            (List.range 0 n)
 
 
 {-| Synonym for `ngon 3`. Creates a triangle with a given size.
@@ -925,14 +928,14 @@ wedge r frac =
     in
     Polygon <|
         if frac > 0 then
-            [ ( 0, 0 ), wedgeHelper r (-frac * 180) ]
+            [ ( 0, 0 ), wedgeHelper r -frac ]
                 ++ List.map
                     (wedgeHelper r
-                        << (*) (frac / n * 180)
+                        << (*) (frac / n)
                         << Basics.toFloat
                     )
                     (List.range -ni ni)
-                ++ [ wedgeHelper r (frac * 180), ( 0, 0 ) ]
+                ++ [ wedgeHelper r frac, ( 0, 0 ) ]
 
         else
             []
@@ -942,18 +945,18 @@ wedgeHelper : Float -> Float -> ( Float, Float )
 wedgeHelper r cn =
     let
         angle =
-            cn
+            turns (0.5 * cn)
     in
-    ( r * cos (degrees angle), r * sin (degrees angle) )
+    ( r * cos angle, r * sin angle )
 
 
 ptOnCircle : Float -> Float -> Float -> ( Float, Float )
 ptOnCircle r n cn =
     let
         angle =
-            360 * cn / n
+            turns (cn / n)
     in
-    ( r * cos (degrees angle), r * sin (degrees angle) )
+    ( r * cos angle, r * sin angle )
 
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point. For example,
@@ -1750,7 +1753,6 @@ touchDecoder =
 
 createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
 createSVG id w h trans shape =
-    --    (if String.right 1 id == "c" then Debug.log ("clip " ++ id) else identity) <|
     case shape of
         Inked fillClr lt stencil ->
             let
@@ -1770,8 +1772,11 @@ createSVG id w h trans shape =
                             ++ ")"
                     ]
 
+                nonexistBody = let (RGBA _ _ _ opcty) = fillClr in opcty <= 0
+                
                 clrAttrs =
-                    [ fill (mkRGB fillClr), fillOpacity (mkAlpha fillClr) ]
+                    if nonexistBody then [ fill "none"]
+                    else [ fill (mkRGB fillClr), fillOpacity (mkAlpha fillClr) ]
 
                 strokeAttrs =
                     case lt of
@@ -1779,33 +1784,44 @@ createSVG id w h trans shape =
                             []
 
                         Just ( Solid th, strokeClr ) ->
-                            [ strokeWidth (String.fromFloat th)
-                            , stroke (mkRGB strokeClr)
-                            , strokeOpacity (mkAlpha strokeClr)
-                            ]
+                            let nonStroke =
+                                    let (RGBA _ _ _ opcty) = strokeClr
+                                    in th <= 0 || opcty <= 0 in
+                            if nonStroke then [] else
+                                [ strokeWidth (String.fromFloat th)
+                                , stroke (mkRGB strokeClr)
+                                , strokeOpacity (mkAlpha strokeClr)
+                                ]
 
                         Just ( Broken dashes th, strokeClr ) ->
-                            [ strokeWidth (String.fromFloat th)
-                            , stroke (mkRGB strokeClr)
-                            , strokeOpacity (mkAlpha strokeClr)
-                            ]
-                                ++ [ strokeDasharray <|
-                                        String.concat
-                                            (List.intersperse "," <|
-                                                List.map pairToString dashes
-                                            )
-                                   ]
+                            let nonStroke =
+                                    let (RGBA _ _ _ opcty) = strokeClr
+                                    in th <= 0 || opcty <= 0 ||
+                                        List.all (\( on, _ ) -> on == 0) dashes
+                            in
+                            if nonStroke then [] else
+                                [ strokeWidth (String.fromFloat th)
+                                , stroke (mkRGB strokeClr)
+                                , strokeOpacity (mkAlpha strokeClr)
+                                ]
+                                    ++ [ strokeDasharray <|
+                                            String.concat
+                                                (List.intersperse "," <|
+                                                    List.map pairToString dashes
+                                                )
+                                    ]
 
-                        _ ->
+                        Just ( NoLine, _ ) ->
                             []
             in
+            if nonexistBody && List.isEmpty strokeAttrs then Svg.g [] [] else
             case stencil of
                 Circle r ->
                     Svg.circle
                         ([ cx "0"
-                         , cy "0"
-                         , Svg.Attributes.r (String.fromFloat r)
-                         ]
+                        , cy "0"
+                        , Svg.Attributes.r (String.fromFloat r)
+                        ]
                             ++ attrs
                         )
                         []
@@ -1813,10 +1829,10 @@ createSVG id w h trans shape =
                 Rect rw rh ->
                     Svg.rect
                         ([ x <| String.fromFloat <| -rw / 2
-                         , y <| String.fromFloat <| -rh / 2
-                         , width <| String.fromFloat rw
-                         , height <| String.fromFloat rh
-                         ]
+                        , y <| String.fromFloat <| -rh / 2
+                        , width <| String.fromFloat rw
+                        , height <| String.fromFloat rh
+                        ]
                             ++ attrs
                         )
                         []
@@ -1824,12 +1840,12 @@ createSVG id w h trans shape =
                 RoundRect rw rh r ->
                     Svg.rect
                         ([ x <| String.fromFloat <| -rw / 2
-                         , y <| String.fromFloat <| -rh / 2
-                         , rx <| String.fromFloat r
-                         , ry <| String.fromFloat r
-                         , width <| String.fromFloat rw
-                         , height <| String.fromFloat rh
-                         ]
+                        , y <| String.fromFloat <| -rh / 2
+                        , rx <| String.fromFloat r
+                        , ry <| String.fromFloat r
+                        , width <| String.fromFloat rw
+                        , height <| String.fromFloat rh
+                        ]
                             ++ attrs
                         )
                         []
@@ -1837,22 +1853,21 @@ createSVG id w h trans shape =
                 Oval ow oh ->
                     Svg.ellipse
                         ([ cx "0"
-                         , cy "0"
-                         , rx <| String.fromFloat <| 0.5 * ow
-                         , ry <| String.fromFloat <| 0.5 * oh
-                         ]
+                        , cy "0"
+                        , rx <| String.fromFloat <| 0.5 * ow
+                        , ry <| String.fromFloat <| 0.5 * oh
+                        ]
                             ++ attrs
                         )
                         []
 
-                -- BezierPath (List )
                 Polygon vertices ->
                     Svg.polygon
                         ([ points <|
                             String.concat <|
                                 List.intersperse " " <|
                                     List.map pairToString vertices
-                         ]
+                        ]
                             ++ attrs
                         )
                         []
@@ -1952,7 +1967,6 @@ createSVG id w h trans shape =
                          , Svg.Attributes.textAnchor anchor
                          , Html.Attributes.contenteditable True
                          ]
-                            ++ attrs
                             ++ [ Svg.Attributes.transform <|
                                     "matrix("
                                         ++ (String.concat <|
@@ -1964,6 +1978,7 @@ createSVG id w h trans shape =
                                         ++ ")"
                                ]
                             ++ [ Svg.Attributes.xmlSpace "preserve" ]
+                            ++ clrAttrs ++ strokeAttrs
                         )
                         [ Svg.text str ]
 
@@ -1973,8 +1988,9 @@ createSVG id w h trans shape =
                     trans
             in
             Svg.foreignObject
-                [ width <| String.fromFloat fw, height
-                    <| String.fromFloat fh, Svg.Attributes.transform
+                [ width <| String.fromFloat fw
+                , height <| String.fromFloat fh
+                , Svg.Attributes.transform
                     <| "matrix(" ++ (String.concat <| List.intersperse ","
                                         <| List.map
                                             String.fromFloat
@@ -2139,15 +2155,13 @@ createSVG id w h trans shape =
         GroupOutline cmbndshp ->
             createSVG id w h trans cmbndshp
 
-        GraphPaper s th c ->
-            Svg.g []
-                [ createSVG id w h trans <|
-                    if th <= 0 || s < 2 * th then
-                        Group []
+        GraphPaper s th c ->            
+            if th <= 0 || s < 2 * th then
+                Svg.g [] []
 
-                    else
-                        createGraph ( w, h ) s th c
-                ]
+            else
+                createSVG id w h trans <|
+                    createGraph ( w, h ) s th c
 
 
 {-| Display HTML inside an SVG foreignObject.

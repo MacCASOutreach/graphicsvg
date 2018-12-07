@@ -1114,13 +1114,13 @@ test30 =
 test31 : Test
 test31 =
     Test
-        "Testing graphpaper (on top); click Pass or Fail as appropriate."
-        "Is the whole Collage area covered with graph paper that changes size over 3 steps?:"
+        "Testing graphpaper, with fail of zero spacing; click Pass or Fail as appropriate."
+        "Does the background graph paper changes size over 3 steps, disappearing on the 4th step?:"
         (\model ->
             group
                 [ let
                     r =
-                        1 + modBy 3 model.time |> toFloat
+                        modBy 4 model.time |> toFloat
                   in
                   graphPaperCustom (10 * r) 1 lightPurple
                 , group
@@ -1788,6 +1788,300 @@ test47 =
         ( 0, 0 )
 
 
+test48 : Test
+test48 =
+    Test
+        "Tests ability to \"click-through\" transparent circle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , circle 50|> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test49 : Test
+test49 =
+    Test
+        "Tests ability to \"click-through\" transparent rectangle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , rect 100 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test50 : Test
+test50 =
+    Test
+        "Tests ability to \"click-through\" transparent rounded rectangle; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , roundedRect 100 80 30 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test51 : Test
+test51 =
+    Test
+        "Tests ability to \"click-through\" transparent oval; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , oval 100 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test52 : Test
+test52 =
+    Test
+        "Tests ability to \"click-through\" transparent triangular polygon; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , triangle 80 |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test53 : Test
+test53 =
+    Test
+        "Tests ability to \"click-through\" transparent open polyline; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , openPolygon [ ( 50, 40 ), ( -50, 40 ), ( -50, -40 ), ( 50, -40 ) ]
+                    |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test54 : Test
+test54 =
+    Test
+        "Tests ability to \"click-through\" transparent Bezier curve; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
+                , curve ( 50, 0 )
+                    [ Pull ( 50, 40 ) ( 0, 40 )
+                    , Pull ( -50, 40 ) ( -50, 0 )
+                    , Pull ( -50, -40 ) ( 0, -40 )
+                    , Pull ( 50, -40 ) ( 50, 0 )
+                    ] |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
+test55 : Test
+test55 =
+    Test
+        "Tests ability to \"click-through\" transparent text; click Fail as appropriate."
+        "Can you make the test pass by clicking on the orange circle revealed below?"
+        (\_ ->
+            group
+                [ group
+                    [ rect 40 15 |> filled grey
+                    , text "Pass!!!"
+                        |> size 10
+                        |> bold
+                        |> centered
+                        |> filled darkGreen
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 175, 202.5 )
+                    |> notifyTap (Notify ( 0, 0 ))
+                    |> addOutline (solid 1) black
+                , group
+                    [ rect 40 15 |> filled grey |> addOutline (solid 0.5) black
+                    , text "Failed!!!"
+                        |> size 10
+                        |> centered
+                        |> outlined (solid 1) red
+                        |> move ( 0, -3 )
+                    ]
+                    |> move ( 225, 202.5 )
+                    |> notifyTap (Notify ( 10, 10 ))
+                , circle 30 |> filled orange |> move ( 0, 30 ) |> notifyTap (Notify ( 0, 0 ))
+                , text "Boo!!!" |> size 100 |> centered |> outlined (solid 1) black
+                ]
+        )
+        ( 0, 0 )
+
+
 testfinished : Test
 testfinished =
     Test
@@ -1885,7 +2179,15 @@ tests =
     , test45
     , test46
     , test47
-
+    , test48
+    , test49
+    , test50
+    , test51
+    , test52
+    , test53
+    , test54
+    , test55
+    
     --    , testn etc.
     ]
 
