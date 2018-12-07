@@ -3,7 +3,7 @@
     "name": "MacCASOutreach/graphicsvg",
     "summary": "Beautiful scalable vector graphics (SVG) in Elm.",
     "license": "BSD-3-Clause",
-    "version": "5.1.0",
+    "version": "6.0.0",
     "exposed-modules": [
         "GraphicSVG",
         "GraphicSVG.App",
