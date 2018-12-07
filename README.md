@@ -25,7 +25,7 @@ We'd love to hear from you and support you in any way we can! Contact us via a G
 See our [Elm documentation](http://package.elm-lang.org/packages/MacCASOutreach/graphicsvg/latest/GraphicSVG) and research resources below for more information.
 
 ### For Teachers
-We'd love to help you integrate Elm and GraphicSVG into your elementary or high school classroom. Please contact us here.
+We'd love to help you integrate Elm and GraphicSVG into your elementary or high school classroom. Please [contact us here](mailto:anandc@mcmaster.ca).
 
 ### Research
 We have performed several studies using GraphicSVG. Here are some examples:
