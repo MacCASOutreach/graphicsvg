@@ -1257,8 +1257,8 @@ test34 =
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
                 , clip
-                    (circle 50 |> filled blue)
                     (rect 100 100 |> filled purple |> move ( 50, 0 ))
+                    (circle 50 |> filled blue)
                 ]
         )
         ( 0, 0 )
@@ -1303,7 +1303,7 @@ test36 : Test
 test36 =
     Test
         "Testing subtraction; click Pass or Fail as appropriate."
-        "Is the shape a blue circle with a circle \"bite\" taken out of it on the right side?:"
+        "Is the shape a blue circle with a circle \"bite\" taken out of it on the left side?:"
         (\_ ->
             group
                 [ group
@@ -1327,8 +1327,8 @@ test36 =
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
                 , subtract
+                    (circle 50 |> filled purple |> move ( -50, 0 ))
                     (circle 50 |> filled blue)
-                    (circle 50 |> filled purple |> move ( 50, 0 ))
                 ]
         )
         ( 0, 0 )
@@ -1480,9 +1480,9 @@ test40 =
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
                 , clip
-                    (circle 50 |> filled orange)
                     (rect 100 100 |> filled red |> move ( 50, 0 ))
-                    |> addOutline (solid 5) purple
+                    (circle 50 |> filled orange)
+                        |> addOutline (solid 5) purple
                 ]
         )
         ( 0, 0 )
@@ -1516,9 +1516,9 @@ test41 =
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
                 , subtract
+                    (circle 50 |> filled red |> move ( -50, 0 ))
                     (circle 50 |> filled orange)
-                    (circle 50 |> filled red |> move ( 50, 0 ))
-                    |> addOutline (solid 5) darkPurple
+                        |> addOutline (solid 5) darkPurple
                 ]
         )
         ( 0, 0 )
@@ -1558,13 +1558,13 @@ test42 =
                     , circle 50 |> filled orange |> move ( -150, 0 )
                     , circle 25 |> filled blue |> move ( -150, 0 )
                     , subtract
-                        (circle 50 |> filled orange)
                         (rect 100 100 |> filled red |> move ( 50, 0 ))
-                        |> move ( -25, 0 )
+                        (circle 50 |> filled orange)
+                            |> move ( -25, 0 )
                     , clip
-                        (circle 50 |> filled orange)
                         (rect 100 100 |> filled red |> move ( 50, 0 ))
-                        |> move ( 25, 0 )
+                        (circle 50 |> filled orange)
+                            |> move ( 25, 0 )
                     ]
                     |> addOutline (solid 5) darkPurple
                 ]
@@ -1602,26 +1602,24 @@ test43 =
                 , addOutline (solid 5) purple <|
                     clip
                         (group
+                            [ rect 200 100 |> filled red |> move ( 0, 50 )
+                            , clip
+                                (rect 50 50 |> filled green |> move ( -25, -60 ))
+                                (circle 25 |> filled red |> move ( -25, -35 ))
+                            , subtract
+                                (rect 50 50 |> filled green |> move ( 25, -10 ))
+                                (circle 25 |> filled red |> move ( 25, -35 ))
+                            ])
+                        (group
                             [ rect 150 110 |> filled red
                             , circle 50 |> filled orange
                             , clip
-                                (circle 50 |> filled yellow |> move ( -25, 0 ))
                                 (rect 100 100 |> filled green |> move ( -75, 0 ))
+                                (circle 50 |> filled yellow |> move ( -25, 0 ))
                             , subtract
-                                (circle 50 |> filled yellow |> move ( 25, 0 ))
                                 (rect 100 100 |> filled green |> move ( -25, 0 ))
-                            ]
-                        )
-                        (group
-                            [ rect 200 100 |> filled red |> move ( 0, 50 )
-                            , clip
-                                (circle 25 |> filled red |> move ( -25, -35 ))
-                                (rect 50 50 |> filled green |> move ( -25, -60 ))
-                            , subtract
-                                (circle 25 |> filled red |> move ( 25, -35 ))
-                                (rect 50 50 |> filled green |> move ( 25, -10 ))
-                            ]
-                        )
+                                (circle 50 |> filled yellow |> move ( 25, 0 ))
+                            ])
                 ]
         )
         ( 0, 0 )
@@ -1657,27 +1655,25 @@ test44 =
                 , addOutline (solid 5) purple <|
                     subtract
                         (group
-                            [ rect 150 110 |> filled red
-                            , circle 50 |> filled orange
-                            , clip
-                                (circle 50 |> filled yellow |> move ( -25, 0 ))
-                                (rect 100 100 |> filled green |> move ( -75, 0 ))
-                            , subtract
-                                (circle 50 |> filled yellow |> move ( 25, 0 ))
-                                (rect 100 100 |> filled green |> move ( -25, 0 ))
-                            ]
-                        )
-                        (group
                             [ rect 200 100 |> filled red |> move ( 0, 50 )
                             , rect 100 10 |> filled red |> move ( 0, -15 )
                             , clip
-                                (circle 25 |> filled red |> move ( -25, -35 ))
                                 (rect 50 50 |> filled green |> move ( -25, -60 ))
+                                (circle 25 |> filled red |> move ( -25, -35 ))
                             , subtract
-                                (circle 25 |> filled red |> move ( 25, -35 ))
                                 (rect 50 50 |> filled green |> move ( 25, -10 ))
-                            ]
-                        )
+                                (circle 25 |> filled red |> move ( 25, -35 ))
+                            ])
+                        (group
+                            [ rect 150 110 |> filled red
+                            , circle 50 |> filled orange
+                            , clip
+                                (rect 100 100 |> filled green |> move ( -75, 0 ))
+                                (circle 50 |> filled yellow |> move ( -25, 0 ))
+                            , subtract
+                                (rect 100 100 |> filled green |> move ( -25, 0 ))
+                                (circle 50 |> filled yellow |> move ( 25, 0 ))
+                            ])
                 ]
         )
         ( 0, 0 )
