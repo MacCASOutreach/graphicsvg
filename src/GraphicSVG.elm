@@ -3123,17 +3123,17 @@ hsla h s l a =
 
 {-| Clipping to a shape
 
-    Cut out the `Shape` on the left using the `Shape` on the right.
+Cut out the `Shape` on the right using the `Shape` on the left.
 
 -}
 clip : Shape userMsg -> Shape userMsg -> Shape userMsg
 clip shape1 shape2 =
-    Clip shape2 shape1
+    Clip shape1 shape2
 
 
 {-| Shape union
 
-    Combine two `Shape`s together into one to use with clip.
+Combine two `Shape`s together into one to use with clip.
 
 -}
 union : Shape userMsg -> Shape userMsg -> Shape userMsg
@@ -3143,7 +3143,7 @@ union shape1 shape2 =
 
 {-| Shape subtraction
 
-    Subtract the `Shape` on the right from the `Shape` on the left.
+Subtract the `Shape` on the right from the `Shape` on the left.
 
 -}
 subtract : Shape userMsg -> Shape userMsg -> Shape userMsg
