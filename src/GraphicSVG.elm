@@ -168,7 +168,7 @@ type Stencil
 {-| A filled, outlined, or filled and outlined object that can be drawn to the screen using `collage`.
 -}
 type Shape userMsg
-    = Inked Color (Maybe ( LineType, Color )) Stencil
+    = Inked (Maybe Color) (Maybe ( LineType, Color )) Stencil
     | ForeignObject Float Float (Html.Html userMsg)
     | Move ( Float, Float ) (Shape userMsg)
     | Rotate Float (Shape userMsg)
@@ -925,13 +925,16 @@ wedge r frac =
 
         ni =
             round n
+
+        dlta =
+            frac / Basics.toFloat ni
     in
     Polygon <|
         if frac > 0 then
             [ ( 0, 0 ), wedgeHelper r -frac ]
                 ++ List.map
                     (wedgeHelper r
-                        << (*) (frac / n)
+                        << (*) dlta
                         << Basics.toFloat
                     )
                     (List.range -ni ni)
@@ -1767,16 +1770,24 @@ createSVG id w h trans shape =
                         "matrix("
                             ++ (String.concat <|
                                     List.intersperse "," <|
-                                        List.map String.fromFloat [ a, -b, c, -d, tx, -ty ]
+                                        List.map
+                                            String.fromFloat
+                                            [ a, -b, c, -d, tx, -ty ]
                                )
                             ++ ")"
                     ]
 
-                nonexistBody = let (RGBA _ _ _ opcty) = fillClr in opcty <= 0
+                nonexistBody =
+                    case fillClr of
+                        Nothing -> True
+                        _ -> False
                 
                 clrAttrs =
-                    if nonexistBody then [ fill "none"]
-                    else [ fill (mkRGB fillClr), fillOpacity (mkAlpha fillClr) ]
+                    case fillClr of
+                        Nothing -> [ fill "none"]
+                        Just bodyClr -> [ fill (mkRGB bodyClr)
+                                        , fillOpacity (mkAlpha bodyClr)
+                                        ]
 
                 strokeAttrs =
                     case lt of
@@ -2175,7 +2186,11 @@ html w h htm =
 --Filling / outlining functions
 
 
-{-| Fill a `Stencil` with a `Color`, creating a `Shape`.
+{-| Fill a `Stencil` with a `Color`, creating a `Shape`;
+Note that any `Stencil` converted to a `Shape` this way can be made
+transparent (for instance by using the `blank` `Color`) but will not be
+"click-through", meaning that the body will catch any attached notifications
+and not let them through to any visible `Shape`(s) revealed beneath them.
 
     circle 10
         |> filled red
@@ -2183,19 +2198,24 @@ html w h htm =
 -}
 filled : Color -> Stencil -> Shape userMsg
 filled color stencil =
-    Inked color Nothing stencil
+    Inked (Just color) Nothing stencil
 
 
 {-| Make a `Shape` into a ghost. Mostly to be used inside of the clip operations.
+Note that although the `blank` `Color` is transparent, it will still catch
+notifications enabled on the `Shape` or block them if not enabled on the `Shape`.
 -}
 ghost : Stencil -> Shape userMsg
 ghost stencil =
-    Inked blank Nothing stencil
+    Inked (Just blank) Nothing stencil
 
 
 {-| Repaint an already-`filled` `Shape`. This is helpful for repainting every `Shape` inside a `group` as well.
 
-Repaints the outline the same color as the body of the shape including the outline, if used.
+Repaints the outline the same color as the body of the shape including the outline, if used;
+Note that this can repaint with a transparent `Color` (for instance, the `blank` `Color`) but
+will never have the ability to be "click-through" so that it will always block (or catch)
+notifications to covered `Shape`(s) revealed beneath.
 
     group
         [ circle 10
@@ -2210,10 +2230,10 @@ repaint : Color -> Shape userMsg -> Shape userMsg
 repaint color shape =
     case shape of
         Inked _ Nothing st ->
-            Inked color Nothing st
+            Inked (Just color) Nothing st
 
         Inked _ (Just ( lt, _ )) st ->
-            Inked color (Just ( lt, color )) st
+            Inked (Just color) (Just ( lt, color )) st
 
         Move s sh ->
             Move s (repaint color sh)
@@ -2307,7 +2327,11 @@ repaint color shape =
             GraphPaper s th color
 
 
-{-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`.
+{-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`;
+Note that this is the only way to convert a `Stencil` into a `Shape` that is
+"click-through" as if the body is not just transparent but doesn't exist at all.
+It works for all `Stencil`'s except for `Text` which can never be made "click-through"
+due to a permanent transparent background area that cannot be disabled.
 
     circle 10
         |> outlined (solid 5) red
@@ -2324,7 +2348,7 @@ outlined style outlineClr stencil =
                 _ ->
                     Just ( style, outlineClr )
     in
-    Inked (rgba 0 0 0 0) lineStyle stencil
+    Inked Nothing lineStyle stencil
 
 
 {-| Add an outline to an already-filled `Shape`.
@@ -2343,6 +2367,11 @@ the pattern is a "Group" as it won't appear at all in a "clip".
 In these cases the workaround is just as before this was made available, to build up
 the outlines desired using combinations of other shapes such as curves, clipped or
 subtracted shapes, convential pre-applied outlines, etc.
+
+Note that when applied to `Group`(s), `Clip`(s), and `AlphaMask`(s) (from subtracts),
+the body colour may still be transparent so that `Shape`(s) can be revealed beneath,
+but the bodies are not "click-through" so that notifications can be passed through to them,
+and the transparent bodies can still capture notifications enabled on the resulting `Shape`(s).
 
     circle 10
         |> filled red
@@ -2411,13 +2440,13 @@ addOutline style outlineClr shape =
                             outlnshp =
                                 GroupOutline <|
                                     subtract
+                                        (Group innerlist)
                                         (Group
                                             (List.map
                                                 (addOutline style outlineClr)
                                                 innerlist
                                             )
                                         )
-                                        (Group innerlist)
                         in
                         Group <| innerlist ++ [ outlnshp ]
 
@@ -2447,10 +2476,10 @@ addOutline style outlineClr shape =
                         addOutline style outlineClr sh
 
                     ptrnoutln =
-                        clip ptrnlnd inside
+                        Clip inside ptrnlnd
 
                     shpoutln =
-                        clip newshp inside
+                        Clip inside newshp
                 in
                 AlphaMask ptrn <|
                     Group
@@ -2478,10 +2507,10 @@ addOutline style outlineClr shape =
                         addOutline style outlineClr sh
 
                     ptrnoutln =
-                        clip ptrnlnd inside
+                        Clip inside ptrnlnd
 
                     shpoutln =
-                        clip newshp inside
+                        Clip inside newshp
                 in
                 Clip ptrn <|
                     Group
@@ -2571,11 +2600,15 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked (RGBA r g b a) (Just ( lineType, RGBA sr sg sb sa )) st ->
-            Inked (RGBA r g b (a * alpha)) (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+        Inked Nothing (Just ( lineType, RGBA sr sg sb sa )) st ->
+            Inked Nothing (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
 
-        Inked (RGBA r g b a) Nothing st ->
-            Inked (RGBA r g b (a * alpha)) Nothing st
+        Inked (Just (RGBA r g b a)) (Just ( lineType, RGBA sr sg sb sa )) st ->
+            Inked (Just (RGBA r g b (a * alpha)))
+                  (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+
+        Inked (Just (RGBA r g b a)) Nothing st ->
+            Inked (Just (RGBA r g b (a * alpha))) Nothing st
 
         ForeignObject w h htm ->
             ForeignObject w h htm
@@ -2666,6 +2699,9 @@ makeTransparent alpha shape =
 
         GraphPaper s th (RGBA r g b a) ->
             GraphPaper s th (RGBA r g b (a * alpha))
+        
+        Inked Nothing Nothing st ->
+            shape
 
 
 
@@ -3143,12 +3179,12 @@ union shape1 shape2 =
 
 {-| Shape subtraction
 
-Subtract the `Shape` on the right from the `Shape` on the left.
+Subtract the `Shape` on the left from the `Shape` on the right.
 
 -}
 subtract : Shape userMsg -> Shape userMsg -> Shape userMsg
 subtract shape1 shape2 =
-    AlphaMask shape2 shape1
+    AlphaMask shape1 shape2
 
 
 {-| The whole region outside the given `Shape`.
