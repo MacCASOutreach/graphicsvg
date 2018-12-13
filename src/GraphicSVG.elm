@@ -2476,10 +2476,10 @@ addOutline style outlineClr shape =
                         addOutline style outlineClr sh
 
                     ptrnoutln =
-                        clip inside ptrnlnd
+                        Clip inside ptrnlnd
 
                     shpoutln =
-                        clip inside newshp
+                        Clip inside newshp
                 in
                 AlphaMask ptrn <|
                     Group
@@ -2507,10 +2507,10 @@ addOutline style outlineClr shape =
                         addOutline style outlineClr sh
 
                     ptrnoutln =
-                        clip inside ptrnlnd
+                        Clip inside ptrnlnd
 
                     shpoutln =
-                        clip inside newshp
+                        Clip inside newshp
                 in
                 Clip ptrn <|
                     Group
@@ -2600,9 +2600,6 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked Nothing Nothing st ->
-            shape
-
         Inked Nothing (Just ( lineType, RGBA sr sg sb sa )) st ->
             Inked Nothing (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
 
@@ -2702,6 +2699,9 @@ makeTransparent alpha shape =
 
         GraphPaper s th (RGBA r g b a) ->
             GraphPaper s th (RGBA r g b (a * alpha))
+        
+        Inked Nothing Nothing st ->
+            shape
 
 
 
