@@ -17,6 +17,7 @@ module GraphicSVG exposing
     , graphPaper, graphPaperCustom, map
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
     , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+    , Msg(..), createSVG
     )
 
 {-| A library for creating SVG graphics in a way that is compatible with Elm's
@@ -121,13 +122,19 @@ which are provided in the section above this one.
 
 @docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
+# More Advanced Things
+
+Don't worry about these unless you *_really_* know what you're doing!
+
+@docs Msg, createSVG
+
 -}
 
 {- Library created by Chris Schankula and Dr. Christopher Anand
    for the McMaster University Computing and Software Outreach Program
    and CompSci 1JC3, with input and testing from the rest of the Outreach
    team.
-   Last updated: November 15th, 2018
+   Last updated: January 25th, 2019
 -}
 
 import Array
@@ -529,6 +536,8 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
             in
             ( ( newModel, gModel ), mapUserCmd userCmds )
 
+        NoOp -> (( userModel, gModel ), Cmd.none)
+
 
 hiddenAppView :
     (userModel -> { title : String, body : Collage userMsg })
@@ -625,50 +634,10 @@ ellieApp input =
 convertCoords : ( Float, Float ) -> HiddenModel -> ( Float, Float )
 convertCoords ( x, y ) gModel =
     let
-        sw =
-            gModel.sw
-
-        sh =
-            gModel.sh
-
-        cw =
-            gModel.cw
-
-        ch =
-            gModel.ch
-
-        aspectout =
-            if not (sh == 0) then
-                sw / sh
-
-            else
-                4 / 3
-
-        aspectin =
-            if not (ch == 0) then
-                cw / ch
-
-            else
-                4 / 3
-
-        scaledInX =
-            aspectout < aspectin
-
-        scaledInY =
-            aspectout > aspectin
-
-        cscale =
-            if scaledInX then
-                sw / cw
-
-            else if scaledInY then
-                sh / ch
-
-            else
-                1
+        cScale = gModel.sw / gModel.cw
     in
-    ( (x - sw / 2) / cscale
-    , (y + sh / 2) / cscale
+    ( (x - gModel.sw / 2) / cScale
+    , (y + gModel.sh / 2) / cScale
     )
 
 
@@ -719,6 +688,7 @@ type Msg userMsg
     = Graphics userMsg
     | WindowResize ( Int, Int )
     | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
+    | NoOp
 
 
 {-| The `HiddenModel` type alias encapsulates the GraphicSVG internal model
@@ -1666,7 +1636,7 @@ touchToPair tp =
 
 
 mousePosDecoder =
-    D.map2 (\x y -> ( x, -y )) (D.field "pageX" D.float) (D.field "pageY" D.float)
+    D.map2 (\x y -> ( x, -y )) (D.field "offsetX" D.float) (D.field "offsetY" D.float)
 
 
 onTapAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
@@ -1753,7 +1723,10 @@ touchDecoder =
             (D.field "pageY" D.float)
         ]
 
-
+{-| Create Svg from a Shape. This is considered an advanced function and
+is usually not used. Instead, use collage as part of a regular GraphicSVG
+app or create a widget with GraphicSVG.Widget. 
+-}
 createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
 createSVG id w h trans shape =
     case shape of
