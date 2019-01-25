@@ -2,12 +2,16 @@ import GraphicSVG exposing (..)
 import GraphicSVG.App exposing (appWithTick, AppWithTick, GetKeyState)
 import Url exposing (Url)
 import Browser exposing (UrlRequest)
+import Browser.Events
+import Debug exposing (toString)
 
 -- This example must be viewed by elm reactor or another web server, not directly after using elm-make
 
 type alias Model = 
     { radius : Float
     , time : Float
+    , x : Int
+    , y : Int
     }
 
 type Msg = 
@@ -16,13 +20,14 @@ type Msg =
     | MakeSmaller
     | OnUrlRequest UrlRequest
     | OnUrlChange Url
+    | OnResize Int Int
 
 main : AppWithTick () Model Msg
 main = appWithTick Tick
     { init = \_ url key -> (init, Cmd.none)
     , update = update
     , view = \model -> { body = view model, title = title model }
-    , subscriptions = \_ -> Sub.none
+    , subscriptions = \_ -> Browser.Events.onResize OnResize
     , onUrlRequest = OnUrlRequest
     , onUrlChange = OnUrlChange
     }
@@ -32,6 +37,8 @@ init =
         {
             radius = 10
         ,   time = 0
+        ,   x = 0
+        ,   y = 0
         }
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -42,6 +49,7 @@ update msg model =
         MakeSmaller -> ( { model | radius = model.radius - 3 }, Cmd.none )
         OnUrlRequest _ -> (model, Cmd.none) 
         OnUrlChange url -> (model, Cmd.none)
+        OnResize x y -> ( { model | x = x, y = y }, Cmd.none)
 
 title : Model -> String
 title model =
@@ -60,6 +68,7 @@ view model = collage 192 128
         |> centered
         |> filled gray
         |> move (0,-50)
+    , text (toString model.x ++ "," ++ toString model.y) |> filled black
     ]
 
 biggerButton = 
