@@ -139,7 +139,7 @@ Don't worry about these unless you *_really_* know what you're doing!
 
 import Array
 import Browser exposing (UrlRequest)
-import Browser.Dom exposing (Viewport, getViewport)
+import Browser.Dom exposing (Viewport, getViewportOf)
 import Browser.Events exposing (onKeyDown, onKeyPress, onKeyUp, onResize)
 import Browser.Navigation exposing (Key)
 import Char
@@ -487,7 +487,7 @@ type alias App flags userModel userMsg =
 subs : (userModel -> Sub userMsg) -> ( userModel, gModel ) -> Sub (Msg userMsg)
 subs userSubs ( userModel, _ ) =
     Sub.batch
-        ([ onResize (\w h -> WindowResize ( w, h ))
+        ([ onResize (\_ _ -> WindowResize Nothing)
          ]
             ++ [ Sub.map Graphics (userSubs userModel) ]
         )
@@ -517,15 +517,21 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
             , mapUserCmd userCmds
             )
 
-        WindowResize ( width, height ) ->
-            ( ( userModel
-              , { gModel
-                    | sw = Basics.toFloat width
-                    , sh = Basics.toFloat height
-                }
-              )
-            , Cmd.none
-            )
+        WindowResize mWH ->
+            case mWH of
+                Just ( w, h ) ->
+                    ( ( userModel
+                      , { gModel
+                            | sw = Basics.toFloat w
+                            , sh = Basics.toFloat h
+                        }
+                      )
+                    , Cmd.none
+                    )
+                Nothing ->
+                    ( (userModel, gModel)
+                    , getViewportSize
+                    )
 
         ReturnPosition message ( x, y ) ->
             let
@@ -634,10 +640,50 @@ ellieApp input =
 convertCoords : ( Float, Float ) -> HiddenModel -> ( Float, Float )
 convertCoords ( x, y ) gModel =
     let
-        cScale = gModel.sw / gModel.cw
+        sw =
+            gModel.sw
+
+        sh =
+            gModel.sh
+
+        cw =
+            gModel.cw
+
+        ch =
+            gModel.ch
+
+        aspectout =
+            if not (sh == 0) then
+                sw / sh
+
+            else
+                4 / 3
+
+        aspectin =
+            if not (ch == 0) then
+                cw / ch
+
+            else
+                4 / 3
+
+        scaledInX =
+            aspectout < aspectin
+
+        scaledInY =
+            aspectout > aspectin
+
+        cscale =
+            if scaledInX then
+                sw / cw
+
+            else if scaledInY then
+                sh / ch
+
+            else
+                1
     in
-    ( (x - gModel.sw / 2) / cScale
-    , (y + gModel.sh / 2) / cScale
+    ( (x - sw / 2) / cscale
+    , (y + sh / 2) / cscale
     )
 
 
@@ -646,15 +692,19 @@ initialCmd :
     -> Cmd (Msg userMsg)
 initialCmd userCmd =
     Cmd.batch
-        [ Task.perform
-            (\vp ->
-                WindowResize
-                    ( round vp.viewport.width, round vp.viewport.height )
-            )
-            getViewport
+        [ getViewportSize
         , userCmd
         ]
 
+getViewportSize : Cmd (Msg userMsg)
+getViewportSize = Task.attempt
+            (\rvp -> case rvp of
+                        Ok vp ->                    
+                            WindowResize
+                                <| Just ( round vp.viewport.width, round vp.viewport.height )
+                        Err _ -> NoOp
+            )
+            (getViewportOf "render")
 
 {-| The `Msg` type encapsulates all GraphicSVG internal messages.
 
@@ -686,7 +736,7 @@ These assume that `Model` is the type alias of the user persistent model, and
 -}
 type Msg userMsg
     = Graphics userMsg
-    | WindowResize ( Int, Int )
+    | WindowResize (Maybe ( Int, Int ))
     | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
     | NoOp
 
@@ -1455,6 +1505,7 @@ createCollage w h shapes =
                 ++ " "
                 ++ String.fromFloat h
             )
+        , id "render"
         ]
         (cPath w h
             :: [ Svg.g
