@@ -1,4 +1,4 @@
-module GraphicSVG.Widget exposing (Wrapper,Model,Msg,init,subscriptions,update,view)
+module GraphicSVG.Widget exposing (icon,Wrapper,Model,Msg,init,subscriptions,update,view)
 
 {-| Include GraphicSVG animations and functionality within your own elm/html
 app! Your existing code can utilize as many widgets as it likes; each one
@@ -7,7 +7,16 @@ receives its own co-ordinate system and view!
 [See GitHub](https://github.com/MacCASOutreach/graphicsvg/tree/master/src/Templates/Widget/Widget.elm)
 for a full example of widgets embedded inside Elm Html.
 
-# Basic Types
+# Static Icons
+Static icons can render shapes without requiring you to modify your models and messages
+to include special things, as in the case of the Interactive Widgets below. Use this when
+you don't need the user to interact with the shapes (i.e. you don't need to _receieve_
+any messages from the shape). For example, avatars and icons can use this.
+
+@docs icon
+
+# Interactive Widgets
+## Basic Types
 The basic message and model types must be wrapped and contained within your app's
 message type and model type respectively. These are mostly opaque data types of which
 you do not need to know the gritty details. Simply include them in your app and
@@ -15,16 +24,16 @@ you're all set!
 
 @docs Wrapper, Msg, Model
 
-# Initialization
+## Initialization
 Some helper functions for initializing your widget(s). 
 
 @docs init, subscriptions
 
-# Updating a widget model
+## Updating a widget model
 
 @docs update
 
-# Rendering a widget
+## Rendering a widget
 
 @docs view
 -}
@@ -36,6 +45,54 @@ import Svg.Attributes exposing(width,height,style,viewBox,clipPath,x,y,id)
 import Task
 import Browser.Dom exposing (Viewport, getViewportOf)
 import Browser.Events exposing(onResize)
+
+{-|A static graphic that returns no messages. Use this when you don't need to
+handle messages about clicking shapes, getting mouse positions, etc. This function
+is simpler and requires no other modifications to your model and message types.
+
+You must include a type like `NoOp` meaning "do nothing" as well as a unique ID for
+the icon. For example to draw a circle with the name "Circle", use the following:
+
+```
+-- your message type should include a dummy NoOp message
+type Msg =
+      ..
+    | NoOp
+```
+Then, use `icon` as follows in your view function:
+```
+icon NoOp "Circle" 50 50
+    [
+        circle 5
+            |> filled blue
+    ]
+```
+-}
+icon : userMsg -> String -> Float -> Float -> List (Shape userMsg) -> Html.Html userMsg
+icon noop iid w h shapes =
+    Svg.map (\_ -> noop) <| Svg.svg
+        [ width "100%"
+        , height "100%"
+        , viewBox
+            (String.fromFloat (-w / 2)
+                ++ " "
+                ++ String.fromFloat (-h / 2)
+                ++ " "
+                ++ String.fromFloat w
+                ++ " "
+                ++ String.fromFloat h
+            )
+        , id iid
+        ]
+        (cPath iid w h
+            :: [ Svg.g
+                    [ clipPath ("url(#cPath"++iid++")") ]
+                    (List.indexedMap
+                        (\n -> createSVG (iid ++ String.fromInt n) w h ident)
+                        shapes
+                    )
+               ]
+        )
 
 {-|A type alias representing a constructor of your type which wraps the
 Widget.Msg type. This will allow you to catch and pipe all messages to the 
@@ -125,7 +182,7 @@ init w h msgWrapper id =
 
 getContainerSize id msgWrapper =
     Cmd.map msgWrapper <| Task.attempt (\rvp -> case rvp of
-                            Ok vp -> GraphicSVG.WindowResize (round vp.viewport.width, round vp.viewport.height)
+                            Ok vp -> GraphicSVG.WindowResize <| Just (round vp.viewport.width, round vp.viewport.height)
                             _ -> GraphicSVG.NoOp
                             ) (getViewportOf id)
 
@@ -135,7 +192,7 @@ is not onscreen, however this is not necessary and may be a waste of resources.
 -}
 subscriptions : Wrapper userMsg -> Sub userMsg
 subscriptions msgWrapper =
-    Sub.map msgWrapper <| onResize (\_ _ -> GraphicSVG.WindowResize (-1,-1))
+    Sub.map msgWrapper <| onResize (\_ _ -> GraphicSVG.WindowResize Nothing)
 
 {-|Helper function to update the state of the widget. This can be considered a
 black box and should be used to simply update the Model stored inside of your
@@ -147,15 +204,19 @@ update : Msg userMsg -> Model userMsg -> (Model userMsg, Cmd userMsg)
 update msg model =
     case msg of
         GraphicSVG.Graphics userMsg -> (model, Task.perform identity (Task.succeed userMsg))
-        GraphicSVG.WindowResize (w,h) -> if w == -1 && h == -1 then (model, getContainerSize model.id model.msgWrapper) else ( {model | ww = w, wh = h}, Cmd.none)
+        GraphicSVG.WindowResize mWH -> 
+            case mWH of
+                Just (w,h) -> ( {model | ww = w, wh = h}, Cmd.none)
+                Nothing ->
+                    (model, getContainerSize model.id model.msgWrapper)
         GraphicSVG.ReturnPosition toMsg (x,y) -> (model, Task.perform identity (Task.succeed <| toMsg ((x-toFloat model.ww/2)/toFloat model.ww*model.cw,(y+toFloat model.wh/2)/toFloat model.wh*model.ch)))
         GraphicSVG.NoOp -> (model, Cmd.none)
 
-cPath : Float -> Float -> Svg.Svg (Msg userMsg)
-cPath w h =
+cPath : String -> Float -> Float -> Svg.Svg (Msg userMsg)
+cPath id w h =
     Svg.defs []
         [ Svg.clipPath
-            [ Svg.Attributes.id "cPath" ]
+            [ Svg.Attributes.id ("cPath"++id) ]
             [ Svg.rect
                 [ width (String.fromFloat w)
                 , height (String.fromFloat h)
@@ -189,11 +250,11 @@ view model shapes =
                 ++ String.fromFloat model.ch
             )
         ]
-        (cPath model.cw model.ch
+        (cPath model.id model.cw model.ch
             :: [ Svg.g
-                    [ clipPath "url(#cPath)" ]
+                    [ clipPath ("url(#cPath"++model.id++")") ]
                     (List.indexedMap
-                        (\n -> createSVG (String.fromInt n) model.cw model.ch ident)
+                        (\n -> createSVG (model.id ++ String.fromInt n) model.cw model.ch ident)
                         shapes
                     )
                ]
