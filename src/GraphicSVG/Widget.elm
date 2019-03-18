@@ -68,9 +68,9 @@ icon NoOp "Circle" 50 50
     ]
 ```
 -}
-icon : userMsg -> String -> Float -> Float -> List (Shape userMsg) -> Html.Html userMsg
-icon noop iid w h shapes =
-    Svg.map (\_ -> noop) <| Svg.svg
+icon : String -> Float -> Float -> List (Shape Never) -> Html.Html a
+icon iid w h shapes =
+    Svg.svg
         [ width "100%"
         , height "100%"
         , viewBox
@@ -88,7 +88,7 @@ icon noop iid w h shapes =
             :: [ Svg.g
                     [ clipPath ("url(#cPath"++iid++")") ]
                     (List.indexedMap
-                        (\n -> createSVG (iid ++ String.fromInt n) w h ident (\_ -> noop) (\_ _ -> noop))
+                        (\n -> createSVG (iid ++ String.fromInt n) w h ident never (\toMsg xy -> never <| toMsg xy))
                         shapes
                     )
                ]

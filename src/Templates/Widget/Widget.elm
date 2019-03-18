@@ -86,7 +86,7 @@ view model =
             ]
         , div [style "width" "49.75%",style "float" "right"]
             [
-                Widget.icon NoOp "Static" 50 25
+                Widget.icon "Static" 50 25
                 [
                     rect 50 25
                         |> filled gray
