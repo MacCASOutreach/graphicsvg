@@ -84,15 +84,14 @@ icon iid w h shapes =
             )
         , id iid
         ]
-        (cPath iid w h
+        <| cPath iid w h
             :: [ Svg.g
                     [ clipPath ("url(#cPath"++iid++")") ]
-                    (List.indexedMap
+                    <| List.indexedMap
                         (\n -> createSVG (iid ++ String.fromInt n) w h ident never (\toMsg xy -> never <| toMsg xy))
                         shapes
-                    )
+                    
                ]
-        )
 
 {-|The state of a given widget. This is considered an opaque type; as such it
 is not necessary to know what is inside for your app to function. It stores
