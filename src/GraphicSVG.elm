@@ -1511,7 +1511,7 @@ createCollage w h shapes =
             :: [ Svg.g
                     [ clipPath "url(#cPath)" ]
                     (List.indexedMap
-                        (\n -> createSVG (String.fromInt n) w h ident)
+                        (\n -> createSVG (String.fromInt n) w h ident Graphics ReturnPosition)
                         shapes
                     )
                ]
@@ -1690,65 +1690,65 @@ mousePosDecoder =
     D.map2 (\x y -> ( x, -y )) (D.field "offsetX" D.float) (D.field "offsetY" D.float)
 
 
-onTapAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onTapAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onTapAt msg =
     Html.Events.on "click"
         (D.map msg mousePosDecoder)
 
 
-onEnterAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onEnterAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onEnterAt msg =
     Html.Events.on "mouseover"
         (D.map msg mousePosDecoder)
 
 
-onLeaveAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onLeaveAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onLeaveAt msg =
     Html.Events.on "mouseleave"
         (D.map msg mousePosDecoder)
 
 
-onMoveAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onMoveAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onMoveAt msg =
     Html.Events.on "mousemove"
         (D.map msg mousePosDecoder)
 
 
-onMouseDownAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onMouseDownAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onMouseDownAt msg =
     Html.Events.on "mousedown"
         (D.map msg mousePosDecoder)
 
 
-onMouseUpAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onMouseUpAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onMouseUpAt msg =
     Html.Events.on "mouseup"
         (D.map msg mousePosDecoder)
 
 
-onTouchStart : Msg userMsg -> Html.Attribute (Msg userMsg)
+onTouchStart : userMsg -> Html.Attribute userMsg
 onTouchStart msg =
     Html.Events.on "touchstart" (D.succeed msg)
 
 
-onTouchStartAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onTouchStartAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onTouchStartAt msg =
     Html.Events.on "touchstart"
         (D.map (msg << touchToPair) touchDecoder)
 
 
-onTouchEndAt : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onTouchEndAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onTouchEndAt msg =
     Html.Events.on "touchend"
         (D.map (msg << touchToPair) touchDecoder)
 
 
-onTouchEnd : Msg userMsg -> Html.Attribute (Msg userMsg)
+onTouchEnd : userMsg -> Html.Attribute userMsg
 onTouchEnd msg =
     Html.Events.on "touchend" (D.succeed msg)
 
 
-onTouchMove : (( Float, Float ) -> Msg userMsg) -> Html.Attribute (Msg userMsg)
+onTouchMove : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
 onTouchMove msg =
     Html.Events.preventDefaultOn "touchmove"
         (D.map (\a -> ( (msg << touchToPair) a, True )) touchDecoder)
@@ -1778,8 +1778,8 @@ touchDecoder =
 is usually not used. Instead, use collage as part of a regular GraphicSVG
 app or create a widget with GraphicSVG.Widget. 
 -}
-createSVG : String -> Float -> Float -> Transform -> Shape a -> Svg.Svg (Msg a)
-createSVG id w h trans shape =
+createSVG : String -> Float -> Float -> Transform -> (a -> b) -> (((Float,Float) -> a) -> (Float,Float) -> b) -> Shape a -> Svg.Svg b
+createSVG id w h trans msgWrapper positionWrapper shape =
     case shape of
         Inked fillClr lt stencil ->
             let
@@ -2030,33 +2030,33 @@ createSVG id w h trans shape =
                                         <| List.map
                                             String.fromFloat
                                             [ a, -b, -c, d, tx, -ty ]) ++ ")"
-                ] [ Html.map Graphics htm ]
+                ] [ Html.map msgWrapper htm ]
 
         Move v sh ->
-            createSVG id w h (moveT v trans) sh
+            createSVG id w h (moveT v trans) msgWrapper positionWrapper  sh
 
         Everything ->
-            createSVG id w h ident (rect w h |> filled white)
+            createSVG id w h ident msgWrapper positionWrapper  (rect w h |> filled white)
 
         Notathing ->
-            createSVG id w h ident (rect w h |> filled black)
+            createSVG id w h ident msgWrapper positionWrapper  (rect w h |> filled black)
 
         Rotate deg sh ->
-            createSVG id w h (rotateT deg trans) sh
+            createSVG id w h (rotateT deg trans) msgWrapper positionWrapper  sh
 
         Scale sx sy sh ->
-            createSVG id w h (scaleT sx sy trans) sh
+            createSVG id w h (scaleT sx sy trans) msgWrapper positionWrapper  sh
 
         Skew sx sy sh ->
-            createSVG id w h (skewT sx sy trans) sh
+            createSVG id w h (skewT sx sy trans) msgWrapper positionWrapper  sh
 
         Transformed tm sh ->
-            createSVG id w h (matrixMult trans tm) sh
+            createSVG id w h (matrixMult trans tm) msgWrapper positionWrapper  sh
 
         Link href sh ->
             Svg.a
                 [ xlinkHref href, target "_blank" ]
-                [ createSVG id w h trans sh ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         AlphaMask region sh ->
             Svg.g []
@@ -2068,12 +2068,14 @@ createSVG id w h trans shape =
                             w
                             h
                             trans
+                            msgWrapper 
+                            positionWrapper
                             (Group [ Everything, region |> repaint black ])
                         ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ]
-                    [ createSVG (id ++ "mm") w h trans sh ]
+                    [ createSVG (id ++ "mm") w h trans msgWrapper positionWrapper sh ]
                 ]
 
         Clip region sh ->
@@ -2086,93 +2088,95 @@ createSVG id w h trans shape =
                             w
                             h
                             trans
+                            msgWrapper
+                            positionWrapper
                             (Group [ Notathing, region |> repaint white ])
                         ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#c" ++ id ++ ")") ]
-                    [ createSVG (id ++ "cc") w h trans sh ]
+                    [ createSVG (id ++ "cc") w h trans msgWrapper positionWrapper sh ]
                 ]
 
         Tap msg sh ->
             Svg.g
-                [ Html.Events.onClick (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ Html.Events.onClick (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TapAt msg sh ->
             Svg.g
-                [ onTapAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTapAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         EnterShape msg sh ->
             Svg.g
-                [ Html.Events.onMouseEnter (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ Html.Events.onMouseEnter (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         EnterAt msg sh ->
             Svg.g
-                [ onEnterAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onEnterAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         Exit msg sh ->
             Svg.g
-                [ Html.Events.onMouseLeave (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ Html.Events.onMouseLeave (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         ExitAt msg sh ->
             Svg.g
-                [ onLeaveAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onLeaveAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         MouseDown msg sh ->
             Svg.g
-                [ Html.Events.onMouseDown (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ Html.Events.onMouseDown (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         MouseDownAt msg sh ->
             Svg.g
-                [ onMouseDownAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onMouseDownAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         MouseUp msg sh ->
             Svg.g
-                [ Html.Events.onMouseUp (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ Html.Events.onMouseUp (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         MouseUpAt msg sh ->
             Svg.g
-                [ onMouseUpAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onMouseUpAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         MoveOverAt msg sh ->
             Svg.g
-                [ onMoveAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onMoveAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TouchStart msg sh ->
             Svg.g
-                [ onTouchStart (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTouchStart (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TouchEnd msg sh ->
             Svg.g
-                [ onTouchEnd (Graphics msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTouchEnd (msgWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TouchStartAt msg sh ->
             Svg.g
-                [ onTouchStartAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTouchStartAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TouchEndAt msg sh ->
             Svg.g
-                [ onTouchStartAt (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTouchStartAt (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         TouchMoveAt msg sh ->
             Svg.g
-                [ onTouchMove (ReturnPosition msg) ]
-                [ createSVG id w h trans sh ]
+                [ onTouchMove (positionWrapper msg) ]
+                [ createSVG id w h trans msgWrapper positionWrapper sh ]
 
         Group shapes ->
             Svg.g [] <|
@@ -2182,20 +2186,21 @@ createSVG id w h trans shape =
                             (id ++ "g" ++ String.fromInt n)
                             w
                             h
-                        <|
                             trans
+                            msgWrapper
+                            positionWrapper
                     )
                     shapes
 
         GroupOutline cmbndshp ->
-            createSVG id w h trans cmbndshp
+            createSVG id w h trans msgWrapper positionWrapper cmbndshp
 
         GraphPaper s th c ->            
             if th <= 0 || s < 2 * th then
                 Svg.g [] []
 
             else
-                createSVG id w h trans <|
+                createSVG id w h trans msgWrapper positionWrapper <|
                     createGraph ( w, h ) s th c
 
 

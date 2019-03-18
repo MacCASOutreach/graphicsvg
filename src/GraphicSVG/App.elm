@@ -28,7 +28,7 @@ and other applications including response to time, keyboard presses, and mouse a
 -}
 
 import Browser exposing (UrlRequest(..))
-import Browser.Events exposing (onKeyDown, onKeyUp)
+import Browser.Events exposing (onKeyDown, onKeyUp, onAnimationFrame)
 import Browser.Navigation as Nav
 import Dict
 import GraphicSVG exposing (..)
@@ -90,7 +90,7 @@ subs : List (Sub (HiddenMsg userMsg))
 subs =
     [ onKeyUp (D.map KeyUp (D.field "keyCode" D.int))
     , onKeyDown (D.map KeyDown (D.field "keyCode" D.int))
-    , Time.every (1000 / 30) TickTime
+    , onAnimationFrame TickTime
     ]
 
 

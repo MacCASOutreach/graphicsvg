@@ -1,4 +1,4 @@
-module GraphicSVG.Widget exposing (icon,Wrapper,Model,Msg,init,subscriptions,update,view)
+module GraphicSVG.Widget exposing (icon,Model,Msg,init,subscriptions,update,view)
 
 {-| Include GraphicSVG animations and functionality within your own elm/html
 app! Your existing code can utilize as many widgets as it likes; each one
@@ -88,33 +88,11 @@ icon noop iid w h shapes =
             :: [ Svg.g
                     [ clipPath ("url(#cPath"++iid++")") ]
                     (List.indexedMap
-                        (\n -> createSVG (iid ++ String.fromInt n) w h ident)
+                        (\n -> createSVG (iid ++ String.fromInt n) w h ident (\_ -> noop) (\_ _ -> noop))
                         shapes
                     )
                ]
         )
-
-{-|A type alias representing a constructor of your type which wraps the
-Widget.Msg type. This will allow you to catch and pipe all messages to the 
-`Widget.update` function to maintain the states of your app's various widgets.
-Most often, this is simply a constructor of your main type that looks something 
-like:
-
-```
--- your app's Message type
-type Msg =
-      ...
-    | WidgetMessage Widget.Msg
-    | ...
-```
-
-You can easily expand this constructor to include, for example, an integer or custom 
-union type representing each of the widgets in your app. Your update function could 
-then route the messages to where they need to go, and save the states of your various
-widgets where they need to be saved!
--}
-type alias Wrapper userMsg =
-    Msg userMsg -> userMsg
 
 {-|The state of a given widget. This is considered an opaque type; as such it
 is not necessary to know what is inside for your app to function. It stores
@@ -135,13 +113,12 @@ type alias Model =
 Several of these could easily be saved in a structure such as a dictionary
 to maintain the state of several widgets at once!
 -}
-type alias Model userMsg = 
+type alias Model = 
     {
         cw : Float
     ,   ch : Float
-    ,   ww : Int
-    ,   wh : Int
-    ,   msgWrapper : Wrapper userMsg
+    ,   ww : Float
+    ,   wh : Float
     ,   id : String
     }
 
@@ -151,8 +128,8 @@ received in your main update function to the `Widget.update` function to maintai
 consistency. See the above discussion under `Wrapper` for a more detailed idea of
 how to use this.
 -}
-type alias Msg userMsg
-    = GraphicSVG.Msg userMsg
+type Msg =
+    WidgetResize (Maybe (Float,Float))
 
 {-|The init function takes the
 size of the widget as well as the wrapper message and a unique string identifier of the 
@@ -167,32 +144,32 @@ visible again after being offscreen, to ensure that the co-ordinate system is ke
 up-to-date. Therefore, storing the command for use later is a good idea.
 -}
 
-init : Float -> Float -> Wrapper userMsg -> String -> (Model userMsg, Cmd userMsg)
-init w h msgWrapper id = 
+init : Float -> Float -> String -> (Model, Cmd Msg)
+init w h id = 
     ({
         cw = w
     ,   ch = h
     ,   ww = 0
     ,   wh = 0
-    ,   msgWrapper = msgWrapper
     ,   id = id
     },
-    getContainerSize id msgWrapper
+    getContainerSize id
     )
 
-getContainerSize id msgWrapper =
-    Cmd.map msgWrapper <| Task.attempt (\rvp -> case rvp of
-                            Ok vp -> GraphicSVG.WindowResize <| Just (round vp.viewport.width, round vp.viewport.height)
-                            _ -> GraphicSVG.NoOp
-                            ) (getViewportOf id)
+getContainerSize id =
+    Task.attempt 
+        (\rvp -> case rvp of
+                    Ok vp -> WidgetResize <| Just (vp.viewport.width, vp.viewport.height)
+                    _ -> WidgetResize <| Just (0,0)
+                    ) (getViewportOf id)
 
 {-|Generate a subscription related to each widget in your app. It must be
 active whenever the widget in question is onscreen. It can be active when the widget
 is not onscreen, however this is not necessary and may be a waste of resources.
 -}
-subscriptions : Wrapper userMsg -> Sub userMsg
-subscriptions msgWrapper =
-    Sub.map msgWrapper <| onResize (\_ _ -> GraphicSVG.WindowResize Nothing)
+subscriptions : Sub Msg
+subscriptions =
+    onResize (\_ _ -> WidgetResize Nothing)
 
 {-|Helper function to update the state of the widget. This can be considered a
 black box and should be used to simply update the Model stored inside of your
@@ -200,19 +177,18 @@ app's model. Be sure to pipe every message through this update, to ensure the
 consistency of the widget's model and that you receive all notifications coming
 from the widget.
 -}
-update : Msg userMsg -> Model userMsg -> (Model userMsg, Cmd userMsg)
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        GraphicSVG.Graphics userMsg -> (model, Task.perform identity (Task.succeed userMsg))
-        GraphicSVG.WindowResize mWH -> 
+        WidgetResize mWH ->
             case mWH of
-                Just (w,h) -> ( {model | ww = w, wh = h}, Cmd.none)
+                Just (w,h) ->
+                    ({ model | ww = w, wh = h }, Cmd.none)
                 Nothing ->
-                    (model, getContainerSize model.id model.msgWrapper)
-        GraphicSVG.ReturnPosition toMsg (x,y) -> (model, Task.perform identity (Task.succeed <| toMsg ((x-toFloat model.ww/2)/toFloat model.ww*model.cw,(y+toFloat model.wh/2)/toFloat model.wh*model.ch)))
-        GraphicSVG.NoOp -> (model, Cmd.none)
+                    ( model, getContainerSize model.id )
 
-cPath : String -> Float -> Float -> Svg.Svg (Msg userMsg)
+
+cPath : String -> Float -> Float -> Svg.Svg userMsg
 cPath id w h =
     Svg.defs []
         [ Svg.clipPath
@@ -234,9 +210,12 @@ own co-ordinate system defined by the widget's model. The `*At` notification
 functions return points relative to the widget. Widgets are clipped so they
 fit the aspect ratio defined in the widget's model.
 -}
-view : Model userMsg -> List (Shape userMsg) -> Html.Html userMsg
+view : Model -> List (Shape userMsg) -> Html.Html userMsg
 view model shapes =
-    Svg.map model.msgWrapper <| Svg.svg
+    let
+        positionWrapper toMsg (x,y) = toMsg <| convertCoords model.ww model.wh model.cw model.ch (x,y)
+    in
+    Svg.svg
         [ width "100%"
         , height "100%"
         , id model.id
@@ -254,8 +233,46 @@ view model shapes =
             :: [ Svg.g
                     [ clipPath ("url(#cPath"++model.id++")") ]
                     (List.indexedMap
-                        (\n -> createSVG (model.id ++ String.fromInt n) model.cw model.ch ident)
+                        (\n -> createSVG (model.id ++ String.fromInt n) model.cw model.ch ident identity positionWrapper)
                         shapes
                     )
                ]
         )
+
+
+convertCoords : Float -> Float -> Float -> Float -> ( Float, Float ) -> ( Float, Float )
+convertCoords ww sh cw ch ( x, y ) =
+    let
+        aspectout =
+            if not (sh == 0) then
+                ww / sh
+
+            else
+                4 / 3
+
+        aspectin =
+            if not (ch == 0) then
+                cw / ch
+
+            else
+                4 / 3
+
+        scaledInX =
+            aspectout < aspectin
+
+        scaledInY =
+            aspectout > aspectin
+
+        cscale =
+            if scaledInX then
+                ww / cw
+
+            else if scaledInY then
+                sh / ch
+
+            else
+                1
+    in
+    ( (x - ww / 2) / cscale
+    , (y + sh / 2) / cscale
+    )

@@ -8,8 +8,8 @@ import Html.Events exposing (onClick)
 
 type alias Model =
     { count : Int
-    , widgetOneState : Widget.Model Msg
-    , widgetTwoState : Widget.Model Msg
+    , widgetOneState : Widget.Model
+    , widgetTwoState : Widget.Model
     , x : Float
     , y : Float
     }
@@ -18,8 +18,8 @@ type alias Model =
 initialModel : (Model, Cmd Msg)
 initialModel =
     let
-        (wstate0,wcmd0) = Widget.init 50 25 WidgetOneMsg "widget0"
-        (wstate1,wcmd1) = Widget.init 90 25 WidgetTwoMsg "widget1"
+        (wstate0, wcmd0) = Widget.init 50 25 "widget0"
+        (wstate1, wcmd1) = Widget.init 90 25 "widget1"
     in
     ({ count = 0
      , widgetOneState = wstate0
@@ -27,13 +27,13 @@ initialModel =
      , x = 0
      , y = 0
     }
-    ,Cmd.batch [wcmd0,wcmd1]
+    ,Cmd.batch [Cmd.map WidgetOneMsg wcmd0,Cmd.map WidgetTwoMsg wcmd1]
     )
 
 
 type Msg =
-      WidgetOneMsg (Widget.Msg Msg)
-    | WidgetTwoMsg (Widget.Msg Msg)
+      WidgetOneMsg (Widget.Msg)
+    | WidgetTwoMsg (Widget.Msg)
     | MoveTo (Float,Float)
     | NoOp
 
@@ -43,11 +43,11 @@ update msg model =
     case msg of
         WidgetOneMsg wMsg ->
             let
-                (newWState,wCmd) = Widget.update wMsg model.widgetOneState
+                (newWState, wCmd) = Widget.update wMsg model.widgetOneState
             in
             ({ model | widgetOneState = newWState
                         }
-            , wCmd)
+            , Cmd.map WidgetOneMsg wCmd)
 
         WidgetTwoMsg wMsg ->
             let
@@ -55,10 +55,10 @@ update msg model =
             in
             ({ model | widgetTwoState = newWState
                         }
-            , wCmd)
+            , Cmd.map WidgetTwoMsg wCmd)
 
 
-        MoveTo (x,y) -> ( {model | x = x, y= y}, Cmd.none)
+        MoveTo (x,y) -> ( {model | x = x, y = y}, Cmd.none)
 
         NoOp -> (model, Cmd.none) --NoOp should not modify your state
 
@@ -134,7 +134,7 @@ main =
         , subscriptions = \_ ->
             Sub.batch
                 [
-                    Widget.subscriptions WidgetOneMsg 
-                ,   Widget.subscriptions WidgetTwoMsg 
+                    Sub.map WidgetOneMsg Widget.subscriptions 
+                ,   Sub.map WidgetTwoMsg Widget.subscriptions 
                 ]
         }
