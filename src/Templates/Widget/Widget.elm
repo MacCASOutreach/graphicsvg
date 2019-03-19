@@ -35,8 +35,6 @@ type Msg =
       WidgetOneMsg (Widget.Msg)
     | WidgetTwoMsg (Widget.Msg)
     | MoveTo (Float,Float)
-    | NoOp
-
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -59,9 +57,6 @@ update msg model =
 
 
         MoveTo (x,y) -> ( {model | x = x, y = y}, Cmd.none)
-
-        NoOp -> (model, Cmd.none) --NoOp should not modify your state
-
 
 view : Model -> Html Msg
 view model =
