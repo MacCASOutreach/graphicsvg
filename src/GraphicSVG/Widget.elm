@@ -204,8 +204,10 @@ cPath id w h =
 of shapes to include in the widget. Widgets are compatible with all
 notification functions available in GraphicSVG. Each widget is given its
 own co-ordinate system defined by the widget's model. The `*At` notification
-functions return points relative to the widget. Widgets are clipped so they
-fit the aspect ratio defined in the widget's model.
+functions return points relative to the widget (as long as the user has
+properly piped together the commands and subscriptions to their copy of 
+`Widget.Model`. Widgets are clipped so they fit the aspect ratio defined in 
+the widget's model.
 -}
 view : Model -> List (Shape userMsg) -> Html.Html userMsg
 view model shapes =
