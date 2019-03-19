@@ -22,7 +22,7 @@ message type and model type respectively. These are mostly opaque data types of 
 you do not need to know the gritty details. Simply include them in your app and
 you're all set!
 
-@docs Wrapper, Msg, Model
+@docs Msg, Model
 
 ## Initialization
 Some helper functions for initializing your widget(s). 
@@ -50,23 +50,21 @@ import Browser.Events exposing(onResize)
 handle messages about clicking shapes, getting mouse positions, etc. This function
 is simpler and requires no other modifications to your model and message types.
 
-You must include a type like `NoOp` meaning "do nothing" as well as a unique ID for
-the icon. For example to draw a circle with the name "Circle", use the following:
-
-```
--- your message type should include a dummy NoOp message
-type Msg =
-      ..
-    | NoOp
-```
 Then, use `icon` as follows in your view function:
 ```
-icon NoOp "Circle" 50 50
+icon "Circle" 50 50
     [
         circle 5
             |> filled blue
     ]
 ```
+Note that including any of the `notify*` functions will result in a type error.
+This is because the type `Shape Never` is a shape which can never send any
+messages. This is great! It means you can't compile with messages accidentally.
+It also means that, for compatibility with older code, you might need to change
+that code's type signature to be more generic (e.g. Shape a). And, for older
+code with any `notify*`, you'll have to use a proper `Widget` (below), even if
+you don't plan on using the messages.
 -}
 icon : String -> Float -> Float -> List (Shape Never) -> Html.Html a
 icon iid w h shapes =
