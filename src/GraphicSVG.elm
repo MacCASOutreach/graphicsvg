@@ -147,7 +147,6 @@ import Dict
 import Html
 import Html.Attributes
 import Html.Events
-import Http as Http
 import Json.Decode as D exposing (..)
 import String exposing (..)
 import Svg exposing (Attribute)
