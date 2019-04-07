@@ -69,9 +69,7 @@ you don't plan on using the messages.
 icon : String -> Float -> Float -> List (Shape Never) -> Html.Html a
 icon iid w h shapes =
     Svg.svg
-        [ width "100%"
-        , height "100%"
-        , viewBox
+        [ viewBox
             (String.fromFloat (-w / 2)
                 ++ " "
                 ++ String.fromFloat (-h / 2)
@@ -215,9 +213,7 @@ view model shapes =
         positionWrapper toMsg (x,y) = toMsg <| convertCoords model.ww model.wh model.cw model.ch (x,y)
     in
     Svg.svg
-        [ width "100%"
-        , height "100%"
-        , id model.id
+        [ id model.id
         , viewBox
             (String.fromFloat (-model.cw / 2)
                 ++ " "
