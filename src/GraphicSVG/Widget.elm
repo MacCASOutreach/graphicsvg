@@ -1,4 +1,4 @@
-module GraphicSVG.Widget exposing (icon,Model,Msg,init,subscriptions,update,view)
+module GraphicSVG.Widget exposing (icon,Model,Msg,init,subscriptions,update,view,ViewOption,defaultViewOption,noViewOption,viewCustom)
 
 {-| Include GraphicSVG animations and functionality within your own elm/html
 app! Your existing code can utilize as many widgets as it likes; each one
@@ -36,12 +36,25 @@ Some helper functions for initializing your widget(s).
 ## Rendering a widget
 
 @docs view
+
+### Custom view
+When the default resizing behaviour of the widget is limiting, use the functions 
+from this section.
+
+@docs ViewOption
+
+@docs defaultViewOption
+
+@docs noViewOption
+
+@docs viewCustom
 -}
 
 import GraphicSVG exposing(Shape(..), createSVG, ident)
 import Html
 import Svg
-import Svg.Attributes exposing(width,height,style,viewBox,clipPath,x,y,id)
+import Svg.Attributes exposing(width,height,viewBox,clipPath,x,y,id)
+import Html.Attributes exposing(style)
 import Task
 import Browser.Dom exposing (Viewport, getViewportOf)
 import Browser.Events exposing(onResize)
@@ -197,6 +210,35 @@ cPath id w h =
                 []
             ]
         ]
+{-|Options to set a Widget's attributes in a more constrained way.
+-}
+type ViewOption userMsg =
+      ViewWidth String
+    | ViewHeight String
+    | ViewStyle String String
+
+{-|The default view options where a widget resizes to the size of the container
+it's inside of. This is the view option used in the non-custom `view` function.
+-}
+defaultViewOption : List (ViewOption userMsg)
+defaultViewOption =
+    [
+        ViewWidth "100%"
+    ,   ViewHeight "100%"
+    ]
+
+{-|A type of view that sets no style attributes limiting the size of the widget
+as part of your Html.
+-}
+noViewOption : List (ViewOption userMsg)
+noViewOption = []
+
+convertViewOption : ViewOption userMsg -> Html.Attribute userMsg
+convertViewOption vo =
+    case vo of
+        ViewWidth w -> style "width" w
+        ViewHeight h -> style "height" h
+        ViewStyle s o -> style s o
 
 {-|Helper function which takes the widget's opaque model as well as a list
 of shapes to include in the widget. Widgets are compatible with all
@@ -208,13 +250,21 @@ properly piped together the commands and subscriptions to their copy of
 the widget's model.
 -}
 view : Model -> List (Shape userMsg) -> Html.Html userMsg
-view model shapes =
+view = viewCustom defaultViewOption
+
+{-|Like `view`, but with the ability to set view options that determine
+how the widget fits into your existing Html.
+
+See `view` for more details.
+-}
+viewCustom : List (ViewOption userMsg) -> Model -> List (Shape userMsg) -> Html.Html userMsg
+viewCustom viewOptions model shapes =
     let
         positionWrapper toMsg (x,y) = toMsg <| convertCoords model.ww model.wh model.cw model.ch (x,y)
     in
     Svg.svg
-        [ id model.id
-        , viewBox
+        ([ id model.id
+         , viewBox
             (String.fromFloat (-model.cw / 2)
                 ++ " "
                 ++ String.fromFloat (-model.ch / 2)
@@ -223,7 +273,7 @@ view model shapes =
                 ++ " "
                 ++ String.fromFloat model.ch
             )
-        ]
+        ] ++ List.map convertViewOption viewOptions)
         (cPath model.id model.cw model.ch
             :: [ Svg.g
                     [ clipPath ("url(#cPath"++model.id++")") ]
