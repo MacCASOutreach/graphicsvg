@@ -139,7 +139,7 @@ Don't worry about these unless you *_really_* know what you're doing!
 
 import Array
 import Browser exposing (UrlRequest)
-import Browser.Dom exposing (Viewport, getViewportOf)
+import Browser.Dom exposing (Viewport, getViewport, getViewportOf)
 import Browser.Events exposing (onKeyDown, onKeyPress, onKeyUp, onResize)
 import Browser.Navigation exposing (Key)
 import Char
@@ -525,7 +525,8 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
                             , sh = Basics.toFloat h
                         }
                       )
-                    , Cmd.none
+                    , if ( w, h ) == ( 0, 0 ) then getViewportSize
+                      else Cmd.none
                     )
                 Nothing ->
                     ( (userModel, gModel)
@@ -536,7 +537,7 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
             let
                 ( newModel, userCmds ) =
                     userUpdate
-                        (message (convertCoords ( x, y ) gModel))
+                        (message (convertCoords (Debug.log "pos" ( x, y )) gModel))
                         userModel
             in
             ( ( newModel, gModel ), mapUserCmd userCmds )
@@ -700,10 +701,11 @@ getViewportSize = Task.attempt
             (\rvp -> case rvp of
                         Ok vp ->                    
                             WindowResize
-                                <| Just ( round vp.viewport.width, round vp.viewport.height )
+                                <| Just <| Debug.log "size" <| ( round vp.viewport.width, round vp.viewport.height )
                         Err _ -> NoOp
             )
-            (getViewportOf "render")
+            getViewport
+            --(getViewportOf "render")
 
 {-| The `Msg` type encapsulates all GraphicSVG internal messages.
 
@@ -1494,7 +1496,7 @@ createCollage w h shapes =
     Svg.svg
         [ width "100%"
         , height "100%"
-        , style "position:absolute;top:0px;left:0px;"
+        , style "position:fixed;top:0px;left:0px;"
         , viewBox
             (String.fromFloat (-w / 2)
                 ++ " "
@@ -1503,7 +1505,7 @@ createCollage w h shapes =
                 ++ String.fromFloat w
                 ++ " "
                 ++ String.fromFloat h
-            )
+           )
         , id "render"
         ]
         (cPath w h
@@ -1515,6 +1517,7 @@ createCollage w h shapes =
                     )
                ]
         )
+
 
 
 cPath : Float -> Float -> Svg.Svg (Msg userMsg)
@@ -1686,7 +1689,7 @@ touchToPair tp =
 
 
 mousePosDecoder =
-    D.map2 (\x y -> ( x, -y )) (D.field "offsetX" D.float) (D.field "offsetY" D.float)
+    D.map2 (\x y -> Debug.log "mousePos" ( x, -y )) (D.field "offsetX" D.float) (D.field "offsetY" D.float)
 
 
 onTapAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg

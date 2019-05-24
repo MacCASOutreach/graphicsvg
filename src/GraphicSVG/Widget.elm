@@ -167,7 +167,7 @@ init w h id =
 getContainerSize id =
     Task.attempt 
         (\rvp -> case rvp of
-                    Ok vp -> WidgetResize <| Just (vp.viewport.width, vp.viewport.height)
+                    Ok vp -> WidgetResize <| Just <| Debug.log "container size" <| (vp.viewport.width, vp.viewport.height)
                     _ -> WidgetResize <| Just (0,0)
                     ) (getViewportOf id)
 
@@ -262,27 +262,29 @@ viewCustom viewOptions model shapes =
     let
         positionWrapper toMsg (x,y) = toMsg <| convertCoords model.ww model.wh model.cw model.ch (x,y)
     in
-    Svg.svg
-        ([ id model.id
-         , viewBox
-            (String.fromFloat (-model.cw / 2)
-                ++ " "
-                ++ String.fromFloat (-model.ch / 2)
-                ++ " "
-                ++ String.fromFloat model.cw
-                ++ " "
-                ++ String.fromFloat model.ch
+    Html.div [id model.id]
+    [
+        Svg.svg
+            ([ viewBox
+                (String.fromFloat (-model.cw / 2)
+                    ++ " "
+                    ++ String.fromFloat (-model.ch / 2)
+                    ++ " "
+                    ++ String.fromFloat model.cw
+                    ++ " "
+                    ++ String.fromFloat model.ch
+                )
+            ] ++ List.map convertViewOption viewOptions)
+            (cPath model.id model.cw model.ch
+                :: [ Svg.g
+                        [ clipPath ("url(#cPath"++model.id++")") ]
+                        (List.indexedMap
+                            (\n -> createSVG (model.id ++ String.fromInt n) model.cw model.ch ident identity positionWrapper)
+                            shapes
+                        )
+                   ]
             )
-        ] ++ List.map convertViewOption viewOptions)
-        (cPath model.id model.cw model.ch
-            :: [ Svg.g
-                    [ clipPath ("url(#cPath"++model.id++")") ]
-                    (List.indexedMap
-                        (\n -> createSVG (model.id ++ String.fromInt n) model.cw model.ch ident identity positionWrapper)
-                        shapes
-                    )
-               ]
-        )
+            ]
 
 
 convertCoords : Float -> Float -> Float -> Float -> ( Float, Float ) -> ( Float, Float )
