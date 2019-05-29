@@ -12,7 +12,8 @@ module GraphicSVG exposing
     , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
     , clip, union, subtract, outside, ghost
-    , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
+    , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt
+    , TouchEvent, notifyTouchStart, notifyTouchEnd, notifyTouchMove
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
@@ -93,9 +94,23 @@ not guaranteed and weird things can happen.
 @docs clip, union, subtract, outside, ghost
 
 
-# Notifications
+# Mouse Notifications
 
-@docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
+@docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchEnd, notifyTouchMove
+
+# Touch Notifications
+
+Notifications of touch events work differently than mouse events. Each event provides a list of touches involving the given `Shape`.
+
+## TouchEvent
+
+Represents a touch event, containing the ID value of the touch in addition to the position of the finger.
+
+@docs TouchEvent
+
+## Notifications
+
+@docs notifyTouchStart, notifyTouchMove, notifyTouchEnd
 
 
 # Miscellaneous
@@ -155,6 +170,7 @@ import Task
 import Time exposing (..)
 import Tuple
 import Url exposing (Url)
+import Html.Events.Extra.Touch as TouchEvents
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -199,11 +215,9 @@ type Shape userMsg
     | MouseUp userMsg (Shape userMsg)
     | MouseUpAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | MoveOverAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchStart userMsg (Shape userMsg)
-    | TouchEnd userMsg (Shape userMsg)
-    | TouchStartAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchEndAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
+    | TouchStart (List TouchEvent -> userMsg) (Shape userMsg)
+    | TouchEnd (List TouchEvent -> userMsg) (Shape userMsg)
+    | TouchMove (List TouchEvent -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
 
@@ -289,19 +303,13 @@ map f sh =
             MoveOverAt (f << msg) (map f shape)
 
         TouchStart msg shape ->
-            TouchStart (f msg) (map f shape)
+            TouchStart (f << msg) (map f shape)
 
         TouchEnd msg shape ->
-            TouchEnd (f msg) (map f shape)
+            TouchEnd (f << msg) (map f shape)
 
-        TouchStartAt msg shape ->
-            TouchStartAt (f << msg) (map f shape)
-
-        TouchEndAt msg shape ->
-            TouchEndAt (f << msg) (map f shape)
-
-        TouchMoveAt msg shape ->
-            TouchMoveAt (f << msg) (map f shape)
+        TouchMove msg shape ->
+            TouchMove (f << msg) (map f shape)
 
         Group shapes ->
             Group (List.map (map f) shapes)
@@ -532,15 +540,6 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
                     , getViewportSize
                     )
 
-        ReturnPosition message ( x, y ) ->
-            let
-                ( newModel, userCmds ) =
-                    userUpdate
-                        (message (convertCoords ( x, y ) gModel))
-                        userModel
-            in
-            ( ( newModel, gModel ), mapUserCmd userCmds )
-
         NoOp -> (( userModel, gModel ), Cmd.none)
 
 
@@ -548,7 +547,7 @@ hiddenAppView :
     (userModel -> { title : String, body : Collage userMsg })
     -> ( userModel, HiddenModel )
     -> { title : String, body : List (Html.Html (Msg userMsg)) }
-hiddenAppView userView ( userModel, _ ) =
+hiddenAppView userView ( userModel, gModel ) =
     let
         userViewEval =
             userView userModel
@@ -558,8 +557,9 @@ hiddenAppView userView ( userModel, _ ) =
 
         (Collage w h shapes) =
             userViewEval.body
+
     in
-    { title = title, body = [ createCollage w h shapes ] }
+    { title = title, body = [ createCollage w h shapes (convertCoords gModel) ] }
 
 
 {-| This type alias is only used as a target for a user `main` type signature to make
@@ -636,8 +636,8 @@ ellieApp input =
         }
 
 
-convertCoords : ( Float, Float ) -> HiddenModel -> ( Float, Float )
-convertCoords ( x, y ) gModel =
+convertCoords : HiddenModel -> ( Float, Float ) -> ( Float, Float )
+convertCoords gModel ( x, y ) =
     let
         sw =
             gModel.sw
@@ -736,7 +736,6 @@ These assume that `Model` is the type alias of the user persistent model, and
 type Msg userMsg
     = Graphics userMsg
     | WindowResize (Maybe ( Int, Int ))
-    | ReturnPosition (( Float, Float ) -> userMsg) ( Float, Float )
     | NoOp
 
 
@@ -1114,14 +1113,8 @@ curveHelper shape =
         TouchEnd userMsg sh ->
             TouchEnd userMsg (curveHelper sh)
 
-        TouchStartAt userMsg sh ->
-            TouchStartAt userMsg (curveHelper sh)
-
-        TouchEndAt userMsg sh ->
-            TouchEndAt userMsg (curveHelper sh)
-
-        TouchMoveAt userMsg sh ->
-            TouchMoveAt userMsg (curveHelper sh)
+        TouchMove userMsg sh ->
+            TouchMove userMsg (curveHelper sh)
 
         -- no changes for the rest...
         Inked clr ln sh ->
@@ -1489,8 +1482,13 @@ collage w h shapes =
     Collage w h shapes
 
 
-createCollage : Float -> Float -> List (Shape userMsg) -> Html.Html (Msg userMsg)
-createCollage w h shapes =
+createCollage : 
+    Float -> 
+    Float -> 
+    List (Shape userMsg) -> 
+    PositionMapper ->
+    Html.Html (Msg userMsg)
+createCollage w h shapes posMapper =
     Svg.svg
         [ width "100%"
         , height "100%"
@@ -1510,7 +1508,7 @@ createCollage w h shapes =
             :: [ Svg.g
                     [ clipPath "url(#cPath)" ]
                     (List.indexedMap
-                        (\n -> createSVG (String.fromInt n) w h ident Graphics ReturnPosition)
+                        (\n -> createSVG (String.fromInt n) w h ident Graphics posMapper )
                         shapes
                     )
                ]
@@ -1645,140 +1643,119 @@ notifyMouseUpAt msg shape =
 
 {-| Receive a message (`userMsg`) when the user begins touching a `Shape`.
 -}
-notifyTouchStart : userMsg -> Shape userMsg -> Shape userMsg
+notifyTouchStart : (List TouchEvent -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTouchStart msg shape =
     TouchStart msg shape
 
 
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user begins touching a `Shape`.
--}
-notifyTouchStartAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
-notifyTouchStartAt msg shape =
-    TouchStartAt msg shape
-
-
 {-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
 -}
-notifyTouchEnd : userMsg -> Shape userMsg -> Shape userMsg
+notifyTouchEnd : (List TouchEvent -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyTouchEnd msg shape =
     TouchEnd msg shape
 
 
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user lifts their finger off a `Shape`.
+{-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
 -}
-notifyTouchEndAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
-notifyTouchEndAt msg shape =
-    TouchEndAt msg shape
-
-
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user moves their finger over a `Shape`.
--}
-notifyTouchMoveAt : (( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
-notifyTouchMoveAt msg shape =
-    TouchMoveAt msg shape
-
-
-touchToPair : TouchPos -> ( Float, Float )
-touchToPair tp =
-    case tp of
-        TouchPos x y ->
-            ( x, -y )
+notifyTouchMove : (List TouchEvent -> userMsg) -> Shape userMsg -> Shape userMsg
+notifyTouchMove msg shape =
+    TouchMove msg shape
 
 
 mousePosDecoder =
     D.map2 (\x y -> ( x, -y )) (D.field "offsetX" D.float) (D.field "offsetY" D.float)
 
 
-onTapAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onTapAt msg =
+onTapAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onTapAt posMapper msg =
     Html.Events.on "click"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
 
 
-onEnterAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onEnterAt msg =
+onEnterAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onEnterAt posMapper msg =
     Html.Events.on "mouseover"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
 
 
-onLeaveAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onLeaveAt msg =
+onLeaveAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onLeaveAt posMapper msg =
     Html.Events.on "mouseleave"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
 
 
-onMoveAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onMoveAt msg =
+onMoveAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onMoveAt posMapper msg =
     Html.Events.on "mousemove"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
 
 
-onMouseDownAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onMouseDownAt msg =
+onMouseDownAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onMouseDownAt posMapper msg =
     Html.Events.on "mousedown"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
 
 
-onMouseUpAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onMouseUpAt msg =
+onMouseUpAt : PositionMapper -> (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
+onMouseUpAt posMapper msg =
     Html.Events.on "mouseup"
-        (D.map msg mousePosDecoder)
+        (D.map (msg << posMapper) mousePosDecoder)
+
+touchOps : TouchEvents.EventOptions
+touchOps = { stopPropagation = False, preventDefault = True }
+
+type alias TouchID = Int
+
+type alias Position = (Float, Float) 
+
+type alias PositionMapper = Position -> Position
+
+type alias TouchEvent = (TouchID, Position)
+
+onTouchStart : PositionMapper -> (List TouchEvent -> userMsg) -> Html.Attribute userMsg
+onTouchStart posMapper te2msg =
+    TouchEvents.onWithOptions "touchstart" touchOps (te2msg << List.map (Tuple.mapSecond (posMapper << Tuple.mapSecond negate)) << touchEvents)
 
 
-onTouchStart : userMsg -> Html.Attribute userMsg
-onTouchStart msg =
-    Html.Events.on "touchstart" (D.succeed msg)
+onTouchEnd : PositionMapper -> (List TouchEvent -> userMsg) -> Html.Attribute userMsg
+onTouchEnd posMapper te2msg =
+    TouchEvents.onWithOptions "touchend" touchOps (te2msg << List.map (Tuple.mapSecond (posMapper << Tuple.mapSecond negate)) << touchEvents)
 
 
-onTouchStartAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onTouchStartAt msg =
-    Html.Events.on "touchstart"
-        (D.map (msg << touchToPair) touchDecoder)
+onTouchMove : PositionMapper -> (List TouchEvent -> userMsg) -> Html.Attribute userMsg
+onTouchMove posMapper te2msg =
+    TouchEvents.onWithOptions "touchmove" touchOps (te2msg << List.map (Tuple.mapSecond (posMapper << Tuple.mapSecond negate)) << touchEvents)
 
 
-onTouchEndAt : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onTouchEndAt msg =
-    Html.Events.on "touchend"
-        (D.map (msg << touchToPair) touchDecoder)
+touchCoordinates : TouchEvents.Touch -> Position
+touchCoordinates = .clientPos
 
+touchID : TouchEvents.Touch -> TouchID
+touchID = .identifier
 
-onTouchEnd : userMsg -> Html.Attribute userMsg
-onTouchEnd msg =
-    Html.Events.on "touchend" (D.succeed msg)
+touchEvent : TouchEvents.Touch -> TouchEvent
+touchEvent t = 
+    Tuple.mapBoth touchID touchCoordinates (t, t)
 
+touchEvents : TouchEvents.Event -> List TouchEvent
+touchEvents =
+    List.map touchEvent << .targetTouches
 
-onTouchMove : (( Float, Float ) -> userMsg) -> Html.Attribute userMsg
-onTouchMove msg =
-    Html.Events.preventDefaultOn "touchmove"
-        (D.map (\a -> ( (msg << touchToPair) a, True )) touchDecoder)
-
-
-type TouchPos
-    = TouchPos Float Float
-
-
-touchDecoder : Decoder TouchPos
-touchDecoder =
-    D.oneOf
-        [ D.at
-            [ "touches", "0" ]
-            (D.map2
-                TouchPos
-                (D.field "pageX" D.float)
-                (D.field "pageY" D.float)
-            )
-        , D.map2
-            TouchPos
-            (D.field "pageX" D.float)
-            (D.field "pageY" D.float)
-        ]
 
 {-| Create Svg from a Shape. This is considered an advanced function and
 is usually not used. Instead, use collage as part of a regular GraphicSVG
 app or create a widget with GraphicSVG.Widget. 
 -}
-createSVG : String -> Float -> Float -> Transform -> (a -> b) -> (((Float,Float) -> a) -> (Float,Float) -> b) -> Shape a -> Svg.Svg b
-createSVG id w h trans msgWrapper positionWrapper shape =
+createSVG : 
+    String -> 
+    Float -> 
+    Float -> 
+    Transform -> 
+    (userMsg -> wrapped) ->
+    PositionMapper ->
+    Shape userMsg -> 
+    Svg.Svg wrapped
+createSVG id w h trans msgWrapper posMapper shape =
     case shape of
         Inked fillClr lt stencil ->
             let
@@ -2032,30 +2009,30 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                 ] [ Html.map msgWrapper htm ]
 
         Move v sh ->
-            createSVG id w h (moveT v trans) msgWrapper positionWrapper  sh
+            createSVG id w h (moveT v trans) msgWrapper posMapper sh
 
         Everything ->
-            createSVG id w h ident msgWrapper positionWrapper  (rect w h |> filled white)
+            createSVG id w h ident msgWrapper posMapper (rect w h |> filled white)
 
         Notathing ->
-            createSVG id w h ident msgWrapper positionWrapper  (rect w h |> filled black)
+            createSVG id w h ident msgWrapper posMapper (rect w h |> filled black)
 
         Rotate deg sh ->
-            createSVG id w h (rotateT deg trans) msgWrapper positionWrapper  sh
+            createSVG id w h (rotateT deg trans) msgWrapper posMapper sh
 
         Scale sx sy sh ->
-            createSVG id w h (scaleT sx sy trans) msgWrapper positionWrapper  sh
+            createSVG id w h (scaleT sx sy trans) msgWrapper posMapper sh
 
         Skew sx sy sh ->
-            createSVG id w h (skewT sx sy trans) msgWrapper positionWrapper  sh
+            createSVG id w h (skewT sx sy trans) msgWrapper posMapper sh
 
         Transformed tm sh ->
-            createSVG id w h (matrixMult trans tm) msgWrapper positionWrapper  sh
+            createSVG id w h (matrixMult trans tm) msgWrapper posMapper sh
 
         Link href sh ->
             Svg.a
                 [ xlinkHref href, target "_blank" ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         AlphaMask region sh ->
             Svg.g []
@@ -2068,13 +2045,13 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                             h
                             trans
                             msgWrapper 
-                            positionWrapper
+                            posMapper
                             (Group [ Everything, region |> repaint black ])
                         ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#m" ++ id ++ ")") ]
-                    [ createSVG (id ++ "mm") w h trans msgWrapper positionWrapper sh ]
+                    [ createSVG (id ++ "mm") w h trans msgWrapper posMapper sh ]
                 ]
 
         Clip region sh ->
@@ -2088,94 +2065,84 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                             h
                             trans
                             msgWrapper
-                            positionWrapper
+                            posMapper
                             (Group [ Notathing, region |> repaint white ])
                         ]
                     ]
                 , Svg.g
                     [ Svg.Attributes.mask ("url(#c" ++ id ++ ")") ]
-                    [ createSVG (id ++ "cc") w h trans msgWrapper positionWrapper sh ]
+                    [ createSVG (id ++ "cc") w h trans msgWrapper posMapper sh ]
                 ]
 
         Tap msg sh ->
             Svg.g
                 [ Html.Events.onClick (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         TapAt msg sh ->
             Svg.g
-                [ onTapAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onTapAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         EnterShape msg sh ->
             Svg.g
                 [ Html.Events.onMouseEnter (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         EnterAt msg sh ->
             Svg.g
-                [ onEnterAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onEnterAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         Exit msg sh ->
             Svg.g
                 [ Html.Events.onMouseLeave (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         ExitAt msg sh ->
             Svg.g
-                [ onLeaveAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onLeaveAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         MouseDown msg sh ->
             Svg.g
                 [ Html.Events.onMouseDown (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         MouseDownAt msg sh ->
             Svg.g
-                [ onMouseDownAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onMouseDownAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         MouseUp msg sh ->
             Svg.g
                 [ Html.Events.onMouseUp (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         MouseUpAt msg sh ->
             Svg.g
-                [ onMouseUpAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onMouseUpAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         MoveOverAt msg sh ->
             Svg.g
-                [ onMoveAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onMoveAt posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         TouchStart msg sh ->
             Svg.g
-                [ onTouchStart (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onTouchStart posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         TouchEnd msg sh ->
             Svg.g
-                [ onTouchEnd (msgWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onTouchEnd posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
-        TouchStartAt msg sh ->
+        TouchMove msg sh ->
             Svg.g
-                [ onTouchStartAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
-
-        TouchEndAt msg sh ->
-            Svg.g
-                [ onTouchStartAt (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
-
-        TouchMoveAt msg sh ->
-            Svg.g
-                [ onTouchMove (positionWrapper msg) ]
-                [ createSVG id w h trans msgWrapper positionWrapper sh ]
+                [ onTouchMove posMapper (msgWrapper << msg) ]
+                [ createSVG id w h trans msgWrapper posMapper sh ]
 
         Group shapes ->
             Svg.g [] <|
@@ -2187,19 +2154,19 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                             h
                             trans
                             msgWrapper
-                            positionWrapper
+                            posMapper
                     )
                     shapes
 
         GroupOutline cmbndshp ->
-            createSVG id w h trans msgWrapper positionWrapper cmbndshp
+            createSVG id w h trans msgWrapper posMapper cmbndshp
 
         GraphPaper s th c ->            
             if th <= 0 || s < 2 * th then
                 Svg.g [] []
 
             else
-                createSVG id w h trans msgWrapper positionWrapper <|
+                createSVG id w h trans msgWrapper posMapper <|
                     createGraph ( w, h ) s th c
 
 
@@ -2332,14 +2299,8 @@ repaint color shape =
         TouchEnd userMsg sh ->
             TouchEnd userMsg (repaint color sh)
 
-        TouchStartAt userMsg sh ->
-            TouchStartAt userMsg (repaint color sh)
-
-        TouchEndAt userMsg sh ->
-            TouchEndAt userMsg (repaint color sh)
-
-        TouchMoveAt userMsg sh ->
-            TouchMoveAt userMsg (repaint color sh)
+        TouchMove userMsg sh ->
+            TouchMove userMsg (repaint color sh)
 
         -- no changes for the rest...
         ForeignObject w h htm ->
@@ -2588,14 +2549,8 @@ addOutline style outlineClr shape =
         TouchEnd userMsg sh ->
             TouchEnd userMsg (addOutline style outlineClr sh)
 
-        TouchStartAt userMsg sh ->
-            TouchStartAt userMsg (addOutline style outlineClr sh)
-
-        TouchEndAt userMsg sh ->
-            TouchEndAt userMsg (addOutline style outlineClr sh)
-
-        TouchMoveAt userMsg sh ->
-            TouchMoveAt userMsg (addOutline style outlineClr sh)
+        TouchMove userMsg sh ->
+            TouchMove userMsg (addOutline style outlineClr sh)
 
         -- no changes for the rest...
         ForeignObject w h htm ->
@@ -2716,14 +2671,8 @@ makeTransparent alpha shape =
         TouchEnd userMsg sh ->
             TouchEnd userMsg (makeTransparent alpha sh)
 
-        TouchStartAt userMsg sh ->
-            TouchStartAt userMsg (makeTransparent alpha sh)
-
-        TouchEndAt userMsg sh ->
-            TouchEndAt userMsg (makeTransparent alpha sh)
-
-        TouchMoveAt userMsg sh ->
-            TouchMoveAt userMsg (makeTransparent alpha sh)
+        TouchMove userMsg sh ->
+            TouchMove userMsg (makeTransparent alpha sh)
 
         GraphPaper s th (RGBA r g b a) ->
             GraphPaper s th (RGBA r g b (a * alpha))
