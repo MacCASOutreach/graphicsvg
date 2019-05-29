@@ -1,9 +1,7 @@
 module GraphicSVG.App exposing
-    ( graphicsApp, GraphicsApp
-    , notificationsApp, NotificationsApp
-    , gameApp, GameApp
-    , appWithTick, AppWithTick
+    ( graphicsApp, GraphicsApp, notificationsApp, NotificationsApp, gameApp, GameApp
     , InputHandler, GetKeyState, Keys(..), KeyState(..)
+    , AppWithTick, appWithTick
     )
 
 {-| A module using the SVG graphics library to implement easily usable apps,
@@ -28,7 +26,7 @@ and other applications including response to time, keyboard presses, and mouse a
 -}
 
 import Browser exposing (UrlRequest(..))
-import Browser.Events exposing (onKeyDown, onKeyUp, onAnimationFrame)
+import Browser.Events exposing (onAnimationFrame, onKeyDown, onKeyUp)
 import Browser.Navigation as Nav
 import Dict
 import GraphicSVG exposing (..)
@@ -403,7 +401,6 @@ with no parameters:
 view =
 collage 500 500
 [ circle 10 |> filled red
-][ circle 10 |> filled red
 ]
 `graphicsApp` takes a parameter like `{ view = view }`
 so the main program that would get the whole thing started for the above
@@ -465,7 +462,6 @@ example is the colour of the shape:
 view model =
 collage 500 500
 [ circle 10 |> filled model |> notifyTap Change
-][ circle 10 |> filled model |> notifyTap Change
 ]
 `notificationsApp` takes a parameter like:
 {
@@ -574,49 +570,48 @@ be all you need for making complex interactive games and animations.
 which will be automatically called each time the browser window is refreshed
 (30 times per second)
 of the form `Float -> GetKeyState -> UserMsg` and the other is
-```
-{
-  model = model
-, view = view
-, update = update
-}
-```
+
+    { model = model
+    , view = view
+    , update = update
+    }
+
 The following program causes animation of the drawn line,
 causing it to spin around; also, a press of the "r" key
 causes the direction of the spin to reverse:
-```
-type Msg
-    = Tick Float GetKeyState
 
-type alias Model = { angle : Float, speed : Float }
+    type Msg
+        = Tick Float GetKeyState
 
-init = { angle = 0, speed = 1 }
+    type alias Model = { angle : Float, speed : Float }
 
-update msg model =
-    case msg of
-        Tick _ ( keys, _, _ ) ->
-            case keys (Key "r") of
-                JustDown ->
-                    { model
-                    | angle = model.angle - model.speed
-                    , speed = -model.speed
-                    }
-            _ -> { model | angle = model.angle + model.speed }
+    init = { angle = 0, speed = 1 }
 
-view model =
-    collage 500 500
-        [ line ( 0, 0 ) ( 250, 0 )
-            |> outlined (solid 1) green
-            |> rotate (degrees model.angle)
-        ]
-        
-main =
-    gameApp Tick
-        { model = init
-        , update = update
-        , view = view
-        }
-```
+    update msg model =
+        case msg of
+            Tick _ ( keys, _, _ ) ->
+                case keys (Key "r") of
+                    JustDown ->
+                        { model
+                        | angle = model.angle - model.speed
+                        , speed = -model.speed
+                        }
+                _ -> { model | angle = model.angle + model.speed }
+
+    view model =
+        collage 500 500
+            [ line ( 0, 0 ) ( 250, 0 )
+                |> outlined (solid 1) green
+                |> rotate (degrees model.angle)
+            ]
+
+    main =
+        gameApp Tick
+            { model = init
+            , update = update
+            , view = view
+            }
+
 -}
 gameApp :
     InputHandler userMsg
@@ -718,14 +713,14 @@ hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
 the type signature more clear and concise when `main` calls `gameApp`:
 main : GameApp Model Msg
 main =
-    appWithTick Tick
-        { model = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        , onUrlRequest = OnUrlRequest
-        , onUrlChange = OnUrlChange
-        }
+appWithTick Tick
+{ model = init
+, update = update
+, view = view
+, subscriptions = subscriptions
+, onUrlRequest = OnUrlRequest
+, onUrlChange = OnUrlChange
+}
 where `Tick` is the message handler called once per browser window update,
 `Model` is the type alias of the user persistent model, and
 `Msg` is the name of the user message type; if other names are used,
@@ -735,28 +730,28 @@ type alias AppWithTick flags userModel userMsg =
     App flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
 
-{-|
-A GraphicSVG.app with automatic time and keyboard presses passed into the update function.
+{-| A GraphicSVG.app with automatic time and keyboard presses passed into the update function.
 `appWithTick` takes two parameters: one is your own type of `InputHandler` message
 which will be automatically called each time the browser window is refreshed
 (30 times per second)
 of the form `Float -> GetKeyState -> UserMsg` and the other is
-```
-{
-    init = model
-,   view = view
-,   update = update
-,   subscriptions = subscriptions
-,   onUrlRequest = OnUrlRequest
-,   onUrlChange = OnUrlChange
-}
-where init is the model and initial commands, view is a collage and a title,
-update is the usual update function with commands, subscriptions are things
-which you'd like to be notified about on a regular basis (e.g. changes in time, 
-incoming WebSocket messages), onUrlRequest is sent
-whenever the user initiates a URL action (e.g. clicks a link) and onUrlChange
-is when the user changes the url in the browser. See https://package.elm-lang.org/packages/elm/browser/latest/Browser#application
-for a more clear description of these.
+
+    {
+        init = model
+    ,   view = view
+    ,   update = update
+    ,   subscriptions = subscriptions
+    ,   onUrlRequest = OnUrlRequest
+    ,   onUrlChange = OnUrlChange
+    }
+    where init is the model and initial commands, view is a collage and a title,
+    update is the usual update function with commands, subscriptions are things
+    which you'd like to be notified about on a regular basis (e.g. changes in time,
+    incoming WebSocket messages), onUrlRequest is sent
+    whenever the user initiates a URL action (e.g. clicks a link) and onUrlChange
+    is when the user changes the url in the browser. See https://package.elm-lang.org/packages/elm/browser/latest/Browser#application
+    for a more clear description of these.
+
 -}
 appWithTick :
     InputHandler userMsg

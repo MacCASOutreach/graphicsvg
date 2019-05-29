@@ -1,9 +1,7 @@
 module GraphicSVG.EllieApp exposing
-    ( graphicsApp, GraphicsApp
-    , notificationsApp, NotificationsApp
-    , gameApp, GameApp
-    , ellieAppWithTick, EllieAppWithTick
+    ( graphicsApp, GraphicsApp, notificationsApp, NotificationsApp, gameApp, GameApp
     , InputHandler, GetKeyState, Keys(..), KeyState(..)
+    , EllieAppWithTick, ellieAppWithTick
     )
 
 {-| The methods in this library are analogous to those in GraphicSVG.App; however,
@@ -27,7 +25,7 @@ they are built upon `GraphicSVG.ellieApp` for compatibility with that platform.
 -}
 
 import Browser exposing (UrlRequest(..))
-import Browser.Events exposing (onKeyDown, onKeyUp, onAnimationFrame)
+import Browser.Events exposing (onAnimationFrame, onKeyDown, onKeyUp)
 import Browser.Navigation as Nav
 import Dict
 import GraphicSVG exposing (..)
@@ -400,7 +398,6 @@ with no parameters:
 view =
 collage 500 500
 [ circle 10 |> filled red
-][ circle 10 |> filled red
 ]
 `graphicsApp` takes a parameter like `{ view = view }`
 so the main program that would get the whole thing started for the above
@@ -440,27 +437,27 @@ type alias NotificationsApp userModel userMsg =
 graphics. Note that your `view` function needs a `model` parameter now, which in this
 example is the colour of the shape:
 view model =
-    collage 500 500
-        [ circle 10 |> filled model |> notifyTap Change
-        ]
+collage 500 500
+[ circle 10 |> filled model |> notifyTap Change
+]
 `notificationsApp` takes a parameter like:
 {
-    model = model
-,   view = view
-,   update = update
+model = model
+, view = view
+, update = update
 }
 so the functions that would be required to make the above `view` function work
 are as follows:
 type Msg = Change
 update msg model =
-    case msg of
-        Change ->
-            green
+case msg of
+Change ->
+green
 main = notificationsApp
-{   
-    model = red -- causes circle to start red
-,   update = update -- function which changes the model
-,   view = view
+{
+model = red -- causes circle to start red
+, update = update -- function which changes the model
+, view = view
 }
 which will cause the drawn red circle to change to green the first time
 it is mouse clicked or tapped.
@@ -513,19 +510,20 @@ type alias HiddenModel userMsg =
 
 {-| This type alias is only used as a target for a user `main` type signature to make
 the type signature more clear and concise when `main` calls `gameApp`:
-```
-main : GameApp Model Msg
-main =
-    gameApp Tick
-        { model = init
-        , update = update
-        , view = view
-        }
-```
+
+    main : GameApp Model Msg
+    main =
+        gameApp Tick
+            { model = init
+            , update = update
+            , view = view
+            }
+
 where `Tick` is the message handler called once per browser window update,
 `Model` is the type alias of the user persistent model, and
 `Msg` is the name of the user message type; if other names are used,
 they can be substituted for these names.
+
 -}
 type alias GameApp userModel userMsg =
     EllieApp () ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
@@ -537,49 +535,48 @@ be all you need for making complex interactive games and animations.
 which will be automatically called each time the browser window is refreshed
 (30 times per second)
 of the form `Float -> GetKeyState -> UserMsg` and the other is
-```
-{
-  model = model
-, view = view
-, update = update
-}
-````
+
+    { model = model
+    , view = view
+    , update = update
+    }
+
 The following program causes animation of the drawn line,
 causing it to spin around; also, a press of the "r" key
 causes the direction of the spin to reverse:
-```
-type Msg
-    = Tick Float GetKeyState
 
-type alias Model = { angle : Float, speed : Float }
+    type Msg
+        = Tick Float GetKeyState
 
-init = { angle = 0, speed = 1 }
+    type alias Model = { angle : Float, speed : Float }
 
-update msg model =
-    case msg of
-        Tick _ ( keys, _, _ ) ->
-            case keys (Key "r") of
-                JustDown ->
-                    { model
-                    | angle = model.angle - model.speed
-                    , speed = -model.speed
-                    }
-            _ -> { model | angle = model.angle + model.speed }
+    init = { angle = 0, speed = 1 }
 
-view model =
-    collage 500 500
-        [ line ( 0, 0 ) ( 250, 0 )
-            |> outlined (solid 1) green
-            |> rotate (degrees model.angle)
-        ]
+    update msg model =
+        case msg of
+            Tick _ ( keys, _, _ ) ->
+                case keys (Key "r") of
+                    JustDown ->
+                        { model
+                        | angle = model.angle - model.speed
+                        , speed = -model.speed
+                        }
+                _ -> { model | angle = model.angle + model.speed }
 
-main =
-    gameApp Tick
-        { model = init
-        , update = update
-        , view = view
-        }
-```
+    view model =
+        collage 500 500
+            [ line ( 0, 0 ) ( 250, 0 )
+                |> outlined (solid 1) green
+                |> rotate (degrees model.angle)
+            ]
+
+    main =
+        gameApp Tick
+            { model = init
+            , update = update
+            , view = view
+            }
+
 -}
 gameApp :
     InputHandler userMsg
@@ -659,43 +656,46 @@ hiddenGameUpdate userUpdate msg ( userModel, hiddenModel ) =
         KeyUp keyCode ->
             ( ( userModel, { hiddenModel | keys = insertKeyDict hiddenModel.keys keyCode WentUp } ), Cmd.none )
 
+
 {-| This type alias is only used as a target for a user `main` type signature to make
 the type signature more clear and concise when `main` calls `gameApp`:
-```
-main : EllieAppWithTick Model Msg
-main =
-    ellieAppWithTick Tick
-        { model = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        }
-```
+
+    main : EllieAppWithTick Model Msg
+    main =
+        ellieAppWithTick Tick
+            { model = init
+            , update = update
+            , view = view
+            , subscriptions = subscriptions
+            }
+
 where `Tick` is the message handler called once per browser window update,
 `Model` is the type alias of the user persistent model, and
 `Msg` is the name of the user message type; if other names are used,
 they can be substituted for these names.
+
 -}
 type alias EllieAppWithTick flags userModel userMsg =
     EllieApp flags ( userModel, HiddenModel userMsg ) (HiddenMsg userMsg)
 
-{-|
-A GraphicSVG.ellieApp with automatic time and keyboard presses passed into the update function.
+
+{-| A GraphicSVG.ellieApp with automatic time and keyboard presses passed into the update function.
 `ellieAppWithTick` takes two parameters: one is your own type of `InputHandler` message
 which will be automatically called each time the browser window is refreshed
 (30 times per second)
 of the form `Float -> GetKeyState -> UserMsg` and the other is
-```
-{
-    init = model
-,   view = view
-,   update = update
-,   subscriptions = subscriptions
-}
-where init is the model and initial commands, view is a collage and a title,
-update is the usual update function with commands, and subscriptions are things
-which you'd like to be notified about on a regular basis (e.g. changes in time, 
-incoming WebSocket messages)
+
+    {
+        init = model
+    ,   view = view
+    ,   update = update
+    ,   subscriptions = subscriptions
+    }
+    where init is the model and initial commands, view is a collage and a title,
+    update is the usual update function with commands, and subscriptions are things
+    which you'd like to be notified about on a regular basis (e.g. changes in time,
+    incoming WebSocket messages)
+
 -}
 ellieAppWithTick :
     InputHandler userMsg

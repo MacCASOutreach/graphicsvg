@@ -1482,7 +1482,7 @@ test40 =
                 , clip
                     (rect 100 100 |> filled red |> move ( 50, 0 ))
                     (circle 50 |> filled orange)
-                        |> addOutline (solid 5) purple
+                    |> addOutline (solid 5) purple
                 ]
         )
         ( 0, 0 )
@@ -1518,7 +1518,7 @@ test41 =
                 , subtract
                     (circle 50 |> filled red |> move ( -50, 0 ))
                     (circle 50 |> filled orange)
-                        |> addOutline (solid 5) darkPurple
+                    |> addOutline (solid 5) darkPurple
                 ]
         )
         ( 0, 0 )
@@ -1560,11 +1560,11 @@ test42 =
                     , subtract
                         (rect 100 100 |> filled red |> move ( 50, 0 ))
                         (circle 50 |> filled orange)
-                            |> move ( -25, 0 )
+                        |> move ( -25, 0 )
                     , clip
                         (rect 100 100 |> filled red |> move ( 50, 0 ))
                         (circle 50 |> filled orange)
-                            |> move ( 25, 0 )
+                        |> move ( 25, 0 )
                     ]
                     |> addOutline (solid 5) darkPurple
                 ]
@@ -1609,7 +1609,8 @@ test43 =
                             , subtract
                                 (rect 50 50 |> filled green |> move ( 25, -10 ))
                                 (circle 25 |> filled red |> move ( 25, -35 ))
-                            ])
+                            ]
+                        )
                         (group
                             [ rect 150 110 |> filled red
                             , circle 50 |> filled orange
@@ -1619,7 +1620,8 @@ test43 =
                             , subtract
                                 (rect 100 100 |> filled green |> move ( -25, 0 ))
                                 (circle 50 |> filled yellow |> move ( 25, 0 ))
-                            ])
+                            ]
+                        )
                 ]
         )
         ( 0, 0 )
@@ -1663,7 +1665,8 @@ test44 =
                             , subtract
                                 (rect 50 50 |> filled green |> move ( 25, -10 ))
                                 (circle 25 |> filled red |> move ( 25, -35 ))
-                            ])
+                            ]
+                        )
                         (group
                             [ rect 150 110 |> filled red
                             , circle 50 |> filled orange
@@ -1673,7 +1676,8 @@ test44 =
                             , subtract
                                 (rect 100 100 |> filled green |> move ( -25, 0 ))
                                 (circle 50 |> filled yellow |> move ( 25, 0 ))
-                            ])
+                            ]
+                        )
                 ]
         )
         ( 0, 0 )
@@ -1802,7 +1806,7 @@ test48 =
                     |> move ( 225, 202.5 )
                     |> notifyTap (Notify ( 10, 10 ))
                 , circle 30 |> filled orange |> notifyTap (Notify ( 0, 0 ))
-                , circle 50|> outlined (solid 1) black
+                , circle 50 |> outlined (solid 1) black
                 ]
         )
         ( 0, 0 )
@@ -1952,7 +1956,8 @@ test54 =
                     , Pull ( -50, 40 ) ( -50, 0 )
                     , Pull ( -50, -40 ) ( 0, -40 )
                     , Pull ( 50, -40 ) ( 50, 0 )
-                    ] |> outlined (solid 1) black
+                    ]
+                    |> outlined (solid 1) black
                 ]
         )
         ( 0, 0 )

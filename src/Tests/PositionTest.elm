@@ -1,32 +1,47 @@
+module Main exposing (Model, Msg(..), init, main, update, view)
+
 import GraphicSVG exposing (..)
-import GraphicSVG.App exposing (notificationsApp, NotificationsApp, GetKeyState)
+import GraphicSVG.App exposing (GetKeyState, NotificationsApp, notificationsApp)
+
 
 type alias Model =
-    (Float, Float)
+    ( Float, Float )
 
-type Msg = 
-      GoTo (Float,Float)
+
+type Msg
+    = GoTo ( Float, Float )
+
 
 main : NotificationsApp Model Msg
-main = notificationsApp 
-    { model = init
-    , update = update
-    , view = view 
-    }
+main =
+    notificationsApp
+        { model = init
+        , update = update
+        , view = view
+        }
+
 
 init : Model
-init = 
+init =
     ( 0, 0 )
+
 
 update : Msg -> Model -> Model
 update msg model =
-    case msg of 
-        GoTo pos -> pos
+    case msg of
+        GoTo pos ->
+            pos
+
 
 view : Model -> Collage Msg
-view model = collage 192 128 
-    [ rect 192 128 |> filled green
-        |> notifyMouseMoveAt GoTo
-    , circle 1 |> filled red |> move model
-        |> notifyMouseMoveAt GoTo
-    ]
+view model =
+    collage 192
+        128
+        [ rect 192 128
+            |> filled green
+            |> notifyMouseMoveAt GoTo
+        , circle 1
+            |> filled red
+            |> move model
+            |> notifyMouseMoveAt GoTo
+        ]

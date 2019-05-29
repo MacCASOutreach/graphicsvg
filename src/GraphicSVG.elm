@@ -12,8 +12,8 @@ module GraphicSVG exposing
     , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
     , clip, union, subtract, outside, ghost
-    , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt
-    , TouchEvent, notifyTouchStart, notifyTouchEnd, notifyTouchMove
+    , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchEnd, notifyTouchMove
+    , TouchEvent
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
@@ -98,15 +98,18 @@ not guaranteed and weird things can happen.
 
 @docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchEnd, notifyTouchMove
 
+
 # Touch Notifications
 
 Notifications of touch events work differently than mouse events. Each event provides a list of touches involving the given `Shape`.
+
 
 ## TouchEvent
 
 Represents a touch event, containing the ID value of the touch in addition to the position of the finger.
 
 @docs TouchEvent
+
 
 ## Notifications
 
@@ -137,9 +140,10 @@ which are provided in the section above this one.
 
 @docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
+
 # More Advanced Things
 
-Don't worry about these unless you *_really_* know what you're doing!
+Don't worry about these unless you __really__ know what you're doing!
 
 @docs Msg, createSVG
 
@@ -162,6 +166,7 @@ import Dict
 import Html
 import Html.Attributes
 import Html.Events
+import Html.Events.Extra.Touch as TouchEvents
 import Json.Decode as D exposing (..)
 import String exposing (..)
 import Svg exposing (Attribute)
@@ -170,7 +175,6 @@ import Task
 import Time exposing (..)
 import Tuple
 import Url exposing (Url)
-import Html.Events.Extra.Touch as TouchEvents
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -535,12 +539,14 @@ hiddenAppUpdate userView userUpdate msg ( userModel, gModel ) =
                       )
                     , Cmd.none
                     )
+
                 Nothing ->
-                    ( (userModel, gModel)
+                    ( ( userModel, gModel )
                     , getViewportSize
                     )
 
-        NoOp -> (( userModel, gModel ), Cmd.none)
+        NoOp ->
+            ( ( userModel, gModel ), Cmd.none )
 
 
 hiddenAppView :
@@ -557,7 +563,6 @@ hiddenAppView userView ( userModel, gModel ) =
 
         (Collage w h shapes) =
             userViewEval.body
-
     in
     { title = title, body = [ createCollage w h shapes (convertCoords gModel) ] }
 
@@ -695,15 +700,21 @@ initialCmd userCmd =
         , userCmd
         ]
 
+
 getViewportSize : Cmd (Msg userMsg)
-getViewportSize = Task.attempt
-            (\rvp -> case rvp of
-                        Ok vp ->                    
-                            WindowResize
-                                <| Just ( round vp.viewport.width, round vp.viewport.height )
-                        Err _ -> NoOp
-            )
-            (getViewportOf "render")
+getViewportSize =
+    Task.attempt
+        (\rvp ->
+            case rvp of
+                Ok vp ->
+                    WindowResize <|
+                        Just ( round vp.viewport.width, round vp.viewport.height )
+
+                Err _ ->
+                    NoOp
+        )
+        (getViewportOf "render")
+
 
 {-| The `Msg` type encapsulates all GraphicSVG internal messages.
 
@@ -982,7 +993,7 @@ ptOnCircle r n cn =
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point. For example,
 
-    curve (0,0) [Pull (0,10) (0,20)]
+    curve ( 0, 0 ) [ Pull ( 0, 10 ) ( 0, 20 ) ]
 
 gives a curve starting at (0,0), pulled towards (0,10) and ending at (0,20).
 
@@ -1034,7 +1045,7 @@ text str =
 {-| Apply to a curve or group of curves in order to view their start points,
 end points and `Pull` points. Helpful while perfecting curves.
 
-    curve (0,0) [Pull (0,10) (0,20)]
+    curve ( 0, 0 ) [ Pull ( 0, 10 ) ( 0, 20 ) ]
         |> curveHelper
 
 -}
@@ -1226,16 +1237,13 @@ matrixMult ( ( a, c, e ), ( b, d, f ) ) ( ( a1, c1, e1 ), ( b1, d1, f1 ) ) =
 {-| The identity or "starting" matrix. Applying this matrix to a shape is the equivalent
 of doing no transformations at all. The matrix itself looks like
 
-```
-ident = ( ( 1 , 0 , 0 ) , ( 0 , 1 , 0 ) )
-```
+    ident =
+        ( ( 1, 0, 0 ), ( 0, 1, 0 ) )
 
 or,
 
-```
- 1 0 0
- 0 1 0
-```
+     1 0 0
+     0 1 0
 
 -}
 ident : Transform
@@ -1247,16 +1255,12 @@ ident =
 
 {-| A matrix representing an SVG transformation matrix of the form:
 
-```
-( ( a , c , e ) , ( b , d , f ) )
-```
+    ( ( a, c, e ), ( b, d, f ) )
 
 or
 
-```
- a c e
- b d f
-```
+     a c e
+     b d f
 
 The a, c, b and d control transformations such as skew, rotate and scale;
 e and f control translation.
@@ -1264,13 +1268,11 @@ e and f control translation.
 These matrices are best built up by starting with the identity matrix and
 applying any number of `*T` functions (see below); for example,
 
-```
-myTransform =
-    ident
-        |> scaleT 2 2
-        |> rotateT (degrees 30)
-        |> moveT (0, 50)
-```
+    myTransform =
+        ident
+            |> scaleT 2 2
+            |> rotateT (degrees 30)
+            |> moveT ( 0, 50 )
 
 -}
 type alias Transform =
@@ -1280,10 +1282,8 @@ type alias Transform =
 {-| Apply a move (translation) transformation to a transformation matrix.
 This is designed to be used as part of a pipe:
 
-```
-ident
-    |> moveT (15,-30.5)
-```
+    ident
+        |> moveT ( 15, -30.5 )
 
 -}
 moveT : ( Float, Float ) -> Transform -> Transform
@@ -1296,11 +1296,9 @@ moveT ( u, v ) ( ( a, c, tx ), ( b, d, ty ) ) =
 {-| Apply a rotation transformation to a transformation matrix.
 This is designed to be used as part of a pipe:
 
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-```
+    ident
+        |> moveT ( 15, -30.5 )
+        |> rotateT (degrees -30)
 
 -}
 rotateT : Float -> Transform -> Transform
@@ -1321,12 +1319,10 @@ rotateT rad ( ( a, c, tx ), ( b, d, ty ) ) =
 scales in x and the second argument scales in y. This is designed
 to be used as part of a pipe:
 
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-    |> scaleT 4 0.4
-```
+    ident
+        |> moveT ( 15, -30.5 )
+        |> rotateT (degrees -30)
+        |> scaleT 4 0.4
 
 -}
 scaleT : Float -> Float -> Transform -> Transform
@@ -1340,13 +1336,11 @@ scaleT sx sy ( ( a, c, tx ), ( b, d, ty ) ) =
 skews in x and the second argument skews in y. This is designed
 to be used as part of a pipe:
 
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-    |> scaleT 4 0.4
-    |> skewT 0.5 1.3
-```
+    ident
+        |> moveT ( 15, -30.5 )
+        |> rotateT (degrees -30)
+        |> scaleT 4 0.4
+        |> skewT 0.5 1.3
 
 -}
 skewT : Float -> Float -> Transform -> Transform
@@ -1366,11 +1360,9 @@ skewT skx sky ( ( a, c, tx ), ( b, d, ty ) ) =
 {-| Apply a rotation about a given point to a `Transform` matrix. For example,
 the following transform will rotate a `Shape` 30 degrees about the point (0,50):
 
-```
-rotateAbout050 =
-    ident
-        |> rotateAboutT (0, 50) (degrees 30)
-```
+    rotateAbout050 =
+        ident
+            |> rotateAboutT ( 0, 50 ) (degrees 30)
 
 -}
 rotateAboutT : ( Float, Float ) -> Float -> Transform -> Transform
@@ -1391,63 +1383,57 @@ rotateAboutT ( u, v ) rad ( ( a, c, tx ), ( b, d, ty ) ) =
 be used to apply the given matrix to any transformations of the current
 shape. This is designed to be used in the usual way in a pipe:
 
-```
-circle 10
-    |> filled red
-    |> transform moveLeft50
+    circle 10
+        |> filled red
+        |> transform moveLeft50
 
-moveLeft50 =
-    ident
-        |> moveT (50,0)
-```
+    moveLeft50 =
+        ident
+            |> moveT (50,0)
 
 NOTE: Transformations generated using pipes this way are applied backwards compared
 to the "regular" `Shape userMsg` transformation functions. For example, `rect0` and
 `rect1` below are equivalent:
 
-```
-myTransform =
-    ident
-        |> scaleT 2 2
-        |> rotateT (degrees 30)
-        |> moveT (0, 50)
+    myTransform =
+        ident
+            |> scaleT 2 2
+            |> rotateT (degrees 30)
+            |> moveT ( 0, 50 )
 
-rect0 =
-    rect 20 10
-        |> filled red
-        |> transform myTransform
+    rect0 =
+        rect 20 10
+            |> filled red
+            |> transform myTransform
 
-rect1 =
-    rect 20 10
-        |> filled red
-        |> move (0, 50)
-        |> rotate (degrees 30)
-        |> scale 2
-```
+    rect1 =
+        rect 20 10
+            |> filled red
+            |> move ( 0, 50 )
+            |> rotate (degrees 30)
+            |> scale 2
 
 On the other hand, single transformations produce a result consistent with the
 `Shape userMsg` transformations. `rect2` is also equivalent to the two above:
 
-```
-moveRight50 =
-    ident
-        |> moveT (50,0)
+    moveRight50 =
+        ident
+            |> moveT ( 50, 0 )
 
-scale2 =
-    ident
-        |> scaleT 2 2
+    scale2 =
+        ident
+            |> scaleT 2 2
 
-rotate30 =
-    ident
-        |> rotateT (degrees 30)
+    rotate30 =
+        ident
+            |> rotateT (degrees 30)
 
-rect2 =
-    rect 20 10
-        |> filled red
-        |> transform moveRight50
-        |> transform scale2
-        |> transform rotate30
-```
+    rect2 =
+        rect 20 10
+            |> filled red
+            |> transform moveRight50
+            |> transform scale2
+            |> transform rotate30
 
 However, chaining together transformations in this way is discouraged because
 it is less efficient than the regular `Shape userMsg` transformations in
@@ -1471,9 +1457,9 @@ type Collage userMsg
 {-| Creates a blank canvas on which you can draw. Takes a width, height and a
 list of `Shape`s. Use this in your `view` functions in the three types of Apps above:
 
-    collage 500 500
-        [
-            circle 10 |> filled red
+    collage 500
+        500
+        [ circle 10 |> filled red
         ]
 
 -}
@@ -1482,12 +1468,12 @@ collage w h shapes =
     Collage w h shapes
 
 
-createCollage : 
-    Float -> 
-    Float -> 
-    List (Shape userMsg) -> 
-    PositionMapper ->
-    Html.Html (Msg userMsg)
+createCollage :
+    Float
+    -> Float
+    -> List (Shape userMsg)
+    -> PositionMapper
+    -> Html.Html (Msg userMsg)
 createCollage w h shapes posMapper =
     Svg.svg
         [ width "100%"
@@ -1508,7 +1494,7 @@ createCollage w h shapes posMapper =
             :: [ Svg.g
                     [ clipPath "url(#cPath)" ]
                     (List.indexedMap
-                        (\n -> createSVG (String.fromInt n) w h ident Graphics posMapper )
+                        (\n -> createSVG (String.fromInt n) w h ident Graphics posMapper)
                         shapes
                     )
                ]
@@ -1701,16 +1687,27 @@ onMouseUpAt posMapper msg =
     Html.Events.on "mouseup"
         (D.map (msg << posMapper) mousePosDecoder)
 
+
 touchOps : TouchEvents.EventOptions
-touchOps = { stopPropagation = False, preventDefault = True }
+touchOps =
+    { stopPropagation = False, preventDefault = True }
 
-type alias TouchID = Int
 
-type alias Position = (Float, Float) 
+type alias TouchID =
+    Int
 
-type alias PositionMapper = Position -> Position
 
-type alias TouchEvent = (TouchID, Position)
+type alias Position =
+    ( Float, Float )
+
+
+type alias PositionMapper =
+    Position -> Position
+
+
+type alias TouchEvent =
+    ( TouchID, Position )
+
 
 onTouchStart : PositionMapper -> (List TouchEvent -> userMsg) -> Html.Attribute userMsg
 onTouchStart posMapper te2msg =
@@ -1728,14 +1725,19 @@ onTouchMove posMapper te2msg =
 
 
 touchCoordinates : TouchEvents.Touch -> Position
-touchCoordinates = .clientPos
+touchCoordinates =
+    .clientPos
+
 
 touchID : TouchEvents.Touch -> TouchID
-touchID = .identifier
+touchID =
+    .identifier
+
 
 touchEvent : TouchEvents.Touch -> TouchEvent
-touchEvent t = 
-    Tuple.mapBoth touchID touchCoordinates (t, t)
+touchEvent t =
+    Tuple.mapBoth touchID touchCoordinates ( t, t )
+
 
 touchEvents : TouchEvents.Event -> List TouchEvent
 touchEvents =
@@ -1744,17 +1746,17 @@ touchEvents =
 
 {-| Create Svg from a Shape. This is considered an advanced function and
 is usually not used. Instead, use collage as part of a regular GraphicSVG
-app or create a widget with GraphicSVG.Widget. 
+app or create a widget with GraphicSVG.Widget.
 -}
-createSVG : 
-    String -> 
-    Float -> 
-    Float -> 
-    Transform -> 
-    (userMsg -> wrapped) ->
-    PositionMapper ->
-    Shape userMsg -> 
-    Svg.Svg wrapped
+createSVG :
+    String
+    -> Float
+    -> Float
+    -> Transform
+    -> (userMsg -> wrapped)
+    -> PositionMapper
+    -> Shape userMsg
+    -> Svg.Svg wrapped
 createSVG id w h trans msgWrapper posMapper shape =
     case shape of
         Inked fillClr lt stencil ->
@@ -1779,15 +1781,21 @@ createSVG id w h trans msgWrapper posMapper shape =
 
                 nonexistBody =
                     case fillClr of
-                        Nothing -> True
-                        _ -> False
-                
+                        Nothing ->
+                            True
+
+                        _ ->
+                            False
+
                 clrAttrs =
                     case fillClr of
-                        Nothing -> [ fill "none"]
-                        Just bodyClr -> [ fill (mkRGB bodyClr)
-                                        , fillOpacity (mkAlpha bodyClr)
-                                        ]
+                        Nothing ->
+                            [ fill "none" ]
+
+                        Just bodyClr ->
+                            [ fill (mkRGB bodyClr)
+                            , fillOpacity (mkAlpha bodyClr)
+                            ]
 
                 strokeAttrs =
                     case lt of
@@ -1795,22 +1803,40 @@ createSVG id w h trans msgWrapper posMapper shape =
                             []
 
                         Just ( Solid th, strokeClr ) ->
-                            let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
-                                    in th <= 0 || opcty <= 0 in
-                            if nonStroke then [] else
+                            let
+                                nonStroke =
+                                    let
+                                        (RGBA _ _ _ opcty) =
+                                            strokeClr
+                                    in
+                                    th <= 0 || opcty <= 0
+                            in
+                            if nonStroke then
+                                []
+
+                            else
                                 [ strokeWidth (String.fromFloat th)
                                 , stroke (mkRGB strokeClr)
                                 , strokeOpacity (mkAlpha strokeClr)
                                 ]
 
                         Just ( Broken dashes th, strokeClr ) ->
-                            let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
-                                    in th <= 0 || opcty <= 0 ||
-                                        List.all (\( on, _ ) -> on == 0) dashes
+                            let
+                                nonStroke =
+                                    let
+                                        (RGBA _ _ _ opcty) =
+                                            strokeClr
+                                    in
+                                    th
+                                        <= 0
+                                        || opcty
+                                        <= 0
+                                        || List.all (\( on, _ ) -> on == 0) dashes
                             in
-                            if nonStroke then [] else
+                            if nonStroke then
+                                []
+
+                            else
                                 [ strokeWidth (String.fromFloat th)
                                 , stroke (mkRGB strokeClr)
                                 , strokeOpacity (mkAlpha strokeClr)
@@ -1820,178 +1846,182 @@ createSVG id w h trans msgWrapper posMapper shape =
                                                 (List.intersperse "," <|
                                                     List.map pairToString dashes
                                                 )
-                                    ]
+                                       ]
 
                         Just ( NoLine, _ ) ->
                             []
             in
-            if nonexistBody && List.isEmpty strokeAttrs then Svg.g [] [] else
-            case stencil of
-                Circle r ->
-                    Svg.circle
-                        ([ cx "0"
-                        , cy "0"
-                        , Svg.Attributes.r (String.fromFloat r)
-                        ]
-                            ++ attrs
-                        )
-                        []
+            if nonexistBody && List.isEmpty strokeAttrs then
+                Svg.g [] []
 
-                Rect rw rh ->
-                    Svg.rect
-                        ([ x <| String.fromFloat <| -rw / 2
-                        , y <| String.fromFloat <| -rh / 2
-                        , width <| String.fromFloat rw
-                        , height <| String.fromFloat rh
-                        ]
-                            ++ attrs
-                        )
-                        []
+            else
+                case stencil of
+                    Circle r ->
+                        Svg.circle
+                            ([ cx "0"
+                             , cy "0"
+                             , Svg.Attributes.r (String.fromFloat r)
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                RoundRect rw rh r ->
-                    Svg.rect
-                        ([ x <| String.fromFloat <| -rw / 2
-                        , y <| String.fromFloat <| -rh / 2
-                        , rx <| String.fromFloat r
-                        , ry <| String.fromFloat r
-                        , width <| String.fromFloat rw
-                        , height <| String.fromFloat rh
-                        ]
-                            ++ attrs
-                        )
-                        []
+                    Rect rw rh ->
+                        Svg.rect
+                            ([ x <| String.fromFloat <| -rw / 2
+                             , y <| String.fromFloat <| -rh / 2
+                             , width <| String.fromFloat rw
+                             , height <| String.fromFloat rh
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                Oval ow oh ->
-                    Svg.ellipse
-                        ([ cx "0"
-                        , cy "0"
-                        , rx <| String.fromFloat <| 0.5 * ow
-                        , ry <| String.fromFloat <| 0.5 * oh
-                        ]
-                            ++ attrs
-                        )
-                        []
+                    RoundRect rw rh r ->
+                        Svg.rect
+                            ([ x <| String.fromFloat <| -rw / 2
+                             , y <| String.fromFloat <| -rh / 2
+                             , rx <| String.fromFloat r
+                             , ry <| String.fromFloat r
+                             , width <| String.fromFloat rw
+                             , height <| String.fromFloat rh
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                Polygon vertices ->
-                    Svg.polygon
-                        ([ points <|
-                            String.concat <|
-                                List.intersperse " " <|
-                                    List.map pairToString vertices
-                        ]
-                            ++ attrs
-                        )
-                        []
+                    Oval ow oh ->
+                        Svg.ellipse
+                            ([ cx "0"
+                             , cy "0"
+                             , rx <| String.fromFloat <| 0.5 * ow
+                             , ry <| String.fromFloat <| 0.5 * oh
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                Path vertices ->
-                    Svg.polyline
-                        ([ points <|
-                            String.concat <|
-                                List.intersperse " " <|
-                                    List.map pairToString vertices
-                         ]
-                            ++ attrs
-                        )
-                        []
+                    Polygon vertices ->
+                        Svg.polygon
+                            ([ points <|
+                                String.concat <|
+                                    List.intersperse " " <|
+                                        List.map pairToString vertices
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                BezierPath start pts ->
-                    Svg.path
-                        ([ Svg.Attributes.d <| createBezierString start pts ]
-                            ++ attrs
-                        )
-                        []
+                    Path vertices ->
+                        Svg.polyline
+                            ([ points <|
+                                String.concat <|
+                                    List.intersperse " " <|
+                                        List.map pairToString vertices
+                             ]
+                                ++ attrs
+                            )
+                            []
 
-                Text (Face si bo i u s sel f align) str ->
-                    let
-                        bol =
-                            if bo then
-                                "font-weight: bold;"
+                    BezierPath start pts ->
+                        Svg.path
+                            ([ Svg.Attributes.d <| createBezierString start pts ]
+                                ++ attrs
+                            )
+                            []
 
-                            else
-                                ""
+                    Text (Face si bo i u s sel f align) str ->
+                        let
+                            bol =
+                                if bo then
+                                    "font-weight: bold;"
 
-                        it =
-                            if i then
-                                "font-style: italic;"
+                                else
+                                    ""
 
-                            else
-                                ""
+                            it =
+                                if i then
+                                    "font-style: italic;"
 
-                        txtDec =
-                            if u && s then
-                                "text-decoration: underline line-through;"
+                                else
+                                    ""
 
-                            else if u then
-                                "text-decoration: underline;"
+                            txtDec =
+                                if u && s then
+                                    "text-decoration: underline line-through;"
 
-                            else if s then
-                                "text-decoration: line-through;"
+                                else if u then
+                                    "text-decoration: underline;"
 
-                            else
-                                ""
+                                else if s then
+                                    "text-decoration: line-through;"
 
-                        select =
-                            if not sel then
-                                "-webkit-touch-callout: none;\n-webkit-user-select: none;\n-khtml-user-select: none;\n-moz-user-select: none;\n-ms-user-select: none;\nuser-select: none;cursor: default;"
+                                else
+                                    ""
 
-                            else
-                                ""
+                            select =
+                                if not sel then
+                                    "-webkit-touch-callout: none;\n-webkit-user-select: none;\n-khtml-user-select: none;\n-moz-user-select: none;\n-ms-user-select: none;\nuser-select: none;cursor: default;"
 
-                        anchor =
-                            case align of
-                                AlignCentred ->
-                                    "middle"
+                                else
+                                    ""
 
-                                AlignLeft ->
-                                    "start"
+                            anchor =
+                                case align of
+                                    AlignCentred ->
+                                        "middle"
 
-                                AlignRight ->
-                                    "end"
+                                    AlignLeft ->
+                                        "start"
 
-                        font =
-                            case f of
-                                Sansserif ->
-                                    "sans-serif;"
+                                    AlignRight ->
+                                        "end"
 
-                                Serif ->
-                                    "serif;"
+                            font =
+                                case f of
+                                    Sansserif ->
+                                        "sans-serif;"
 
-                                FixedWidth ->
-                                    "monospace;"
+                                    Serif ->
+                                        "serif;"
 
-                                Custom fStr ->
-                                    fStr ++ ";"
+                                    FixedWidth ->
+                                        "monospace;"
 
-                        sty =
-                            bol
-                                ++ it
-                                ++ txtDec
-                                ++ "font-family: "
-                                ++ font
-                                ++ select
-                    in
-                    Svg.text_
-                        ([ x "0"
-                         , y "0"
-                         , Svg.Attributes.style sty
-                         , Svg.Attributes.fontSize (String.fromFloat si)
-                         , Svg.Attributes.textAnchor anchor
-                         , Html.Attributes.contenteditable True
-                         ]
-                            ++ [ Svg.Attributes.transform <|
-                                    "matrix("
-                                        ++ (String.concat <|
-                                                List.intersperse "," <|
-                                                    List.map
-                                                        String.fromFloat
-                                                        [ a, -b, -c, d, tx, -ty ]
-                                           )
-                                        ++ ")"
-                               ]
-                            ++ [ Svg.Attributes.xmlSpace "preserve" ]
-                            ++ clrAttrs ++ strokeAttrs
-                        )
-                        [ Svg.text str ]
+                                    Custom fStr ->
+                                        fStr ++ ";"
+
+                            sty =
+                                bol
+                                    ++ it
+                                    ++ txtDec
+                                    ++ "font-family: "
+                                    ++ font
+                                    ++ select
+                        in
+                        Svg.text_
+                            ([ x "0"
+                             , y "0"
+                             , Svg.Attributes.style sty
+                             , Svg.Attributes.fontSize (String.fromFloat si)
+                             , Svg.Attributes.textAnchor anchor
+                             , Html.Attributes.contenteditable True
+                             ]
+                                ++ [ Svg.Attributes.transform <|
+                                        "matrix("
+                                            ++ (String.concat <|
+                                                    List.intersperse "," <|
+                                                        List.map
+                                                            String.fromFloat
+                                                            [ a, -b, -c, d, tx, -ty ]
+                                               )
+                                            ++ ")"
+                                   ]
+                                ++ [ Svg.Attributes.xmlSpace "preserve" ]
+                                ++ clrAttrs
+                                ++ strokeAttrs
+                            )
+                            [ Svg.text str ]
 
         ForeignObject fw fh htm ->
             let
@@ -2001,12 +2031,17 @@ createSVG id w h trans msgWrapper posMapper shape =
             Svg.foreignObject
                 [ width <| String.fromFloat fw
                 , height <| String.fromFloat fh
-                , Svg.Attributes.transform
-                    <| "matrix(" ++ (String.concat <| List.intersperse ","
-                                        <| List.map
-                                            String.fromFloat
-                                            [ a, -b, -c, d, tx, -ty ]) ++ ")"
-                ] [ Html.map msgWrapper htm ]
+                , Svg.Attributes.transform <|
+                    "matrix("
+                        ++ (String.concat <|
+                                List.intersperse "," <|
+                                    List.map
+                                        String.fromFloat
+                                        [ a, -b, -c, d, tx, -ty ]
+                           )
+                        ++ ")"
+                ]
+                [ Html.map msgWrapper htm ]
 
         Move v sh ->
             createSVG id w h (moveT v trans) msgWrapper posMapper sh
@@ -2044,7 +2079,7 @@ createSVG id w h trans msgWrapper posMapper shape =
                             w
                             h
                             trans
-                            msgWrapper 
+                            msgWrapper
                             posMapper
                             (Group [ Everything, region |> repaint black ])
                         ]
@@ -2161,7 +2196,7 @@ createSVG id w h trans msgWrapper posMapper shape =
         GroupOutline cmbndshp ->
             createSVG id w h trans msgWrapper posMapper cmbndshp
 
-        GraphPaper s th c ->            
+        GraphPaper s th c ->
             if th <= 0 || s < 2 * th then
                 Svg.g [] []
 
@@ -2588,7 +2623,8 @@ makeTransparent alpha shape =
 
         Inked (Just (RGBA r g b a)) (Just ( lineType, RGBA sr sg sb sa )) st ->
             Inked (Just (RGBA r g b (a * alpha)))
-                  (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+                (Just ( lineType, RGBA sr sg sb (sa * alpha) ))
+                st
 
         Inked (Just (RGBA r g b a)) Nothing st ->
             Inked (Just (RGBA r g b (a * alpha))) Nothing st
@@ -2676,7 +2712,7 @@ makeTransparent alpha shape =
 
         GraphPaper s th (RGBA r g b a) ->
             GraphPaper s th (RGBA r g b (a * alpha))
-        
+
         Inked Nothing Nothing st ->
             shape
 
@@ -2918,10 +2954,9 @@ customFont fStr stencil =
 {-| Rotate a `Shape` by the specified amount (in radians). Use the `degrees` function to convert
 from degrees into radians:
 
-    [
-        rect 30 60
-            |> filled blue
-            |> rotate(degrees 30)
+    [ rect 30 60
+        |> filled blue
+        |> rotate (degrees 30)
     ]
 
 -}
