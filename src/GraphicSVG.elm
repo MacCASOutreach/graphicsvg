@@ -143,7 +143,7 @@ which are provided in the section above this one.
 
 # More Advanced Things
 
-Don't worry about these unless you __really__ know what you're doing!
+Don't worry about these unless you **really** know what you're doing!
 
 @docs Msg, createSVG
 
