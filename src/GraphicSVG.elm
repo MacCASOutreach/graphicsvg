@@ -155,6 +155,7 @@ import Task
 import Time exposing (..)
 import Tuple
 import Url exposing (Url)
+import Color
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -348,7 +349,13 @@ type alias GraphicSVG userMsg =
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
-    = RGBA Float Float Float Float
+    = Solid Color.Color
+    | Gradient Gradient
+
+type alias Gradient = List Stop
+
+type Stop =
+    Stop Float {- stop position -} Float {- transparency -} Color.Color {- colour -}
 
 
 {-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
@@ -356,7 +363,7 @@ type Color
 -}
 type LineType
     = NoLine
-    | Solid Float
+    | Unbroken Float
     | Broken (List ( Float, Float )) Float
 
 
@@ -886,7 +893,7 @@ oval w h =
 -}
 graphPaper : Float -> Shape userMsg
 graphPaper s =
-    GraphPaper s 1 (RGBA 135 206 250 1)
+    GraphPaper s 1 (Solid <| Color.fromRgba { red = 135, green = 206, blue = 250, alpha = 1})
 
 
 {-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
@@ -1808,28 +1815,31 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                 clrAttrs =
                     case fillClr of
                         Nothing -> [ fill "none"]
-                        Just bodyClr -> [ fill (mkRGB bodyClr)
-                                        , fillOpacity (mkAlpha bodyClr)
-                                        ]
+                        Just (Solid bodyClr) ->
+                                [ fill (mkRGB bodyClr)
+                                , fillOpacity (mkAlpha bodyClr)
+                                ]
+                        Just (Gradient gr) -> []
 
                 strokeAttrs =
                     case lt of
                         Nothing ->
                             []
 
-                        Just ( Solid th, strokeClr ) ->
+                        Just ( Unbroken th, Solid strokeClr ) ->
                             let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
-                                    in th <= 0 || opcty <= 0 in
+                                    let opcty = getAlpha strokeClr
+                                    in th <= 0 || opcty <= 0
+                            in
                             if nonStroke then [] else
                                 [ strokeWidth (String.fromFloat th)
                                 , stroke (mkRGB strokeClr)
                                 , strokeOpacity (mkAlpha strokeClr)
                                 ]
 
-                        Just ( Broken dashes th, strokeClr ) ->
+                        Just ( Broken dashes th, Solid strokeClr ) ->
                             let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
+                                    let opcty = getAlpha strokeClr
                                     in th <= 0 || opcty <= 0 ||
                                         List.all (\( on, _ ) -> on == 0) dashes
                             in
@@ -1845,7 +1855,7 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                                                 )
                                     ]
 
-                        Just ( NoLine, _ ) ->
+                        Just ( _, _ ) ->
                             []
             in
             if nonexistBody && List.isEmpty strokeAttrs then Svg.g [] [] else
@@ -2611,6 +2621,13 @@ addOutline style outlineClr shape =
             GraphPaper s th clr
 
 
+multAlpha : Color.Color -> Float -> Color.Color
+multAlpha color n =
+    let
+        colRec = Color.toRgba color
+    in
+        Color.fromRgba { colRec | alpha = colRec.alpha * n }
+
 {-| Make a `Shape` transparent by the fraction given. Multiplies on top of other transparencies:
 
     circle 10
@@ -2628,15 +2645,18 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked Nothing (Just ( lineType, RGBA sr sg sb sa )) st ->
-            Inked Nothing (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+        Inked Nothing (Just ( lineType, Solid colour )) st ->
+            Inked Nothing (Just ( lineType, Solid (multAlpha colour alpha))) st
 
-        Inked (Just (RGBA r g b a)) (Just ( lineType, RGBA sr sg sb sa )) st ->
-            Inked (Just (RGBA r g b (a * alpha)))
-                  (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+        Inked (Just (Solid colour)) (Just ( lineType, Solid sColour )) st ->
+            Inked (Just <| Solid (multAlpha colour alpha))
+                  (Just ( lineType, Solid <| multAlpha sColour alpha)) st
 
-        Inked (Just (RGBA r g b a)) Nothing st ->
-            Inked (Just (RGBA r g b (a * alpha))) Nothing st
+        Inked (Just (Solid colour)) Nothing st ->
+            Inked (Just <| Solid (multAlpha colour alpha)) Nothing st
+
+        Inked a b c ->
+            Inked a b c
 
         ForeignObject w h htm ->
             ForeignObject w h htm
@@ -2725,11 +2745,11 @@ makeTransparent alpha shape =
         TouchMoveAt userMsg sh ->
             TouchMoveAt userMsg (makeTransparent alpha sh)
 
-        GraphPaper s th (RGBA r g b a) ->
-            GraphPaper s th (RGBA r g b (a * alpha))
-        
-        Inked Nothing Nothing st ->
-            shape
+        GraphPaper s th (Solid colour) ->
+            GraphPaper s th (Solid <| multAlpha colour alpha)
+
+        GraphPaper s th (Gradient gr) ->
+            GraphPaper s th (Gradient gr)
 
 
 
@@ -2747,7 +2767,7 @@ noline () =
 -}
 solid : Float -> LineType
 solid th =
-    Solid th
+    Unbroken th
 
 
 {-| Define a dotted `LineType` with the given width.
@@ -3049,7 +3069,7 @@ group shapes =
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
-    RGBA (ssc r) (ssc g) (ssc b) 1
+    rgba r g b 1
 
 
 {-| Define a colour given its red, green, blue and alpha components.
@@ -3057,7 +3077,7 @@ Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transp
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
-    RGBA (ssc r) (ssc g) (ssc b) (ssa a)
+    Solid <| Color.fromRgba { red = ssc r, green = ssc g, blue = ssc  b, alpha = ssa a }
 
 
 ssc : number -> number
@@ -3085,14 +3105,18 @@ bezierStringHelper ( ( a, b ), ( c, d ) ) =
     " Q " ++ pairToString ( a, b ) ++ " " ++ pairToString ( c, d )
 
 
-mkAlpha : Color -> String
-mkAlpha (RGBA _ _ _ a) =
-    String.fromFloat a
+getAlpha : Color.Color -> Float
+getAlpha colour =
+    (Color.toRgba colour).alpha
+
+mkAlpha : Color.Color -> String
+mkAlpha =
+    String.fromFloat << getAlpha
 
 
-mkRGB : Color -> String
-mkRGB (RGBA r g b _) =
-    "#" ++ (toHex <| round r) ++ (toHex <| round g) ++ (toHex <| round b)
+mkRGB : Color.Color -> String
+mkRGB colour =
+    Color.toCssString colour --"#" ++ (toHex <| round r) ++ (toHex <| round g) ++ (toHex <| round b)
 
 
 toHex : Int -> String
@@ -3168,7 +3192,7 @@ hsl : Float -> Float -> Float -> Color
 hsl h s l =
     case convert h s l of
         ( r, g, b ) ->
-            RGBA r g b 1
+            rgba r g b 1
 
 
 {-| Define a colour given its hue, saturation, light and alpha components.
@@ -3178,7 +3202,7 @@ hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
     case convert h s l of
         ( r, g, b ) ->
-            RGBA r g b (ssa a)
+            rgba r g b a
 
 
 
@@ -3321,208 +3345,208 @@ mapTriple f ( a1, a2, a3 ) =
 {-| -}
 pink : Color
 pink =
-    RGBA 255 105 180 1
+    rgba 255 105 180 1
 
 
 {-| -}
 hotPink : Color
 hotPink =
-    RGBA 255 0 66 1
+    rgba 255 0 66 1
 
 
 {-| -}
 lightRed : Color
 lightRed =
-    RGBA 239 41 41 1
+    rgba 239 41 41 1
 
 
 {-| -}
 red : Color
 red =
-    RGBA 204 0 0 1
+    rgba 204 0 0 1
 
 
 {-| -}
 darkRed : Color
 darkRed =
-    RGBA 164 0 0 1
+    rgba 164 0 0 1
 
 
 {-| -}
 lightOrange : Color
 lightOrange =
-    RGBA 252 175 62 1
+    rgba 252 175 62 1
 
 
 {-| -}
 orange : Color
 orange =
-    RGBA 245 121 0 1
+    rgba 245 121 0 1
 
 
 {-| -}
 darkOrange : Color
 darkOrange =
-    RGBA 206 92 0 1
+    rgba 206 92 0 1
 
 
 {-| -}
 lightYellow : Color
 lightYellow =
-    RGBA 255 233 79 1
+    rgba 255 233 79 1
 
 
 {-| -}
 yellow : Color
 yellow =
-    RGBA 237 212 0 1
+    rgba 237 212 0 1
 
 
 {-| -}
 darkYellow : Color
 darkYellow =
-    RGBA 196 160 0 1
+    rgba 196 160 0 1
 
 
 {-| -}
 lightGreen : Color
 lightGreen =
-    RGBA 138 226 52 1
+    rgba 138 226 52 1
 
 
 {-| -}
 green : Color
 green =
-    RGBA 115 210 22 1
+    rgba 115 210 22 1
 
 
 {-| -}
 darkGreen : Color
 darkGreen =
-    RGBA 78 154 6 1
+    rgba 78 154 6 1
 
 
 {-| -}
 lightBlue : Color
 lightBlue =
-    RGBA 114 159 207 1
+    rgba 114 159 207 1
 
 
 {-| -}
 blue : Color
 blue =
-    RGBA 52 101 164 1
+    rgba 52 101 164 1
 
 
 {-| -}
 darkBlue : Color
 darkBlue =
-    RGBA 32 74 135 1
+    rgba 32 74 135 1
 
 
 {-| -}
 lightPurple : Color
 lightPurple =
-    RGBA 173 127 168 1
+    rgba 173 127 168 1
 
 
 {-| -}
 purple : Color
 purple =
-    RGBA 117 80 123 1
+    rgba 117 80 123 1
 
 
 {-| -}
 darkPurple : Color
 darkPurple =
-    RGBA 92 53 102 1
+    rgba 92 53 102 1
 
 
 {-| -}
 lightBrown : Color
 lightBrown =
-    RGBA 233 185 110 1
+    rgba 233 185 110 1
 
 
 {-| -}
 brown : Color
 brown =
-    RGBA 193 125 17 1
+    rgba 193 125 17 1
 
 
 {-| -}
 darkBrown : Color
 darkBrown =
-    RGBA 143 89 2 1
+    rgba 143 89 2 1
 
 
 {-| -}
 black : Color
 black =
-    RGBA 0 0 0 1
+    rgba 0 0 0 1
 
 
 {-| -}
 white : Color
 white =
-    RGBA 255 255 255 1
+    rgba 255 255 255 1
 
 
 {-| -}
 lightGrey : Color
 lightGrey =
-    RGBA 238 238 236 1
+    rgba 238 238 236 1
 
 
 {-| -}
 grey : Color
 grey =
-    RGBA 211 215 207 1
+    rgba 211 215 207 1
 
 
 {-| -}
 darkGrey : Color
 darkGrey =
-    RGBA 186 189 182 1
+    rgba 186 189 182 1
 
 
 {-| -}
 lightGray : Color
 lightGray =
-    RGBA 238 238 236 1
+    rgba 238 238 236 1
 
 
 {-| -}
 gray : Color
 gray =
-    RGBA 211 215 207 1
+    rgba 211 215 207 1
 
 
 {-| -}
 darkGray : Color
 darkGray =
-    RGBA 186 189 182 1
+    rgba 186 189 182 1
 
 
 {-| -}
 lightCharcoal : Color
 lightCharcoal =
-    RGBA 136 138 133 1
+    rgba 136 138 133 1
 
 
 {-| -}
 charcoal : Color
 charcoal =
-    RGBA 85 87 83 1
+    rgba 85 87 83 1
 
 
 {-| -}
 darkCharcoal : Color
 darkCharcoal =
-    RGBA 46 52 54 1
+    rgba 46 52 54 1
 
 
 {-| -}
 blank : Color
 blank =
-    RGBA 0 0 0 0
+    rgba 0 0 0 0
