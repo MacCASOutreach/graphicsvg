@@ -38,10 +38,12 @@ title model =
 view model =
     let
         saturation = 1
-        lightness = 0.6
+        lightness = 0.7
     in
     collage 192 168
-    [ rect 192 128 |> filled blue |> move (-192/2,0)
+    [ rect 192 128
+        |> filled blue
+        |> move (-192/2,0)
     ,  circle 50
         |> filled
             (radialGradient 50
