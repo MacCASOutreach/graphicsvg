@@ -114,6 +114,10 @@ not guaranteed and weird things can happen.
 @docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
 
+# Let there be gradients!
+
+@docs stop, transparentStop, gradient, radialGradient, rotateGradient
+
 # Advanced Transformations
 
 _Advanced section warning!_ These functions provide a way to interface on a lower
@@ -357,14 +361,20 @@ type Gradient =
       RadialGradient (List Stop)
     | LinearGradient Float {- rotation -} (List Stop)
 
+{-| Create a radial gradient from a list of colour stops.
+-}
 radialGradient : List Stop -> Color
 radialGradient stops =
     Gradient <| RadialGradient stops
 
+{-| Create a linear gradient from a list of colour stops.
+-}
 gradient : List Stop -> Color
 gradient stops =
     Gradient <| LinearGradient 0 stops
 
+{-| Rotate a linear gradient by a certain angle in radians.
+-}
 rotateGradient : Float -> Color -> Color
 rotateGradient r grad =
     case grad of
@@ -374,12 +384,16 @@ rotateGradient r grad =
 type Stop =
     Stop Float {- stop position -} Float {- transparency -} Color.Color {- colour -}
 
+{-| A colour stop in a gradient. This takes a colour and a position.
+-}
 stop : Color -> Float -> Stop
 stop col pos =
     case col of
         Solid colour -> Stop pos 1 colour
         _ -> Stop pos 1 (Color.rgba 0 0 0 0)
 
+{-| A colour stop with transparency.
+-}
 transparentStop : Color -> Float -> Float -> Stop
 transparentStop col pos alpha =
     case col of
