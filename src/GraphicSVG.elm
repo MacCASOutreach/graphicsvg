@@ -354,21 +354,21 @@ type Color
     | Gradient Gradient
 
 type Gradient =
-      RadialGradient Float {- radius -} (List Stop)
-    | LinearGradient Float {- width -} Float {- rotation -} (List Stop)
+      RadialGradient (List Stop)
+    | LinearGradient Float {- rotation -} (List Stop)
 
-radialGradient : Float -> List Stop -> Color
-radialGradient radius stops =
-    Gradient <| RadialGradient radius stops
+radialGradient : List Stop -> Color
+radialGradient stops =
+    Gradient <| RadialGradient stops
 
-gradient : Float -> List Stop -> Color
-gradient width stops =
-    Gradient <| LinearGradient width 0 stops
+gradient : List Stop -> Color
+gradient stops =
+    Gradient <| LinearGradient 0 stops
 
 rotateGradient : Float -> Color -> Color
 rotateGradient r grad =
     case grad of
-        Gradient (LinearGradient width rot stops) -> Gradient (LinearGradient width (rot + r) stops)
+        Gradient (LinearGradient rot stops) -> Gradient (LinearGradient (rot + r) stops)
         radialGrad -> radialGrad
 
 type Stop =
@@ -390,13 +390,24 @@ createGradientSVG : String -> (Float, Float) -> Gradient -> Svg.Svg userMsg
 createGradientSVG id (wid, hei) grad =
     let
         isRadial = case grad of
-            RadialGradient _ _ -> True
+            RadialGradient _ -> True
             _ -> False
 
         squareSize = if wid > hei then 2*wid else 2*hei
 
-        createStop : Float -> Stop -> Svg.Svg userMsg
-        createStop w (Stop pos trans colour) =
+        w = case grad of
+            RadialGradient stops ->
+                case List.head <| List.reverse stops of
+                    Just (Stop pos _ _) -> pos
+                    Nothing -> 0
+            LinearGradient _ stops ->
+                case List.head <| List.reverse stops of
+                    Just (Stop pos _ _) -> pos
+                    Nothing -> 0
+
+
+        createStop : Stop -> Svg.Svg userMsg
+        createStop (Stop pos trans colour) =
             let
                 start = if isRadial then 0 else (1 - w/squareSize)/2 * 100
                 percent = if isRadial then pos / w * 100 else start + pos/squareSize * 100
@@ -408,7 +419,7 @@ createGradientSVG id (wid, hei) grad =
         defs =     Svg.defs []
                        [
                            case grad of
-                               LinearGradient w _ stops ->
+                               LinearGradient _ stops ->
                                    Svg.linearGradient
                                         [ Svg.Attributes.id (id ++ "gradient")
                                         , Svg.Attributes.gradientTransform <| "rotate(" ++ String.fromFloat rotation ++ "rad)"
@@ -419,20 +430,20 @@ createGradientSVG id (wid, hei) grad =
 
                                         , Svg.Attributes.gradientTransform ("rotate("++ String.fromFloat rotation ++ "rad)")
                                         ]
-                                       (List.map (createStop w) stops)
-                               RadialGradient r stops ->
+                                       (List.map createStop stops)
+                               RadialGradient stops ->
                                    Svg.radialGradient
                                         [ Svg.Attributes.id (id ++ "gradient")
                                         , Svg.Attributes.cx "0"--(String.fromFloat (squareSize/2))
                                         , Svg.Attributes.cy "0"--(String.fromFloat (squareSize/2))
-                                        , Svg.Attributes.r (String.fromFloat r)
+                                        , Svg.Attributes.r (String.fromFloat w)
                                         , Svg.Attributes.gradientUnits "userSpaceOnUse"
                                         ]
-                                       (List.map (createStop r) stops)
+                                       (List.map createStop stops)
                        ]
         rotation =
             case grad of
-                LinearGradient w rot stops ->
+                LinearGradient rot stops ->
                     rot * 180 / pi
                 _ -> 0
     in

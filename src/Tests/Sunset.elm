@@ -33,7 +33,7 @@ update msg model =
 
 title : Model -> String
 title model =
-    "Ellie App with Tick Example"
+    "Sunset Gradient Example"
 
 view model =
     let
@@ -41,34 +41,25 @@ view model =
         lightness = 0.7
     in
     collage 192 128
-    [ rect 192 188
-              |> filled
-                    (radialGradient 128
-                      [stop orange 0
-                      ,stop red 32
-                      ,stop pink 64
-                      ,stop purple 96
-                      ,stop black 128
-                      ]
-                      |> rotateGradient (degrees 90)
-                     )
-              |> move (0,-30)
+    [
+      rect 192 128 
+        |> filled blue
     , circle 50
-            |> filled
-                (radialGradient 50
-                    [ stop orange 0
-                    , stop lightOrange 12.5
-                    , stop yellow 25
-                    , transparentStop yellow 50 0
-                    ])
-            |> scale 1
-            |> move (0, -30)
+        |> filled
+            (radialGradient
+                [ stop orange 0
+                -- weird but wonderful things happen when you don't order the stops correctly
+                , stop lightOrange 25
+                , stop yellow 12.5
+                , transparentStop yellow 50 0
+                ])
+        |> scale 1
     , rect 192 128
-                    |> filled
-                          (gradient 128
-                              [stop (rgb 30 144 255) 96
-                              ,transparentStop lightPurple 128 1
-                              ]
-                              |> rotateGradient (degrees 90))
-                    |> move (0,-96)
+        |> filled
+                (gradient
+                    [stop (rgb 30 144 255) 96
+                    ,transparentStop lightPurple 128 1
+                    ]
+                    |> rotateGradient (degrees 90))
+        |> move (0,-96)
     ]
