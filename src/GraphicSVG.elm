@@ -15,6 +15,7 @@ module GraphicSVG exposing
     , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
+    , gradient, radialGradient, stop, transparentStop, rotateGradient
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
     , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
     , Msg(..), createSVG
@@ -155,6 +156,7 @@ import Task
 import Time exposing (..)
 import Tuple
 import Url exposing (Url)
+import Color
 
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
@@ -348,15 +350,124 @@ type alias GraphicSVG userMsg =
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
-    = RGBA Float Float Float Float
+    = Solid Color.Color
+    | Gradient Gradient
 
+type Gradient =
+      RadialGradient (List Stop)
+    | LinearGradient Float {- rotation -} (List Stop)
+
+radialGradient : List Stop -> Color
+radialGradient stops =
+    Gradient <| RadialGradient stops
+
+gradient : List Stop -> Color
+gradient stops =
+    Gradient <| LinearGradient 0 stops
+
+rotateGradient : Float -> Color -> Color
+rotateGradient r grad =
+    case grad of
+        Gradient (LinearGradient rot stops) -> Gradient (LinearGradient (rot + r) stops)
+        radialGrad -> radialGrad
+
+type Stop =
+    Stop Float {- stop position -} Float {- transparency -} Color.Color {- colour -}
+
+stop : Color -> Float -> Stop
+stop col pos =
+    case col of
+        Solid colour -> Stop pos 1 colour
+        _ -> Stop pos 1 (Color.rgba 0 0 0 0)
+
+transparentStop : Color -> Float -> Float -> Stop
+transparentStop col pos alpha =
+    case col of
+        Solid colour -> Stop pos alpha colour
+        _ -> Stop pos 1 (Color.rgba 0 0 0 alpha)
+
+createGradientSVG : String -> (Float, Float) -> Gradient -> Svg.Svg userMsg
+createGradientSVG id (wid, hei) grad =
+    let
+        isRadial = case grad of
+            RadialGradient _ -> True
+            _ -> False
+
+        squareSize = if wid > hei then 2*wid else 2*hei
+
+        w = case grad of
+            RadialGradient stops ->
+                case List.head <| List.reverse stops of
+                    Just (Stop pos _ _) -> pos
+                    Nothing -> 0
+            LinearGradient _ stops ->
+                case List.head <| List.reverse stops of
+                    Just (Stop pos _ _) -> pos
+                    Nothing -> 0
+
+
+        createStop : Stop -> Svg.Svg userMsg
+        createStop (Stop pos trans colour) =
+            let
+                start = if isRadial then 0 else (1 - w/squareSize)/2 * 100
+                percent = if isRadial then pos / w * 100 else start + pos/squareSize * 100
+                percentTxt = String.fromFloat percent ++ "%"
+                colourTxt = "stop-color:" ++ mkRGB colour ++ ";"
+                opacityTxt = "stop-opacity:" ++ String.fromFloat trans ++ ";"
+            in
+            Svg.stop [Svg.Attributes.offset percentTxt, Svg.Attributes.style (colourTxt ++ opacityTxt)] []
+        defs =     Svg.defs []
+                       [
+                           case grad of
+                               LinearGradient _ stops ->
+                                   Svg.linearGradient
+                                        [ Svg.Attributes.id (id ++ "gradient")
+                                        , Svg.Attributes.gradientTransform <| "rotate(" ++ String.fromFloat rotation ++ "rad)"
+                                        --, Svg.Attributes.x1 "0%"
+                                        --, Svg.Attributes.y1 "0%"
+                                        --, Svg.Attributes.x2 "100%"
+                                        --, Svg.Attributes.y2 "0%"
+
+                                        , Svg.Attributes.gradientTransform ("rotate("++ String.fromFloat rotation ++ "rad)")
+                                        ]
+                                       (List.map createStop stops)
+                               RadialGradient stops ->
+                                   Svg.radialGradient
+                                        [ Svg.Attributes.id (id ++ "gradient")
+                                        , Svg.Attributes.cx "0"--(String.fromFloat (squareSize/2))
+                                        , Svg.Attributes.cy "0"--(String.fromFloat (squareSize/2))
+                                        , Svg.Attributes.r (String.fromFloat w)
+                                        , Svg.Attributes.gradientUnits "userSpaceOnUse"
+                                        ]
+                                       (List.map createStop stops)
+                       ]
+        rotation =
+            case grad of
+                LinearGradient rot stops ->
+                    rot * 180 / pi
+                _ -> 0
+    in
+        Svg.g [mask ("url(#" ++ id ++ "mask)")]
+            [ defs
+            , Svg.rect
+                   ([ x <| String.fromFloat <| -squareSize / 2
+                   , y <| String.fromFloat <| -squareSize / 2
+                   , width <| String.fromFloat squareSize
+                   , height <| String.fromFloat squareSize
+                   , fill ("url(#" ++ id ++ "gradient)")
+                   , Svg.Attributes.id (id ++ "grad")
+                   , Svg.Attributes.transform <| "rotate(" ++ String.fromFloat rotation ++")"
+                   ]
+                   )
+                   []
+            ]
 
 {-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
 `LineType` also defines the appearence of `line` and `curve`.
 -}
 type LineType
     = NoLine
-    | Solid Float
+    | Unbroken Float
     | Broken (List ( Float, Float )) Float
 
 
@@ -886,7 +997,7 @@ oval w h =
 -}
 graphPaper : Float -> Shape userMsg
 graphPaper s =
-    GraphPaper s 1 (RGBA 135 206 250 1)
+    GraphPaper s 1 (Solid <| Color.fromRgba { red = 135, green = 206, blue = 250, alpha = 1})
 
 
 {-| Creates graph paper with squares of a given size, with a user-defined thickness and colour.
@@ -1786,7 +1897,10 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                     trans
 
                 attrs =
-                    transAttrs ++ clrAttrs ++ strokeAttrs
+                    case fillClr of
+                        Just (Gradient _) ->
+                            clrAttrs ++ strokeAttrs
+                        _ -> transAttrs ++ clrAttrs ++ strokeAttrs
 
                 transAttrs =
                     [ Svg.Attributes.transform <|
@@ -1808,28 +1922,35 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                 clrAttrs =
                     case fillClr of
                         Nothing -> [ fill "none"]
-                        Just bodyClr -> [ fill (mkRGB bodyClr)
-                                        , fillOpacity (mkAlpha bodyClr)
-                                        ]
+                        Just (Solid bodyClr) ->
+                                [ fill (mkRGB bodyClr)
+                                , fillOpacity (mkAlpha bodyClr)
+                                ]
+                        Just (Gradient _) ->
+                                [
+                                    Svg.Attributes.id id
+                                ,   fill (mkRGB <| Color.rgb 255 255 255)
+                                ]
 
                 strokeAttrs =
                     case lt of
                         Nothing ->
                             []
 
-                        Just ( Solid th, strokeClr ) ->
+                        Just ( Unbroken th, Solid strokeClr ) ->
                             let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
-                                    in th <= 0 || opcty <= 0 in
+                                    let opcty = getAlpha strokeClr
+                                    in th <= 0 || opcty <= 0
+                            in
                             if nonStroke then [] else
                                 [ strokeWidth (String.fromFloat th)
                                 , stroke (mkRGB strokeClr)
                                 , strokeOpacity (mkAlpha strokeClr)
                                 ]
 
-                        Just ( Broken dashes th, strokeClr ) ->
+                        Just ( Broken dashes th, Solid strokeClr ) ->
                             let nonStroke =
-                                    let (RGBA _ _ _ opcty) = strokeClr
+                                    let opcty = getAlpha strokeClr
                                     in th <= 0 || opcty <= 0 ||
                                         List.all (\( on, _ ) -> on == 0) dashes
                             in
@@ -1845,176 +1966,195 @@ createSVG id w h trans msgWrapper positionWrapper shape =
                                                 )
                                     ]
 
-                        Just ( NoLine, _ ) ->
+                        Just ( _, _ ) ->
                             []
+                basicShape = case stencil of
+                                             Circle r ->
+                                                 Svg.circle
+                                                     ([ cx "0"
+                                                     , cy "0"
+                                                     , Svg.Attributes.r (String.fromFloat r)
+                                                     ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             Rect rw rh ->
+                                                 Svg.rect
+                                                     ([ x <| String.fromFloat <| -rw / 2
+                                                     , y <| String.fromFloat <| -rh / 2
+                                                     , width <| String.fromFloat rw
+                                                     , height <| String.fromFloat rh
+                                                     ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             RoundRect rw rh r ->
+                                                 Svg.rect
+                                                     ([ x <| String.fromFloat <| -rw / 2
+                                                     , y <| String.fromFloat <| -rh / 2
+                                                     , rx <| String.fromFloat r
+                                                     , ry <| String.fromFloat r
+                                                     , width <| String.fromFloat rw
+                                                     , height <| String.fromFloat rh
+                                                     ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             Oval ow oh ->
+                                                 Svg.ellipse
+                                                     ([ cx "0"
+                                                     , cy "0"
+                                                     , rx <| String.fromFloat <| 0.5 * ow
+                                                     , ry <| String.fromFloat <| 0.5 * oh
+                                                     ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             Polygon vertices ->
+                                                 Svg.polygon
+                                                     ([ points <|
+                                                         String.concat <|
+                                                             List.intersperse " " <|
+                                                                 List.map pairToString vertices
+                                                     ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             Path vertices ->
+                                                 Svg.polyline
+                                                     ([ points <|
+                                                         String.concat <|
+                                                             List.intersperse " " <|
+                                                                 List.map pairToString vertices
+                                                      ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             BezierPath start pts ->
+                                                 Svg.path
+                                                     ([ Svg.Attributes.d <| createBezierString start pts ]
+                                                         ++ attrs
+                                                     )
+                                                     []
+
+                                             Text (Face si bo i u s sel f align) str ->
+                                                 let
+                                                     bol =
+                                                         if bo then
+                                                             "font-weight: bold;"
+
+                                                         else
+                                                             ""
+
+                                                     it =
+                                                         if i then
+                                                             "font-style: italic;"
+
+                                                         else
+                                                             ""
+
+                                                     txtDec =
+                                                         if u && s then
+                                                             "text-decoration: underline line-through;"
+
+                                                         else if u then
+                                                             "text-decoration: underline;"
+
+                                                         else if s then
+                                                             "text-decoration: line-through;"
+
+                                                         else
+                                                             ""
+
+                                                     select =
+                                                         if not sel then
+                                                             "-webkit-touch-callout: none;\n-webkit-user-select: none;\n-khtml-user-select: none;\n-moz-user-select: none;\n-ms-user-select: none;\nuser-select: none;cursor: default;"
+
+                                                         else
+                                                             ""
+
+                                                     anchor =
+                                                         case align of
+                                                             AlignCentred ->
+                                                                 "middle"
+
+                                                             AlignLeft ->
+                                                                 "start"
+
+                                                             AlignRight ->
+                                                                 "end"
+
+                                                     font =
+                                                         case f of
+                                                             Sansserif ->
+                                                                 "sans-serif;"
+
+                                                             Serif ->
+                                                                 "serif;"
+
+                                                             FixedWidth ->
+                                                                 "monospace;"
+
+                                                             Custom fStr ->
+                                                                 fStr ++ ";"
+
+                                                     sty =
+                                                         bol
+                                                             ++ it
+                                                             ++ txtDec
+                                                             ++ "font-family: "
+                                                             ++ font
+                                                             ++ select
+                                                 in
+                                                 Svg.text_
+                                                     ([ x "0"
+                                                      , y "0"
+                                                      , Svg.Attributes.style sty
+                                                      , Svg.Attributes.fontSize (String.fromFloat si)
+                                                      , Svg.Attributes.textAnchor anchor
+                                                      , Html.Attributes.contenteditable True
+                                                      ]
+                                                         ++ [ Svg.Attributes.transform <|
+                                                                 "matrix("
+                                                                     ++ (String.concat <|
+                                                                             List.intersperse "," <|
+                                                                                 List.map
+                                                                                     String.fromFloat
+                                                                                     [ a, -b, -c, d, tx, -ty ]
+                                                                        )
+                                                                     ++ ")"
+                                                            ]
+                                                         ++ [ Svg.Attributes.xmlSpace "preserve" ]
+                                                         ++ clrAttrs ++ strokeAttrs
+                                                     )
+                                                     [ Svg.text str ]
+
+                gradientDefs =
+                        case fillClr of
+                            Just (Gradient gr) ->
+                                Just (createGradientSVG id (w, h) gr)
+                            _ -> Nothing
+
             in
-            if nonexistBody && List.isEmpty strokeAttrs then Svg.g [] [] else
-            case stencil of
-                Circle r ->
-                    Svg.circle
-                        ([ cx "0"
-                        , cy "0"
-                        , Svg.Attributes.r (String.fromFloat r)
+            if nonexistBody && List.isEmpty strokeAttrs then Svg.g [] []
+            else case gradientDefs of
+                Just gDefs ->
+                    Svg.g transAttrs
+                        [
+                            Svg.mask [Svg.Attributes.id (id ++ "mask")]
+                                [
+                                    basicShape
+                                ]
+                        ,  gDefs
                         ]
-                            ++ attrs
-                        )
-                        []
-
-                Rect rw rh ->
-                    Svg.rect
-                        ([ x <| String.fromFloat <| -rw / 2
-                        , y <| String.fromFloat <| -rh / 2
-                        , width <| String.fromFloat rw
-                        , height <| String.fromFloat rh
-                        ]
-                            ++ attrs
-                        )
-                        []
-
-                RoundRect rw rh r ->
-                    Svg.rect
-                        ([ x <| String.fromFloat <| -rw / 2
-                        , y <| String.fromFloat <| -rh / 2
-                        , rx <| String.fromFloat r
-                        , ry <| String.fromFloat r
-                        , width <| String.fromFloat rw
-                        , height <| String.fromFloat rh
-                        ]
-                            ++ attrs
-                        )
-                        []
-
-                Oval ow oh ->
-                    Svg.ellipse
-                        ([ cx "0"
-                        , cy "0"
-                        , rx <| String.fromFloat <| 0.5 * ow
-                        , ry <| String.fromFloat <| 0.5 * oh
-                        ]
-                            ++ attrs
-                        )
-                        []
-
-                Polygon vertices ->
-                    Svg.polygon
-                        ([ points <|
-                            String.concat <|
-                                List.intersperse " " <|
-                                    List.map pairToString vertices
-                        ]
-                            ++ attrs
-                        )
-                        []
-
-                Path vertices ->
-                    Svg.polyline
-                        ([ points <|
-                            String.concat <|
-                                List.intersperse " " <|
-                                    List.map pairToString vertices
-                         ]
-                            ++ attrs
-                        )
-                        []
-
-                BezierPath start pts ->
-                    Svg.path
-                        ([ Svg.Attributes.d <| createBezierString start pts ]
-                            ++ attrs
-                        )
-                        []
-
-                Text (Face si bo i u s sel f align) str ->
-                    let
-                        bol =
-                            if bo then
-                                "font-weight: bold;"
-
-                            else
-                                ""
-
-                        it =
-                            if i then
-                                "font-style: italic;"
-
-                            else
-                                ""
-
-                        txtDec =
-                            if u && s then
-                                "text-decoration: underline line-through;"
-
-                            else if u then
-                                "text-decoration: underline;"
-
-                            else if s then
-                                "text-decoration: line-through;"
-
-                            else
-                                ""
-
-                        select =
-                            if not sel then
-                                "-webkit-touch-callout: none;\n-webkit-user-select: none;\n-khtml-user-select: none;\n-moz-user-select: none;\n-ms-user-select: none;\nuser-select: none;cursor: default;"
-
-                            else
-                                ""
-
-                        anchor =
-                            case align of
-                                AlignCentred ->
-                                    "middle"
-
-                                AlignLeft ->
-                                    "start"
-
-                                AlignRight ->
-                                    "end"
-
-                        font =
-                            case f of
-                                Sansserif ->
-                                    "sans-serif;"
-
-                                Serif ->
-                                    "serif;"
-
-                                FixedWidth ->
-                                    "monospace;"
-
-                                Custom fStr ->
-                                    fStr ++ ";"
-
-                        sty =
-                            bol
-                                ++ it
-                                ++ txtDec
-                                ++ "font-family: "
-                                ++ font
-                                ++ select
-                    in
-                    Svg.text_
-                        ([ x "0"
-                         , y "0"
-                         , Svg.Attributes.style sty
-                         , Svg.Attributes.fontSize (String.fromFloat si)
-                         , Svg.Attributes.textAnchor anchor
-                         , Html.Attributes.contenteditable True
-                         ]
-                            ++ [ Svg.Attributes.transform <|
-                                    "matrix("
-                                        ++ (String.concat <|
-                                                List.intersperse "," <|
-                                                    List.map
-                                                        String.fromFloat
-                                                        [ a, -b, -c, d, tx, -ty ]
-                                           )
-                                        ++ ")"
-                               ]
-                            ++ [ Svg.Attributes.xmlSpace "preserve" ]
-                            ++ clrAttrs ++ strokeAttrs
-                        )
-                        [ Svg.text str ]
+                Nothing ->
+                    basicShape
 
         ForeignObject fw fh htm ->
             let
@@ -2611,6 +2751,13 @@ addOutline style outlineClr shape =
             GraphPaper s th clr
 
 
+multAlpha : Color.Color -> Float -> Color.Color
+multAlpha color n =
+    let
+        colRec = Color.toRgba color
+    in
+        Color.fromRgba { colRec | alpha = colRec.alpha * n }
+
 {-| Make a `Shape` transparent by the fraction given. Multiplies on top of other transparencies:
 
     circle 10
@@ -2628,15 +2775,18 @@ addOutline style outlineClr shape =
 makeTransparent : Float -> Shape userMsg -> Shape userMsg
 makeTransparent alpha shape =
     case shape of
-        Inked Nothing (Just ( lineType, RGBA sr sg sb sa )) st ->
-            Inked Nothing (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+        Inked Nothing (Just ( lineType, Solid colour )) st ->
+            Inked Nothing (Just ( lineType, Solid (multAlpha colour alpha))) st
 
-        Inked (Just (RGBA r g b a)) (Just ( lineType, RGBA sr sg sb sa )) st ->
-            Inked (Just (RGBA r g b (a * alpha)))
-                  (Just ( lineType, RGBA sr sg sb (sa * alpha) )) st
+        Inked (Just (Solid colour)) (Just ( lineType, Solid sColour )) st ->
+            Inked (Just <| Solid (multAlpha colour alpha))
+                  (Just ( lineType, Solid <| multAlpha sColour alpha)) st
 
-        Inked (Just (RGBA r g b a)) Nothing st ->
-            Inked (Just (RGBA r g b (a * alpha))) Nothing st
+        Inked (Just (Solid colour)) Nothing st ->
+            Inked (Just <| Solid (multAlpha colour alpha)) Nothing st
+
+        Inked a b c ->
+            Inked a b c
 
         ForeignObject w h htm ->
             ForeignObject w h htm
@@ -2725,11 +2875,11 @@ makeTransparent alpha shape =
         TouchMoveAt userMsg sh ->
             TouchMoveAt userMsg (makeTransparent alpha sh)
 
-        GraphPaper s th (RGBA r g b a) ->
-            GraphPaper s th (RGBA r g b (a * alpha))
-        
-        Inked Nothing Nothing st ->
-            shape
+        GraphPaper s th (Solid colour) ->
+            GraphPaper s th (Solid <| multAlpha colour alpha)
+
+        GraphPaper s th (Gradient gr) ->
+            GraphPaper s th (Gradient gr)
 
 
 
@@ -2747,7 +2897,7 @@ noline () =
 -}
 solid : Float -> LineType
 solid th =
-    Solid th
+    Unbroken th
 
 
 {-| Define a dotted `LineType` with the given width.
@@ -3049,7 +3199,7 @@ group shapes =
 -}
 rgb : Float -> Float -> Float -> Color
 rgb r g b =
-    RGBA (ssc r) (ssc g) (ssc b) 1
+    rgba r g b 1
 
 
 {-| Define a colour given its red, green, blue and alpha components.
@@ -3057,7 +3207,7 @@ Alpha is a decimal number (`Float`) from 0 to 1 representing the level of transp
 -}
 rgba : Float -> Float -> Float -> Float -> Color
 rgba r g b a =
-    RGBA (ssc r) (ssc g) (ssc b) (ssa a)
+    Solid <| Color.fromRgba { red = ssc r, green = ssc g, blue = ssc  b, alpha = ssa a }
 
 
 ssc : number -> number
@@ -3085,81 +3235,21 @@ bezierStringHelper ( ( a, b ), ( c, d ) ) =
     " Q " ++ pairToString ( a, b ) ++ " " ++ pairToString ( c, d )
 
 
-mkAlpha : Color -> String
-mkAlpha (RGBA _ _ _ a) =
-    String.fromFloat a
+getAlpha : Color.Color -> Float
+getAlpha colour =
+    (Color.toRgba colour).alpha
+
+mkAlpha : Color.Color -> String
+mkAlpha =
+    String.fromFloat << getAlpha
 
 
-mkRGB : Color -> String
-mkRGB (RGBA r g b _) =
-    "#" ++ (toHex <| round r) ++ (toHex <| round g) ++ (toHex <| round b)
-
-
-toHex : Int -> String
-toHex dec =
+mkRGB : Color.Color -> String
+mkRGB colour =
     let
-        first =
-            dec // 16
-
-        second =
-            modBy 16 dec
+        col = Color.toRgba colour
     in
-    toHexHelper first ++ toHexHelper second
-
-
-toHexHelper : Int -> String
-toHexHelper dec =
-    case dec of
-        0 ->
-            "0"
-
-        1 ->
-            "1"
-
-        2 ->
-            "2"
-
-        3 ->
-            "3"
-
-        4 ->
-            "4"
-
-        5 ->
-            "5"
-
-        6 ->
-            "6"
-
-        7 ->
-            "7"
-
-        8 ->
-            "8"
-
-        9 ->
-            "9"
-
-        10 ->
-            "A"
-
-        11 ->
-            "B"
-
-        12 ->
-            "C"
-
-        13 ->
-            "D"
-
-        14 ->
-            "E"
-
-        15 ->
-            "F"
-
-        _ ->
-            ""
+    "rgba(" ++ (String.fromFloat col.red) ++ "," ++ (String.fromFloat col.green) ++ "," ++ (String.fromFloat col.blue) ++ "," ++ (String.fromFloat col.alpha) ++ ")"
 
 
 {-| Define a colour given its hue, saturation and light components.
@@ -3168,7 +3258,7 @@ hsl : Float -> Float -> Float -> Color
 hsl h s l =
     case convert h s l of
         ( r, g, b ) ->
-            RGBA r g b 1
+            rgba r g b 1
 
 
 {-| Define a colour given its hue, saturation, light and alpha components.
@@ -3178,7 +3268,7 @@ hsla : Float -> Float -> Float -> Float -> Color
 hsla h s l a =
     case convert h s l of
         ( r, g, b ) ->
-            RGBA r g b (ssa a)
+            rgba r g b a
 
 
 
@@ -3321,208 +3411,208 @@ mapTriple f ( a1, a2, a3 ) =
 {-| -}
 pink : Color
 pink =
-    RGBA 255 105 180 1
+    rgba 255 105 180 1
 
 
 {-| -}
 hotPink : Color
 hotPink =
-    RGBA 255 0 66 1
+    rgba 255 0 66 1
 
 
 {-| -}
 lightRed : Color
 lightRed =
-    RGBA 239 41 41 1
+    rgba 239 41 41 1
 
 
 {-| -}
 red : Color
 red =
-    RGBA 204 0 0 1
+    rgba 204 0 0 1
 
 
 {-| -}
 darkRed : Color
 darkRed =
-    RGBA 164 0 0 1
+    rgba 164 0 0 1
 
 
 {-| -}
 lightOrange : Color
 lightOrange =
-    RGBA 252 175 62 1
+    rgba 252 175 62 1
 
 
 {-| -}
 orange : Color
 orange =
-    RGBA 245 121 0 1
+    rgba 245 121 0 1
 
 
 {-| -}
 darkOrange : Color
 darkOrange =
-    RGBA 206 92 0 1
+    rgba 206 92 0 1
 
 
 {-| -}
 lightYellow : Color
 lightYellow =
-    RGBA 255 233 79 1
+    rgba 255 233 79 1
 
 
 {-| -}
 yellow : Color
 yellow =
-    RGBA 237 212 0 1
+    rgba 237 212 0 1
 
 
 {-| -}
 darkYellow : Color
 darkYellow =
-    RGBA 196 160 0 1
+    rgba 196 160 0 1
 
 
 {-| -}
 lightGreen : Color
 lightGreen =
-    RGBA 138 226 52 1
+    rgba 138 226 52 1
 
 
 {-| -}
 green : Color
 green =
-    RGBA 115 210 22 1
+    rgba 115 210 22 1
 
 
 {-| -}
 darkGreen : Color
 darkGreen =
-    RGBA 78 154 6 1
+    rgba 78 154 6 1
 
 
 {-| -}
 lightBlue : Color
 lightBlue =
-    RGBA 114 159 207 1
+    rgba 114 159 207 1
 
 
 {-| -}
 blue : Color
 blue =
-    RGBA 52 101 164 1
+    rgba 52 101 164 1
 
 
 {-| -}
 darkBlue : Color
 darkBlue =
-    RGBA 32 74 135 1
+    rgba 32 74 135 1
 
 
 {-| -}
 lightPurple : Color
 lightPurple =
-    RGBA 173 127 168 1
+    rgba 173 127 168 1
 
 
 {-| -}
 purple : Color
 purple =
-    RGBA 117 80 123 1
+    rgba 117 80 123 1
 
 
 {-| -}
 darkPurple : Color
 darkPurple =
-    RGBA 92 53 102 1
+    rgba 92 53 102 1
 
 
 {-| -}
 lightBrown : Color
 lightBrown =
-    RGBA 233 185 110 1
+    rgba 233 185 110 1
 
 
 {-| -}
 brown : Color
 brown =
-    RGBA 193 125 17 1
+    rgba 193 125 17 1
 
 
 {-| -}
 darkBrown : Color
 darkBrown =
-    RGBA 143 89 2 1
+    rgba 143 89 2 1
 
 
 {-| -}
 black : Color
 black =
-    RGBA 0 0 0 1
+    rgba 0 0 0 1
 
 
 {-| -}
 white : Color
 white =
-    RGBA 255 255 255 1
+    rgba 255 255 255 1
 
 
 {-| -}
 lightGrey : Color
 lightGrey =
-    RGBA 238 238 236 1
+    rgba 238 238 236 1
 
 
 {-| -}
 grey : Color
 grey =
-    RGBA 211 215 207 1
+    rgba 211 215 207 1
 
 
 {-| -}
 darkGrey : Color
 darkGrey =
-    RGBA 186 189 182 1
+    rgba 186 189 182 1
 
 
 {-| -}
 lightGray : Color
 lightGray =
-    RGBA 238 238 236 1
+    rgba 238 238 236 1
 
 
 {-| -}
 gray : Color
 gray =
-    RGBA 211 215 207 1
+    rgba 211 215 207 1
 
 
 {-| -}
 darkGray : Color
 darkGray =
-    RGBA 186 189 182 1
+    rgba 186 189 182 1
 
 
 {-| -}
 lightCharcoal : Color
 lightCharcoal =
-    RGBA 136 138 133 1
+    rgba 136 138 133 1
 
 
 {-| -}
 charcoal : Color
 charcoal =
-    RGBA 85 87 83 1
+    rgba 85 87 83 1
 
 
 {-| -}
 darkCharcoal : Color
 darkCharcoal =
-    RGBA 46 52 54 1
+    rgba 46 52 54 1
 
 
 {-| -}
 blank : Color
 blank =
-    RGBA 0 0 0 0
+    rgba 0 0 0 0
