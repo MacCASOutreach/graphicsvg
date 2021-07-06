@@ -52,14 +52,16 @@ view model =
                 , stop lightOrange 25
                 , stop yellow 12.5
                 , transparentStop yellow 50 0
-                ])
+                ]
+            )
         |> scale 1
     , rect 192 128
         |> filled
-                (gradient
-                    [stop (rgb 30 144 255) 96
-                    ,transparentStop lightPurple 128 1
-                    ]
-                    |> rotateGradient (degrees 90))
+            (gradient
+                [stop (rgb 30 144 255) 96
+                ,transparentStop lightPurple 128 1
+                ]
+                |> rotateGradient (degrees 90)
+            )
         |> move (0,-96)
     ]
