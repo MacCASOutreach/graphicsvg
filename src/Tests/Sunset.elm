@@ -2,6 +2,7 @@ module Tests.Sunset exposing(..)
 
 import GraphicSVG exposing (..)
 import GraphicSVG.EllieApp exposing (ellieAppWithTick, EllieAppWithTick, GetKeyState)
+import GraphicSVG.Statistics exposing(..)
 
 type alias Model =
     { radius : Float
@@ -28,6 +29,9 @@ init =
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
+    let
+        stencils = Debug.log "stencils" (countCollageStencilTypes <| view model)
+    in 
     case msg of
         Tick t (_,(_,y),_) -> ( { model | time = t, radius = model.radius + y }, Cmd.none)
 
