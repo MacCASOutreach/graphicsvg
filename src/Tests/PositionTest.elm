@@ -1,3 +1,5 @@
+module Tests.PositionTest exposing(..)
+
 import GraphicSVG exposing (..)
 import GraphicSVG.App exposing (notificationsApp, NotificationsApp, GetKeyState)
 

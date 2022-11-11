@@ -43,7 +43,7 @@ view model =
     collage 192 128
     [ rect 192 128
               |> filled
-                    (gradient 128
+                    (gradient
                       [stop (rgb 224 255 255) 0
                       ,stop (rgb 0 191 255) 128
                       ]
@@ -53,7 +53,7 @@ view model =
               |> move (0,32)
     , rect 192 128
               |> filled
-                    (gradient 128
+                    (gradient
                         [stop lightGreen 0
                         ,stop darkGreen 128
                         ]
@@ -61,7 +61,7 @@ view model =
               |> move (0,-96)
     , circle 50
             |> filled
-                (radialGradient 50
+                (radialGradient
                     [ stop orange 0
                     , stop lightOrange 12.5
                     , stop yellow 25
