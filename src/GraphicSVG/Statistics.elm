@@ -50,7 +50,9 @@ countStencilTypes sh =
         Transformed _ shape -> 
             singleShape "transformed"
                 |> mergeDicts (countStencilTypes shape)
-        Group shapes -> List.foldl mergeDicts Dict.empty <| List.map countStencilTypes shapes
+        Group shapes -> 
+            List.foldl mergeDicts Dict.empty 
+                <| List.map countStencilTypes shapes
         GroupOutline shape -> 
             singleShape "group outline"
                 |> mergeDicts (countStencilTypes shape)
