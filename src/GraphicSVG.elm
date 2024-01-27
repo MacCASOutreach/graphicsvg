@@ -1,5 +1,6 @@
 module GraphicSVG exposing
-    ( Collage(..), GraphicSVG
+    ( Shape, Stencil
+    , Collage(..), GraphicSVG
     , collage, mapCollage
     , App, app
     , EllieApp, ellieApp
@@ -71,12 +72,12 @@ not guaranteed and weird things can happen.
 
 # Curves
 
-@docs curve, Pull, curveHelper
+@docs curve, curveHelper
 
 
 # Line Styles
 
-@docs LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
+@docs noline, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -111,7 +112,7 @@ not guaranteed and weird things can happen.
 
 # Let there be colours!
 
-@docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+@docs black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
 
 # Let there be gradients!
@@ -125,7 +126,7 @@ level to the transformations normally handled in the background by GraphicSVG.
 Most users should be happy to use the regular functions applied directly to shapes,
 which are provided in the section above this one.
 
-@docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+@docs ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
 # More Advanced Things
 
@@ -175,6 +176,15 @@ import GraphicSVG.Secret
             , Stop(..)
             )
 
+
+{-| A filled, outlined, or filled and outlined object that can be drawn to the screen using `collage`.
+-}
+type alias Stencil = GraphicSVG.Secret.Stencil
+
+{-| A primitive template representing the shape you wish to draw. This must be turned into
+a `Shape` before being drawn to the screen with `collage` (see below).
+-}
+type alias Shape userMsg = GraphicSVG.Secret.Shape userMsg
 
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.

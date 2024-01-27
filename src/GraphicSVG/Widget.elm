@@ -50,7 +50,7 @@ from this section.
 @docs viewCustom
 -}
 
-import GraphicSVG exposing(Shape(..), createSVG, ident)
+import GraphicSVG exposing(Shape, createSVG, ident)
 import Html
 import Svg
 import Svg.Attributes exposing(width,height,viewBox,clipPath,x,y,id)

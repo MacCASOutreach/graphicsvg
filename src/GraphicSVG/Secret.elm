@@ -1,5 +1,30 @@
 module GraphicSVG.Secret exposing (..)
 
+{-| Advanced Secret module! This is for people who want to access the
+underlying types in the library so you can do advanced things. Most people
+don't need this much detail! I recommend you look at the source of this 
+module to determine how to use these.
+
+# Shapes and Stencils
+@docs Stencil, Shape
+
+# Colours and Gradients
+@docs Color, Gradient, Stop
+
+# Raw Transformations
+@docs Transform
+
+# LineTypes
+@docs LineType
+
+# Text and Fonts
+@docs FontAlign, Face, Font
+
+# Curve Pulls
+@docs Pull
+
+-}
+
 import Html
 import Color
 
@@ -53,23 +78,21 @@ type Shape userMsg
     | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
-
-type FontAlign
-    = AlignLeft
-    | AlignCentred
-    | AlignRight
-
-
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 type Color
     = Solid Color.Color
     | Gradient Gradient
 
+{-| A type representing radial and linear gradients.
+-}
 type Gradient =
       RadialGradient (List Stop)
     | LinearGradient Float {- rotation -} (List Stop)
 
+{-| A type representing stops in a gradient. Consists of one constructor 
+with inputs for the position, transparency and colour.
+-}
 type Stop =
     Stop Float {- stop position -} Float {- transparency -} Color.Color {- colour -}
 
@@ -115,8 +138,19 @@ type LineType
     | Broken (List ( Float, Float )) Float
 
 
+{-| A simple algebraic data type with three constructors:
+- AlignLeft
+- AlignCentred
+- AlignRight
+-}
+type FontAlign
+    = AlignLeft
+    | AlignCentred
+    | AlignRight
+
+
+
 {-| The `Face` type describes the appearance of a text `Stencil`.
-THIS IS NOT EXPOSED BY ANY TYPE AND IS NOW NOT EXPOSED BY THE LIBARY.
 -}
 type Face
     = Face
@@ -138,7 +172,6 @@ type Face
 
 
 {-| The `Font` type describes the font of a text `Stencil`.
-THIS IS NOT EXPOSED BY ANY TYPE AND IS NOW NOT EXPOSED BY THE LIBARY.
 -}
 type Font
     = Serif
