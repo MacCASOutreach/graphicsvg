@@ -18,7 +18,7 @@ module GraphicSVG exposing
     , graphPaper, graphPaperCustom, map
     , Gradient, gradient, radialGradient, Stop, stop, transparentStop, rotateGradient
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
-    , ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+    , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
     , Msg(..), createSVG
     )
 
@@ -72,12 +72,12 @@ not guaranteed and weird things can happen.
 
 # Curves
 
-@docs curve, curveHelper
+@docs Pull, curve, curveHelper
 
 
 # Line Styles
 
-@docs noline, solid, dotted, dashed, longdash, dotdash, custom
+@docs LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -112,12 +112,12 @@ not guaranteed and weird things can happen.
 
 # Let there be colours!
 
-@docs black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+@docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
 
 # Let there be gradients!
 
-@docs stop, transparentStop, gradient, radialGradient, rotateGradient
+@docs Gradient, Stop, stop, transparentStop, gradient, radialGradient, rotateGradient
 
 # Advanced Transformations
 
@@ -126,7 +126,7 @@ level to the transformations normally handled in the background by GraphicSVG.
 Most users should be happy to use the regular functions applied directly to shapes,
 which are provided in the section above this one.
 
-@docs ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+@docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
 # More Advanced Things
 
