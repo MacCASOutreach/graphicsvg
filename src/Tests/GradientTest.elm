@@ -46,7 +46,7 @@ view model =
         |> move (-192/2,0)
     ,  circle 50
         |> filled
-            (radialGradient 50
+            (radialGradient
                 [ stop (hsla (degrees <| model.time*100) saturation lightness 0.5) 0
                 , stop (hsl (degrees <| model.time*100 + 60) saturation lightness) 10
                 , stop (hsl (degrees <| model.time*100 + 120) saturation lightness) 20

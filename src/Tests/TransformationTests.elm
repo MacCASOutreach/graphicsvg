@@ -1,5 +1,8 @@
+module Tests.TransformationTests exposing(..)
+
 import GraphicSVG exposing (..)
 import GraphicSVG.App exposing (appWithTick, AppWithTick, GetKeyState)
+import GraphicSVG.Secret exposing(Shape(..))
 import Url exposing (Url)
 import Browser exposing (UrlRequest)
 import Array

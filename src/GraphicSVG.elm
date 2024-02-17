@@ -1,5 +1,6 @@
 module GraphicSVG exposing
-    ( Stencil, Shape, Collage(..), GraphicSVG
+    ( Shape, Stencil
+    , Collage(..), GraphicSVG
     , collage, mapCollage
     , App, app
     , EllieApp, ellieApp
@@ -7,8 +8,8 @@ module GraphicSVG exposing
     , filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
     , group
     , html
-    , curve, Pull(..), curveHelper
-    , LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
+    , curve, curveHelper
+    , noline, solid, dotted, dashed, longdash, dotdash, custom
     , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
     , clip, union, subtract, outside, ghost
@@ -16,8 +17,8 @@ module GraphicSVG exposing
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
     , gradient, radialGradient, stop, transparentStop, rotateGradient
-    , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
-    , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+    , black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+    , ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
     , Msg(..), createSVG
     )
 
@@ -71,12 +72,12 @@ not guaranteed and weird things can happen.
 
 # Curves
 
-@docs curve, Pull, curveHelper
+@docs curve, curveHelper
 
 
 # Line Styles
 
-@docs LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
+@docs noline, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -111,7 +112,7 @@ not guaranteed and weird things can happen.
 
 # Let there be colours!
 
-@docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+@docs black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
 
 # Let there be gradients!
@@ -125,7 +126,7 @@ level to the transformations normally handled in the background by GraphicSVG.
 Most users should be happy to use the regular functions applied directly to shapes,
 which are provided in the section above this one.
 
-@docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+@docs ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
 # More Advanced Things
 
@@ -161,62 +162,29 @@ import Time exposing (..)
 import Tuple
 import Url exposing (Url)
 import Color
-
-
-{-| A primitive template representing the shape you wish to draw. This must be turned into
-a `Shape` before being drawn to the screen with `collage` (see below).
--}
-type Stencil
-    = Circle Float
-    | Rect Float Float
-    | RoundRect Float Float Float
-    | Oval Float Float
-    | BezierPath ( Float, Float ) (List ( ( Float, Float ), ( Float, Float ) ))
-    | Polygon (List ( Float, Float ))
-    | Path (List ( Float, Float ))
-    | Text Face String
+import GraphicSVG.Secret 
+    exposing(Shape(..)
+            , Stencil(..)
+            , Color(..)
+            , Face(..)
+            , Font(..)
+            , FontAlign(..)
+            , LineType(..)
+            , Transform
+            , Pull(..)
+            , Gradient(..)
+            , Stop(..)
+            )
 
 
 {-| A filled, outlined, or filled and outlined object that can be drawn to the screen using `collage`.
 -}
-type Shape userMsg
-    = Inked (Maybe Color) (Maybe ( LineType, Color )) Stencil
-    | ForeignObject Float Float (Html.Html userMsg)
-    | Move ( Float, Float ) (Shape userMsg)
-    | Rotate Float (Shape userMsg)
-    | Scale Float Float (Shape userMsg)
-    | Skew Float Float (Shape userMsg)
-    | Transformed Transform (Shape userMsg)
-    | Group (List (Shape userMsg))
-    | GroupOutline (Shape userMsg)
-    | AlphaMask (Shape userMsg) (Shape userMsg)
-    | Clip (Shape userMsg) (Shape userMsg)
-    | Everything
-    | Notathing
-    | Link String (Shape userMsg)
-    | Tap userMsg (Shape userMsg)
-    | TapAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | EnterShape userMsg (Shape userMsg)
-    | EnterAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | Exit userMsg (Shape userMsg)
-    | ExitAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | MouseDown userMsg (Shape userMsg)
-    | MouseDownAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | MouseUp userMsg (Shape userMsg)
-    | MouseUpAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | MoveOverAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchStart userMsg (Shape userMsg)
-    | TouchEnd userMsg (Shape userMsg)
-    | TouchStartAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchEndAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | TouchMoveAt (( Float, Float ) -> userMsg) (Shape userMsg)
-    | GraphPaper Float Float Color
+type alias Stencil = GraphicSVG.Secret.Stencil
 
-
-type FontAlign
-    = AlignLeft
-    | AlignCentred
-    | AlignRight
+{-| A primitive template representing the shape you wish to draw. This must be turned into
+a `Shape` before being drawn to the screen with `collage` (see below).
+-}
+type alias Shape userMsg = GraphicSVG.Secret.Shape userMsg
 
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
@@ -351,16 +319,6 @@ type alias GraphicSVG userMsg =
     Collage userMsg
 
 
-{-| The `Color` type is used for filling or outlining a `Stencil`.
--}
-type Color
-    = Solid Color.Color
-    | Gradient Gradient
-
-type Gradient =
-      RadialGradient (List Stop)
-    | LinearGradient Float {- rotation -} (List Stop)
-
 {-| Create a radial gradient from a list of colour stops.
 -}
 radialGradient : List Stop -> Color
@@ -380,9 +338,6 @@ rotateGradient r grad =
     case grad of
         Gradient (LinearGradient rot stops) -> Gradient (LinearGradient (rot + r) stops)
         radialGrad -> radialGrad
-
-type Stop =
-    Stop Float {- stop position -} Float {- transparency -} Color.Color {- colour -}
 
 {-| A colour stop in a gradient. This takes a colour and a position.
 -}
@@ -475,57 +430,6 @@ createGradientSVG id (wid, hei) grad =
                    )
                    []
             ]
-
-{-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
-`LineType` also defines the appearence of `line` and `curve`.
--}
-type LineType
-    = NoLine
-    | Unbroken Float
-    | Broken (List ( Float, Float )) Float
-
-
-{-| The `Face` type describes the appearance of a text `Stencil`.
-THIS IS NOT EXPOSED BY ANY TYPE AND IS NOW NOT EXPOSED BY THE LIBARY.
--}
-type Face
-    = Face
-        Float
-        -- size
-        Bool
-        -- bold
-        Bool
-        -- italic
-        Bool
-        -- underline
-        Bool
-        -- strikethrough
-        Bool
-        -- selectable
-        Font
-        -- font alignment
-        FontAlign
-
-
-{-| The `Font` type describes the font of a text `Stencil`.
-THIS IS NOT EXPOSED BY ANY TYPE AND IS NOW NOT EXPOSED BY THE LIBARY.
--}
-type Font
-    = Serif
-    | Sansserif
-    | FixedWidth
-    | Custom String
-
-
-{-| To make it easier to read the code defining a `curve`,
-and to make sure we always use the right number of curve points
-and pull points (which is one more curve point than pull points),
-we define a special `Pull` type, whose first point is the point
-we pull towards, and second point is the end point for this
-curve segments.
--}
-type Pull
-    = Pull ( Float, Float ) ( Float, Float )
 
 
 {-| _Advanced Function Warning!_ `app` takes one parameter of its own type of the form:
@@ -1375,38 +1279,6 @@ ident =
     ( ( 1, 0, 0 )
     , ( 0, 1, 0 )
     )
-
-
-{-| A matrix representing an SVG transformation matrix of the form:
-
-```
-( ( a , c , e ) , ( b , d , f ) )
-```
-
-or
-
-```
- a c e
- b d f
-```
-
-The a, c, b and d control transformations such as skew, rotate and scale;
-e and f control translation.
-
-These matrices are best built up by starting with the identity matrix and
-applying any number of `*T` functions (see below); for example,
-
-```
-myTransform =
-    ident
-        |> scaleT 2 2
-        |> rotateT (degrees 30)
-        |> moveT (0, 50)
-```
-
--}
-type alias Transform =
-    ( ( Float, Float, Float ), ( Float, Float, Float ) )
 
 
 {-| Apply a move (translation) transformation to a transformation matrix.
