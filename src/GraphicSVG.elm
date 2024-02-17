@@ -8,17 +8,17 @@ module GraphicSVG exposing
     , filled, outlined, repaint, addOutline, rgb, rgba, hsl, hsla
     , group
     , html
-    , curve, curveHelper
-    , noline, solid, dotted, dashed, longdash, dotdash, custom
+    , Pull, curve, curveHelper
+    , LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
     , text, size, bold, italic, underline, strikethrough, centered, alignLeft, alignRight, selectable, sansserif, serif, fixedwidth, customFont
     , move, rotate, scale, scaleX, scaleY, mirrorX, mirrorY, skewX, skewY
     , clip, union, subtract, outside, ghost
     , notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
     , makeTransparent, addHyperlink, puppetShow
     , graphPaper, graphPaperCustom, map
-    , gradient, radialGradient, stop, transparentStop, rotateGradient
-    , black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
-    , ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+    , Gradient, gradient, radialGradient, Stop, stop, transparentStop, rotateGradient
+    , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+    , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
     , Msg(..), createSVG
     )
 
@@ -72,12 +72,12 @@ not guaranteed and weird things can happen.
 
 # Curves
 
-@docs curve, curveHelper
+@docs Pull, curve, curveHelper
 
 
 # Line Styles
 
-@docs noline, solid, dotted, dashed, longdash, dotdash, custom
+@docs LineType, noline, solid, dotted, dashed, longdash, dotdash, custom
 
 
 # Text
@@ -112,12 +112,12 @@ not guaranteed and weird things can happen.
 
 # Let there be colours!
 
-@docs black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
+@docs Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
 
 
 # Let there be gradients!
 
-@docs stop, transparentStop, gradient, radialGradient, rotateGradient
+@docs Gradient, Stop, stop, transparentStop, gradient, radialGradient, rotateGradient
 
 # Advanced Transformations
 
@@ -126,7 +126,7 @@ level to the transformations normally handled in the background by GraphicSVG.
 Most users should be happy to use the regular functions applied directly to shapes,
 which are provided in the section above this one.
 
-@docs ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+@docs Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
 
 # More Advanced Things
 
@@ -318,6 +318,15 @@ Use "Collage userMsg" instead of "GraphicSVG userMsg", as they are identical exc
 type alias GraphicSVG userMsg =
     Collage userMsg
 
+
+{-| A type representing radial and linear gradients.
+-}
+type alias Gradient = GraphicSVG.Secret.Gradient
+
+{-| A type representing stops in a gradient. Consists of one constructor 
+with inputs for the position, transparency and colour.
+-}
+type alias Stop = GraphicSVG.Secret.Stop
 
 {-| Create a radial gradient from a list of colour stops.
 -}
@@ -1009,6 +1018,14 @@ ptOnCircle r n cn =
     in
     ( r * cos angle, r * sin angle )
 
+{-| To make it easier to read the code defining a `curve`,
+and to make sure we always use the right number of curve points
+and pull points (which is one more curve point than pull points),
+we define a special `Pull` type, whose first point is the point
+we pull towards, and second point is the end point for this
+curve segments.
+-}
+type alias Pull = GraphicSVG.Secret.Pull
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point. For example,
 
@@ -1258,6 +1275,36 @@ matrixMult ( ( a, c, e ), ( b, d, f ) ) ( ( a1, c1, e1 ), ( b1, d1, f1 ) ) =
     , ( b * a1 + d * b1, b * c1 + d * d1, f + b * e1 + d * f1 )
     )
 
+
+{-| A matrix representing an SVG transformation matrix of the form:
+
+```
+( ( a , c , e ) , ( b , d , f ) )
+```
+
+or
+
+```
+ a c e
+ b d f
+```
+
+The a, c, b and d control transformations such as skew, rotate and scale;
+e and f control translation.
+
+These matrices are best built up by starting with the identity matrix and
+applying any number of `*T` functions (see below); for example,
+
+```
+myTransform =
+    ident
+        |> scaleT 2 2
+        |> rotateT (degrees 30)
+        |> moveT (0, 50)
+```
+
+-}
+type alias Transform = GraphicSVG.Secret.Transform
 
 {-| The identity or "starting" matrix. Applying this matrix to a shape is the equivalent
 of doing no transformations at all. The matrix itself looks like
@@ -2380,6 +2427,12 @@ repaint color shape =
         GraphPaper s th _ ->
             GraphPaper s th color
 
+{-| The `LineType` type is used to define the appearance of an outline for a `Stencil`.
+`LineType` also defines the appearence of `line` and `curve`.
+-}
+
+type alias LineType = GraphicSVG.Secret.LineType
+
 
 {-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`;
 Note that this is the only way to convert a `Stencil` into a `Shape` that is
@@ -3293,6 +3346,10 @@ mapTriple f ( a1, a2, a3 ) =
 
 -- Colours
 
+{-| The `Color` type is used for filling or outlining a `Stencil`.
+-}
+
+type alias Color = GraphicSVG.Secret.Color
 
 {-| -}
 pink : Color

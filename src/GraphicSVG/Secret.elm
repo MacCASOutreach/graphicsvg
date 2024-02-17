@@ -1,4 +1,5 @@
-module GraphicSVG.Secret exposing (..)
+module GraphicSVG.Secret exposing 
+    (Stencil(..), Shape(..), Color(..), Gradient(..), Stop(..), Transform, LineType(..), FontAlign(..), Face(..), Font(..), Pull(..))
 
 {-| Advanced Secret module! This is for people who want to access the
 underlying types in the library so you can do advanced things. Most people
