@@ -18,7 +18,7 @@ module GraphicSVG exposing
     , graphPaper, graphPaperCustom, map
     , Gradient, gradient, radialGradient, Stop, stop, transparentStop, rotateGradient
     , Color, black, blank, blue, brown, charcoal, darkBlue, darkBrown, darkCharcoal, darkGray, darkGreen, darkGrey, darkOrange, darkPurple, darkRed, darkYellow, gray, green, grey, hotPink, lightBlue, lightBrown, lightCharcoal, lightGray, lightGreen, lightGrey, lightOrange, lightPurple, lightRed, lightYellow, orange, pink, purple, red, white, yellow
-    , Transform, ident, moveT, rotateT, scaleT, skewT, rotateAboutT, transform
+    
     , Msg(..), createSVG
     )
 
@@ -162,8 +162,7 @@ import Time exposing (..)
 import Tuple
 import Url exposing (Url)
 import Color
-import GraphicSVG.Secret 
-    exposing(Shape(..)
+import GraphicSVG.Types exposing (Shape(..)
             , Stencil(..)
             , Color(..)
             , Face(..)
@@ -173,18 +172,18 @@ import GraphicSVG.Secret
             , Transform
             , Pull(..)
             , Gradient(..)
-            , Stop(..)
-            )
-
+            , Stop(..))
+import GraphicSVG.Transforms exposing (ident, moveT, rotateT, scaleT, skewT, rotateAboutT)
+import GraphicSVG.BoundingBox exposing (getBoundingBox)
 
 {-| A filled, outlined, or filled and outlined object that can be drawn to the screen using `collage`.
 -}
-type alias Stencil = GraphicSVG.Secret.Stencil
+type alias Stencil = GraphicSVG.Types.Stencil
 
 {-| A primitive template representing the shape you wish to draw. This must be turned into
 a `Shape` before being drawn to the screen with `collage` (see below).
 -}
-type alias Shape userMsg = GraphicSVG.Secret.Shape userMsg
+type alias Shape userMsg = GraphicSVG.Types.Shape userMsg
 
 
 {-| To compose multiple pages or components which each have a Msg/view/update, we need to map messages.
@@ -321,12 +320,12 @@ type alias GraphicSVG userMsg =
 
 {-| A type representing radial and linear gradients.
 -}
-type alias Gradient = GraphicSVG.Secret.Gradient
+type alias Gradient = GraphicSVG.Types.Gradient
 
 {-| A type representing stops in a gradient. Consists of one constructor 
 with inputs for the position, transparency and colour.
 -}
-type alias Stop = GraphicSVG.Secret.Stop
+type alias Stop = GraphicSVG.Types.Stop
 
 {-| Create a radial gradient from a list of colour stops.
 -}
@@ -1025,7 +1024,7 @@ we define a special `Pull` type, whose first point is the point
 we pull towards, and second point is the end point for this
 curve segments.
 -}
-type alias Pull = GraphicSVG.Secret.Pull
+type alias Pull = GraphicSVG.Types.Pull
 
 {-| Creates a curve starting at a point, pulled towards a point, ending at a third point. For example,
 
@@ -1304,207 +1303,9 @@ myTransform =
 ```
 
 -}
-type alias Transform = GraphicSVG.Secret.Transform
-
-{-| The identity or "starting" matrix. Applying this matrix to a shape is the equivalent
-of doing no transformations at all. The matrix itself looks like
-
-```
-ident = ( ( 1 , 0 , 0 ) , ( 0 , 1 , 0 ) )
-```
-
-or,
-
-```
- 1 0 0
- 0 1 0
-```
-
--}
-ident : Transform
-ident =
-    ( ( 1, 0, 0 )
-    , ( 0, 1, 0 )
-    )
+type alias Transform = GraphicSVG.Types.Transform
 
 
-{-| Apply a move (translation) transformation to a transformation matrix.
-This is designed to be used as part of a pipe:
-
-```
-ident
-    |> moveT (15,-30.5)
-```
-
--}
-moveT : ( Float, Float ) -> Transform -> Transform
-moveT ( u, v ) ( ( a, c, tx ), ( b, d, ty ) ) =
-    ( ( a, c, tx + a * u + c * v )
-    , ( b, d, ty + b * u + d * v )
-    )
-
-
-{-| Apply a rotation transformation to a transformation matrix.
-This is designed to be used as part of a pipe:
-
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-```
-
--}
-rotateT : Float -> Transform -> Transform
-rotateT rad ( ( a, c, tx ), ( b, d, ty ) ) =
-    let
-        sinX =
-            sin rad
-
-        cosX =
-            cos rad
-    in
-    ( ( a * cosX + c * sinX, c * cosX - a * sinX, tx )
-    , ( b * cosX + d * sinX, d * cosX - b * sinX, ty )
-    )
-
-
-{-| Apply a scale transformation to a transformation matrix. The first argument
-scales in x and the second argument scales in y. This is designed
-to be used as part of a pipe:
-
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-    |> scaleT 4 0.4
-```
-
--}
-scaleT : Float -> Float -> Transform -> Transform
-scaleT sx sy ( ( a, c, tx ), ( b, d, ty ) ) =
-    ( ( a * sx, c * sy, tx )
-    , ( b * sx, d * sy, ty )
-    )
-
-
-{-| Apply a skew transformation to a matrix. The first argument
-skews in x and the second argument skews in y. This is designed
-to be used as part of a pipe:
-
-```
-ident
-    |> moveT (15,-30.5)
-    |> rotateT (degrees -30)
-    |> scaleT 4 0.4
-    |> skewT 0.5 1.3
-```
-
--}
-skewT : Float -> Float -> Transform -> Transform
-skewT skx sky ( ( a, c, tx ), ( b, d, ty ) ) =
-    let
-        tanX =
-            tan -skx
-
-        tanY =
-            tan -sky
-    in
-    ( ( a + c * tanY, c + a * tanX, tx )
-    , ( b + d * tanY, d + b * tanX, ty )
-    )
-
-
-{-| Apply a rotation about a given point to a `Transform` matrix. For example,
-the following transform will rotate a `Shape` 30 degrees about the point (0,50):
-
-```
-rotateAbout050 =
-    ident
-        |> rotateAboutT (0, 50) (degrees 30)
-```
-
--}
-rotateAboutT : ( Float, Float ) -> Float -> Transform -> Transform
-rotateAboutT ( u, v ) rad ( ( a, c, tx ), ( b, d, ty ) ) =
-    let
-        sinX =
-            sin rad
-
-        cosX =
-            cos rad
-    in
-    ( ( a * cosX + c * sinX, c * cosX - a * sinX, tx + a * u + c * v - v * (c * cosX - a * sinX) - u * (a * cosX + c * sinX) )
-    , ( b * cosX + d * sinX, d * cosX - b * sinX, ty + b * u + d * v - v * (d * cosX - b * sinX) - u * (b * cosX + d * sinX) )
-    )
-
-
-{-| Manually transform a shape using a `Transform` matrix. Matrix multiplication will
-be used to apply the given matrix to any transformations of the current
-shape. This is designed to be used in the usual way in a pipe:
-
-```
-circle 10
-    |> filled red
-    |> transform moveLeft50
-
-moveLeft50 =
-    ident
-        |> moveT (50,0)
-```
-
-NOTE: Transformations generated using pipes this way are applied backwards compared
-to the "regular" `Shape userMsg` transformation functions. For example, `rect0` and
-`rect1` below are equivalent:
-
-```
-myTransform =
-    ident
-        |> scaleT 2 2
-        |> rotateT (degrees 30)
-        |> moveT (0, 50)
-
-rect0 =
-    rect 20 10
-        |> filled red
-        |> transform myTransform
-
-rect1 =
-    rect 20 10
-        |> filled red
-        |> move (0, 50)
-        |> rotate (degrees 30)
-        |> scale 2
-```
-
-On the other hand, single transformations produce a result consistent with the
-`Shape userMsg` transformations. `rect2` is also equivalent to the two above:
-
-```
-moveRight50 =
-    ident
-        |> moveT (50,0)
-
-scale2 =
-    ident
-        |> scaleT 2 2
-
-rotate30 =
-    ident
-        |> rotateT (degrees 30)
-
-rect2 =
-    rect 20 10
-        |> filled red
-        |> transform moveRight50
-        |> transform scale2
-        |> transform rotate30
-```
-
-However, chaining together transformations in this way is discouraged because
-it is less efficient than the regular `Shape userMsg` transformations in
-the "Transformations" section.
-
--}
 transform : Transform -> Shape userMsg -> Shape userMsg
 transform tm sh =
     Transformed tm sh
@@ -2431,7 +2232,7 @@ repaint color shape =
 `LineType` also defines the appearence of `line` and `curve`.
 -}
 
-type alias LineType = GraphicSVG.Secret.LineType
+type alias LineType = GraphicSVG.Types.LineType
 
 
 {-| Outline a Stencil with a `LineType` and `Color`, creating a `Shape`;
@@ -3349,7 +3150,7 @@ mapTriple f ( a1, a2, a3 ) =
 {-| The `Color` type is used for filling or outlining a `Stencil`.
 -}
 
-type alias Color = GraphicSVG.Secret.Color
+type alias Color = GraphicSVG.Types.Color
 
 {-| -}
 pink : Color
