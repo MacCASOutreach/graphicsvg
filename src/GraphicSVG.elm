@@ -99,7 +99,7 @@ not guaranteed and weird things can happen.
 
 # Notifications
 
-@docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt
+@docs notifyTap, notifyTapAt, notifyEnter, notifyEnterAt, notifyLeave, notifyLeaveAt, notifyMouseMoveAt, notifyMouseDown, notifyMouseDownAt, notifyMouseUp, notifyMouseUpAt, notifyTouchStart, notifyTouchStartAt, notifyTouchEnd, notifyTouchEndAt, notifyTouchMoveAt, notifyPtrStart, notifyPtrStartAt, notifyPtrEnd, notifyPtrCancel, notifyPtrEndAt, notifyPtrMoveAt
 
 
 # Miscellaneous
@@ -1769,34 +1769,34 @@ notifyPtrStart : (PtrType -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrStart msg shape =
     PtrStart msg shape
 
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user begins touching a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's pointer when the user begins touching a `Shape`.
 -}
 notifyPtrStartAt : (PtrType -> ( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrStartAt msg shape =
     PtrStartAt msg shape
 
 
-{-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
+{-| Receive a message (`userMsg`) when the user lifts their pointer off a `Shape`.
 -}
 notifyPtrEnd : (PtrType -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrEnd msg shape =
     PtrEnd msg shape
 
-{-| Receive a message (`userMsg`) when the user lifts their finger off a `Shape`.
+{-| Receive a message (`userMsg`) when the user lifts their pointer off a `Shape`.
 -}
 notifyPtrCancel : (PtrType -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrCancel msg shape =
     PtrCancel msg shape
 
 
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user lifts their finger off a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's pointer when the user lifts their pointer off a `Shape`.
 -}
 notifyPtrEndAt : (PtrType -> ( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrEndAt msg shape =
     PtrEndAt msg shape
 
 
-{-| Receive a message (`userMsg`) with the x and y position of the user's finger when the user moves their finger over a `Shape`.
+{-| Receive a message (`userMsg`) with the x and y position of the user's pointer when the user moves their pointer over a `Shape`.
 -}
 notifyPtrMoveAt : (PtrType -> ( Float, Float ) -> userMsg) -> Shape userMsg -> Shape userMsg
 notifyPtrMoveAt msg shape =

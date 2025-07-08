@@ -9,6 +9,10 @@ module to determine how to use these.
 # Shapes and Stencils
 @docs Stencil, Shape
 
+# Pointer Types
+@docs PtrType(..)
+
+
 # Colours and Gradients
 @docs Color, Gradient, Stop
 
@@ -85,6 +89,15 @@ type Shape userMsg
     | PtrMoveAt (PtrType -> ( Float, Float ) -> userMsg) (Shape userMsg)
     | GraphPaper Float Float Color
 
+{-| Represents the different types of pointer devices that can interact with the application.
+
+    - `MousePtr` : A mouse pointer device.
+    - `TouchPtr` : A touch-based pointer device (e.g., touchscreen).
+    - `PenPtr`   : A pen or stylus pointer device.
+
+This type can be used to distinguish between input sources for handling user interactions appropriately.
+Note that this unified pointer API might not be fully supported in all browsers.
+-}
 type PtrType = MousePtr | TouchPtr | PenPtr
 
 {-| The `Color` type is used for filling or outlining a `Stencil`.
